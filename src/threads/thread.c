@@ -24,9 +24,6 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
-/* list of processes in THREAD_BLOCKED state, that is, processes that are blocked */
-static struct list wait_list;
-
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
@@ -252,19 +249,6 @@ thread_unblock (struct thread *t)
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
-
-/*Given thread should be slept.
- * If it is not a idle thread, insert it in wait_list with increasing wake_me_time order. */
-void thread_sleep (struct thread *t)
-{
-  ASSERT (is_thread (t));
-
-  if (t != idle_thread)
-  {
-    if (list
-  }
-}
-
 
 /* Returns the name of the running thread. */
 const char *
