@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "../lib/kernel/list.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -23,6 +24,8 @@
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
 static struct list ready_list;
+
+static struct list wait_list;
 
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
@@ -92,7 +95,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-
+  list_init (&wait_list);
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -320,6 +323,24 @@ thread_yield (void)
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
+}
+
+void
+thread_sleep ()
+{
+  struct thread *cur = thread_current ();
+  if (cur != idle_thread)
+    {
+      if (list_empty(&wait_list))
+        {
+         list_push_back(&wait_list, &cur->elem);
+        } 
+      else
+       {
+        list_insert_ordered (&wait_list, &cur->elem, list_less_func *less, NULL);
+       }
+      thread_block();
+    }
 }
 
 /* Invoke function 'func' on all threads, passing along 'aux'.
