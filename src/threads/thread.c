@@ -24,6 +24,10 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
+/* List of processes in THREAD_BLOCKED stat, that is, processes 
+   that are blocked. */
+static struct list wait_list;
+
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
@@ -70,6 +74,7 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
+static bool wake_less (const struct list_elem *a_, const struct list_elem *b_, void *aus UNUSED);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -91,6 +96,7 @@ thread_init (void)
 
   lock_init (&tid_lock);
   list_init (&ready_list);
+  list_init (&wait_list);
   list_init (&all_list);
 
   /* Set up a thread structure for the running thread. */
@@ -109,10 +115,8 @@ thread_start (void)
   struct semaphore idle_started;
   sema_init (&idle_started, 0);
   thread_create ("idle", PRI_MIN, idle, &idle_started);
-
   /* Start preemptive thread scheduling. */
   intr_enable ();
-
   /* Wait for the idle thread to initialize idle_thread. */
   sema_down (&idle_started);
 }
@@ -208,7 +212,6 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-
   return tid;
 }
 
@@ -249,6 +252,28 @@ thread_unblock (struct thread *t)
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
+
+/* Given thread should be slept. 
+ * If it is not a idle thread, insert it in wait_list with increasing 
+ * wake_me_time order. */
+void
+thread_sleep (struct thread *t)
+{
+  ASSERT (is_thread (t));
+
+  if (t != idle_thread)
+  {
+    if (list_empty (&wait_list))  /* When the list is empty */
+    {
+      list_push_back (&wait_list, &t->elem);
+    }
+    else
+    {
+      list_insert_ordered (&wait_list, &t->elem, wake_less, NULL);
+    }
+  }
+}
+
 
 /* Returns the name of the running thread. */
 const char *
@@ -497,6 +522,67 @@ next_thread_to_run (void)
     return idle_thread;
   else
     return list_entry (list_pop_front (&ready_list), struct thread, elem);
+}
+
+/* With given current time TIME, wake threads in wait_list
+ * if it is time to wake up */
+void
+thread_wake (uint64_t time) {
+  /* If wait_list is empty, done*/
+  if (list_empty (&wait_list))
+  {
+    return;
+  }
+  struct list_elem *e = list_front (&wait_list); 
+  struct thread *t = list_entry (e, struct thread, elem);
+  
+  while (t->wake_me_time <= time)
+  {
+    if (t->is_alarm_clock_on)
+    {
+      t->wake_me_time = (uint64_t) 0;
+      t->is_alarm_clock_on = false;
+      list_pop_front (&wait_list);
+      thread_unblock (t);
+      if (list_empty (&wait_list))
+      {
+        break;
+      }
+      e = list_front (&wait_list);
+      t = list_entry (e, struct thread, elem);
+    }
+  }
+}
+
+/* used for sort wait_list according to wake_me_time */
+static bool
+wake_less (const struct list_elem *a_ , const struct list_elem *b_, void *aux UNUSED)
+{
+  const struct thread *a = list_entry (a_, struct thread, elem);
+  const struct thread *b = list_entry (b_, struct thread, elem);
+   
+  if (a->is_alarm_clock_on)
+  {
+    if (b->is_alarm_clock_on)
+    {
+      return a->wake_me_time < b->wake_me_time;
+    }
+    else
+    {
+      return true;
+    }
+  }
+  else
+  {
+    if (b->is_alarm_clock_on)
+    {
+      return false;
+    }
+    else
+    {
+      return true;
+    }
+  }
 }
 
 /* Completes a thread switch by activating the new thread's page
