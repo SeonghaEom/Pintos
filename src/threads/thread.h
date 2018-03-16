@@ -88,6 +88,9 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    bool is_alarm_clock_on;             /* Does wait for timer */
+    uint64_t wake_me_time;              /* Wake me at this time */
+    
     struct list_elem allelem;           /* List element for all threads list. */
     int64_t wake_me_time;
     bool is_alarm_clock_on;
@@ -120,6 +123,7 @@ tid_t thread_create (const char *name, int priority, thread_func *, void *);
 
 void thread_block (void);
 void thread_unblock (struct thread *);
+void thread_sleep (struct thread *t);
 
 struct thread *thread_current (void);
 tid_t thread_tid (void);
@@ -140,7 +144,6 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
-void thread_sleep();
-void thread_wake(int64_t time);
+void thread_wake (uint64_t time);
 
 #endif /* threads/thread.h */
