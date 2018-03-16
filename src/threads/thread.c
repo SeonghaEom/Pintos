@@ -348,79 +348,7 @@ thread_yield (void)
   intr_set_level (old_level);
 }
 
-void
-thread_sleep ()
-{
-  struct thread *cur = thread_current ();
-  if (cur != idle_thread)
-    {
-      if (list_empty(&wait_list))
-        {
-         list_push_back(&wait_list, &cur->elem);
-        } 
-      else
-       {
-        list_insert_ordered (&wait_list, &cur->elem, *wake_less, NULL);
-       }
-      thread_block();
-    }
-}
 
-void thread_wake (int64_t time)
-{
-  if (list_empty(&wait_list))
-  {
-    return ;
-  }
-
-  struct list_elem *e = list_front (&wait_list);
-  struct thread *t = list_entry(e, struct thread, elem);
-
-  while (t->wake_me_time <= time)
-  {
-    if (t->is_alarm_clock_on)
-    {
-      t->wake_me_time = (int64_t) 0 ;
-      t->is_alarm_clock_on = false;
-      list_pop_front (&wait_list);
-      thread_unblock (t);
-      if (list_empty (&wait_list))
-      {
-        break;
-      }
-      e = list_front (&wait_list);
-      t = list_entry (e, struct thread, elem);
-    }
-  }
-}
-
-static bool
-wake_less (const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED)
-{
-  const struct thread *a = list_entry(a_, struct thread, elem);
-  const struct thread *b = list_entry(b_, struct thread, elem);
-
-  if (a->is_alarm_clock_on)
-  {
-    if (b->is_alarm_clock_on)
-    {
-      return (a->wake_me_time < b->wake_me_time );
-    }
-    else
-    {
-      return true;
-    }
-  }
-  else
-  {
-    if (b->is_alarm_clock_on)
-    {  return false;}
-    else
-    {
-      return true;
-    }
-  }
-}
 /* Invoke function 'func' on all threads, passing along 'aux'.
    This function must be called with interrupts off. */
 void
