@@ -69,13 +69,15 @@ static void kernel_thread (thread_func *, void *aux);
 static void idle (void *aux UNUSED);
 static struct thread *running_thread (void);
 static struct thread *next_thread_to_run (void);
+static struct thread *highest_priority_ready_list (void);
 static void init_thread (struct thread *, const char *name, int priority);
 static bool is_thread (struct thread *) UNUSED;
 static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-static bool wake_less (const struct list_elem *a_, const struct list_elem *b_, void *aus UNUSED);
+static bool priority_more (const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED);
+static bool wake_less (const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -371,6 +373,12 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  /* I wonder that we should sort ready_list again here or not */
+  list_sort (&ready_list, priority_more, NULL);
+  if (! list_empty (&ready_list)) 
+    /* If new_priority is lower than highest priority in ready_list, yield */
+    if (list_entry (list_front (&ready_list), struct thread, elem)->priority > new_priority)
+      thread_yield();
 }
 
 /* Returns the current thread's priority. */
@@ -523,7 +531,18 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+    return highest_priority_ready_list ();
+}
+
+/* Returns thread which has highest priority in current ready_list */
+static struct thread *
+highest_priority_ready_list (void)
+{
+  if (list_empty (&ready_list))
+    return idle_thread;
+  else 
+    list_sort (&ready_list, priority_more, NULL);
+    return list_entry (list_pop_front (&ready_list), struct thread, elem);  
 }
 
 /* With given current time TIME, wake threads in wait_list
@@ -555,7 +574,16 @@ thread_wake (uint64_t time) {
     }
   }
 }
+/* used for sort ready_list according to priority 
+ * It is simple comparison only according to priority */
+static bool
+priority_more (const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED)
+{
+  const struct thread *a = list_entry (a_, struct thread, elem);
+  const struct thread *b = list_entry (b_, struct thread, elem);
 
+  return a->priority > b->priority;
+}
 /* used for sort wait_list according to wake_me_time */
 static bool
 wake_less (const struct list_elem *a_ , const struct list_elem *b_, void *aux UNUSED)

@@ -88,6 +88,7 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    /* pj1_alaramclock */ 
     bool is_alarm_clock_on;             /* Does wait for timer */
     uint64_t wake_me_time;              /* Wake me at this time */
     
