@@ -131,14 +131,14 @@ sema_self_test (void)
   struct semaphore sema[2];
   int i;
 
-  printf ("Testing semaphores...");
+  printf ("Testing semaphores..\n");
   sema_init (&sema[0], 0);
   sema_init (&sema[1], 0);
   thread_create ("sema-test", PRI_DEFAULT, sema_test_helper, &sema);
   for (i = 0; i < 10; i++) 
     {
-      sema_up (&sema[0]);
-      sema_down (&sema[1]);
+      sema_up (&sema[0]);printf("sema_self_test, sema_up, sema[0], %d번째\n", i);
+      sema_down (&sema[1]);printf("sema_self_test, sema_down, sema[1], %d번째\n", i);
     }
   printf ("done.\n");
 }
@@ -152,8 +152,8 @@ sema_test_helper (void *sema_)
 
   for (i = 0; i < 10; i++) 
     {
-      sema_down (&sema[0]);
-      sema_up (&sema[1]);
+      sema_down (&sema[0]);printf("sema_test_helper, sema_down, sema[0], %d번째\n", i);
+      sema_up (&sema[1]);printf("sema_test_helper, sema_up, sema[1], %d번째\n", i);
     }
 }
 

@@ -76,6 +76,8 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 static bool wake_less (const struct list_elem *a_, const struct list_elem *b_, void *aus UNUSED);
+static bool run_less (const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED);
+static bool need_yield(void);
 
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
@@ -193,7 +195,6 @@ thread_create (const char *name, int priority,
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
   old_level = intr_disable ();
-
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -210,9 +211,15 @@ thread_create (const char *name, int priority,
   sf->ebp = 0;
 
   intr_set_level (old_level);
-
+  
   /* Add to run queue. */
   thread_unblock (t);
+  /* PRIORITY: before added to ready_list, check if it needs context switching */
+  while (need_yield())
+  { 
+    thread_yield();
+    
+  }
   return tid;
 }
 
@@ -249,9 +256,14 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  /* PRIORITY: instead of list_push_back, insert in largest-HEAD order */
+  list_reverse (&ready_list);
+  list_insert_ordered (&ready_list, &t->elem, run_less, NULL);
+  list_reverse (&ready_list);
+
   t->status = THREAD_READY;
   intr_set_level (old_level);
+
 }
 
 /* Given thread should be slept. 
@@ -338,16 +350,25 @@ thread_yield (void)
   struct thread *cur = thread_current ();
   enum intr_level old_level;
   
-  ASSERT (!intr_context ());
+  ASSERT (!intr_context ());/*not external interrupt */
 
   old_level = intr_disable ();
-  if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+  if (cur != idle_thread)
+    /* PRIORITY: instead of list_push_back, push thread in largest-priority order */
+    list_reverse(&ready_list);
+    list_insert_ordered (&ready_list, &cur->elem, run_less, NULL);
+    list_reverse (&ready_list);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
 }
 
+/* PRIORITY: true if currently running thread is not of the highest priority anymore */
+static bool
+need_yield(void)
+{
+  return list_entry(list_begin(&ready_list), struct thread, elem)->priority > thread_get_priority();
+}
 
 /* Invoke function 'func' on all threads, passing along 'aux'.
    This function must be called with interrupts off. */
@@ -371,6 +392,11 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  /* PRIORITY: if the new priority is not the highest, yield */
+  if (need_yield())
+  {
+    thread_yield();
+  }
 }
 
 /* Returns the current thread's priority. */
@@ -410,7 +436,7 @@ thread_get_recent_cpu (void)
   /* Not yet implemented. */
   return 0;
 }
-
+
 /* Idle thread.  Executes when no other thread is ready to run.
 
    The idle thread is initially put on the ready list by
@@ -459,7 +485,7 @@ kernel_thread (thread_func *function, void *aux)
   function (aux);       /* Execute the thread function. */
   thread_exit ();       /* If function() returns, kill the thread. */
 }
-
+
 /* Returns the running thread. */
 struct thread *
 running_thread (void) 
@@ -535,8 +561,12 @@ thread_wake (uint64_t time) {
   {
     return;
   }
-  struct list_elem *e = list_front (&wait_list); 
+
+  struct list_elem *e = list_front(&wait_list);
+ /* struct list_elem *e = list_pop_front (&wait_list); */
   struct thread *t = list_entry (e, struct thread, elem);
+ /* struct list tmp;
+  list_init(&tmp);*/
   
   while (t->wake_me_time <= time)
   {
@@ -546,6 +576,27 @@ thread_wake (uint64_t time) {
       t->is_alarm_clock_on = false;
       list_pop_front (&wait_list);
       thread_unblock (t);
+
+      if (list_empty (&wait_list))
+      {
+        break;
+      }
+      e = list_pop_front (&wait_list);
+      t = list_entry (e, struct thread, elem);
+    }
+  list_push_front(&wait_list, e);
+  }
+  
+  /*
+    while (t->wake_me_time <= time)
+  {
+    if (t->is_alarm_clock_on)
+    {
+      t->wake_me_time = (uint64_t) 0;
+      t->is_alarm_clock_on = false;
+      list_pop_front (&wait_list);
+      list_push_back(&tmp, e);
+
       if (list_empty (&wait_list))
       {
         break;
@@ -554,6 +605,13 @@ thread_wake (uint64_t time) {
       t = list_entry (e, struct thread, elem);
     }
   }
+    while (!list_empty(&tmp))
+  { 
+    e = list_pop_front(&tmp);
+    t = list_entry(e, struct thread, elem);
+    thread_unblock(t);
+  }
+  */
 }
 
 /* used for sort wait_list according to wake_me_time */
@@ -586,7 +644,14 @@ wake_less (const struct list_elem *a_ , const struct list_elem *b_, void *aux UN
     }
   }
 }
-
+/*PRIORITY: less or equal function that compares priority*/
+static bool
+run_less (const struct list_elem *a_ , const struct list_elem *b_, void *aux UNUSED)
+{
+  const struct thread *a = list_entry (a_, struct thread, elem);
+  const struct thread *b = list_entry (b_, struct thread, elem);
+  return a->priority <= b->priority ;
+}
 /* Completes a thread switch by activating the new thread's page
    tables, and, if the previous thread is dying, destroying it.
 

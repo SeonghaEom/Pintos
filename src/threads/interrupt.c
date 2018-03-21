@@ -111,7 +111,7 @@ intr_disable (void)
 
   return old_level;
 }
-
+
 /* Initializes the interrupt system. */
 void
 intr_init (void)

@@ -23,24 +23,28 @@ test_alarm_priority (void)
 
   wake_time = timer_ticks () + 5 * TIMER_FREQ;
   sema_init (&wait_sema, 0);
-  
+
   for (i = 0; i < 10; i++) 
     {
       int priority = PRI_DEFAULT - (i + 5) % 10 - 1;
       char name[16];
       snprintf (name, sizeof name, "priority %d", priority);
+     
       thread_create (name, priority, alarm_priority_thread, NULL);
+ 
     }
 
   thread_set_priority (PRI_MIN);
-
+  
   for (i = 0; i < 10; i++)
+ 
     sema_down (&wait_sema);
 }
 
 static void
 alarm_priority_thread (void *aux UNUSED) 
 {
+ 
   /* Busy-wait until the current time changes. */
   int64_t start_time = timer_ticks ();
   while (timer_elapsed (start_time) == 0)
