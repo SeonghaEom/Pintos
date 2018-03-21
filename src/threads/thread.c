@@ -17,20 +17,20 @@
 #endif
 
 /* Random value for struct thread's `magic' member.
-   Used to detect stack overflow.  See the big comment at the top
-   of thread.h for details. */
+ * Used to detect stack overflow.  See the big comment at the top
+ * of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
 /* List of processes in THREAD_READY state, that is, processes
-   that are ready to run but not actually running. */
+ * that are ready to run but not actually running. */
 static struct list ready_list;
 
 /* List of processes in THREAD_BLOCKED stat, that is, processes 
-   that are blocked. */
+ * that are blocked. */
 static struct list wait_list;
 
 /* List of all processes.  Processes are added to this list
-   when they are first scheduled and removed when they exit. */
+ * when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
 /* Idle thread. */
@@ -60,8 +60,8 @@ static long long user_ticks;    /* # of timer ticks in user programs. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
 
 /* If false (default), use round-robin scheduler.
-   If true, use multi-level feedback queue scheduler.
-   Controlled by kernel command-line option "-o mlfqs". */
+ * If true, use multi-level feedback queue scheduler.
+ * Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 
 static void kernel_thread (thread_func *, void *aux);
@@ -80,18 +80,18 @@ static bool priority_more (const struct list_elem *a_, const struct list_elem *b
 static bool wake_less (const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED);
 
 /* Initializes the threading system by transforming the code
-   that's currently running into a thread.  This can't work in
-   general and it is possible in this case only because loader.S
-   was careful to put the bottom of the stack at a page boundary.
-
-   Also initializes the run queue and the tid lock.
-
-   After calling this function, be sure to initialize the page
-   allocator before trying to create any threads with
-   thread_create().
-
-   It is not safe to call thread_current() until this function
-   finishes. */
+ * that's currently running into a thread.  This can't work in
+ * general and it is possible in this case only because loader.S
+ * was careful to put the bottom of the stack at a page boundary.
+ * 
+ * Also initializes the run queue and the tid lock.
+ * 
+ * After calling this function, be sure to initialize the page
+ * allocator before trying to create any threads with
+ * thread_create().
+ * 
+ * It is not safe to call thread_current() until this function
+ * finishes. */
 void
 thread_init (void) 
 {
@@ -215,6 +215,9 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+  if (t->priority > thread_current()->priority) 
+    thread_yield();
+
   return tid;
 }
 
@@ -251,8 +254,10 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
+  
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
+  
   intr_set_level (old_level);
 }
 
