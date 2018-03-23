@@ -380,6 +380,19 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  thread_current ()->real_priority = new_priority;
+
+  // TODO : Should think about current thread's waiting lock
+  //if (thread_current ()->waiting_lock != NULL)
+
+  // If current thread has any number of locks, 
+  if (list_size (&thread_current ()->my_locks) != 0)
+  {
+    struct list_elem *e = list_begin (&thread_current ()->my_locks);
+    struct lock *l = list_entry (e, struct lock, elem);
+    update_priority_of_lock_holder (l);
+  }
+
   /* I wonder that we should sort ready_list again here or not */
   list_sort (&ready_list, priority_more, NULL);
   if (! list_empty (&ready_list)) 

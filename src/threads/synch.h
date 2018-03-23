@@ -24,7 +24,7 @@ struct lock
     struct thread *holder;      /* Thread holding lock (for debugging). */
     struct semaphore semaphore; /* Binary semaphore controlling access. */
     
-    struct list_elem elem;      /* List element */
+    struct list_elem elem;      /* Thread which has this lock will have it. */
   };
 
 void lock_init (struct lock *);
@@ -32,6 +32,11 @@ void lock_acquire (struct lock *);
 bool lock_try_acquire (struct lock *);
 void lock_release (struct lock *);
 bool lock_held_by_current_thread (const struct lock *);
+
+/* pj1_priority scheduler */
+void update_priority_of_lock_holder (struct lock *);
+void update_priority_of_semaphore (struct semaphore *);
+
 
 /* Condition variable. */
 struct condition 

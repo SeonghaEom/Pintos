@@ -95,7 +95,8 @@ struct thread
     bool is_donated;                    /* Current priority is donated */
     int real_priority;                  /* If donated, real priority */
     struct list my_locks;               /* Locks that thread have */
-
+    struct lock *waiting_lock;          /* Current thread is waiting for this */
+    
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
