@@ -69,7 +69,6 @@ static void kernel_thread (thread_func *, void *aux);
 static void idle (void *aux UNUSED);
 static struct thread *running_thread (void);
 static struct thread *next_thread_to_run (void);
-static struct thread *highest_priority_ready_list (void);
 static void init_thread (struct thread *, const char *name, int priority);
 static bool is_thread (struct thread *) UNUSED;
 static void *alloc_frame (struct thread *, size_t size);
@@ -106,6 +105,8 @@ thread_init (void)
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
+  /* Init list my_locks for first thread */
+  list_init (&initial_thread->my_locks);
   initial_thread->tid = allocate_tid ();
 }
 
@@ -214,6 +215,7 @@ thread_create (const char *name, int priority,
   intr_set_level (old_level);
 
   /* Add to run queue. */
+  list_init (&t->my_locks);
   thread_unblock (t);
   if (t->priority > thread_current()->priority) 
     thread_yield();
@@ -536,18 +538,26 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else
-    return highest_priority_ready_list ();
+    return highest_priority_thread_in_list (&ready_list);
 }
 
-/* Returns thread which has highest priority in current ready_list */
-static struct thread *
-highest_priority_ready_list (void)
+/* Returns thread which has highest priority in current ready_list 
+ * Must check given list is not empty */
+struct thread *
+highest_priority_thread_in_list (struct list *list)
 {
-  if (list_empty (&ready_list))
+  if (list_empty (list))
     return idle_thread;
   else 
-    list_sort (&ready_list, priority_more, NULL);
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);  
+    list_sort (list, priority_more, NULL);
+    return list_entry (list_pop_front (list), struct thread, elem);  
+}
+
+void
+sort_priority_thread_list (struct list *list)
+{
+  if (!list_empty (list))
+    list_sort (list, priority_more, NULL);
 }
 
 /* With given current time TIME, wake threads in wait_list

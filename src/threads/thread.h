@@ -91,12 +91,16 @@ struct thread
     /* pj1_alaramclock */ 
     bool is_alarm_clock_on;             /* Does wait for timer */
     uint64_t wake_me_time;              /* Wake me at this time */
-    
+    /* pj1_priority */
+    bool is_donated;                    /* Current priority is donated */
+    int real_priority;                  /* If donated, real priority */
+    struct list my_locks;               /* Locks that thread have */
+
     struct list_elem allelem;           /* List element for all threads list. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-
+    
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
@@ -144,5 +148,7 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 void thread_wake (uint64_t time);
+struct thread *highest_priority_thread_in_list (struct list *list);
+void sort_priority_thread_list (struct list *list);
 
 #endif /* threads/thread.h */
