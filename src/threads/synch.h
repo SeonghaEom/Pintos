@@ -9,6 +9,7 @@ struct semaphore
   {
     unsigned value;             /* Current value. */
     struct list waiters;        /* List of waiting threads. */
+    struct thread* highest_thread;
   };
 
 void sema_init (struct semaphore *, unsigned value);
@@ -16,12 +17,14 @@ void sema_down (struct semaphore *);
 bool sema_try_down (struct semaphore *);
 void sema_up (struct semaphore *);
 void sema_self_test (void);
-
+    
 /* Lock. */
 struct lock 
   {
     struct thread *holder;      /* Thread holding lock (for debugging). */
     struct semaphore semaphore; /* Binary semaphore controlling access. */
+    struct list_elem lock_elem; /* PRIORITY_DONATION: list_elem for my_locks */
+
   };
 
 void lock_init (struct lock *);

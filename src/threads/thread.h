@@ -88,6 +88,11 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+
+    int original;                       /* PRIORITY_DONATION: Storing original priority */
+    struct thread *wait_holder;              /* PRIORITY_DONATION: Storing what this thread should donate to */
+    struct list my_locks;               /*PRIORITY_DONATION: a list that stores acquired locks */
+
     bool is_alarm_clock_on;             /* Does wait for timer */
     uint64_t wake_me_time;              /* Wake me at this time */
     
@@ -142,6 +147,13 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
+/*ALARM: when timer interrupts happen interrupt handling */
 void thread_wake (uint64_t time);
+
+/*PRIORITY_DONATION: return true if lock->holder has smaller priority than current_thread()*/
+bool need_donate(struct thread *, struct thread *);
+/*PRIORITY_DONATION: donate priority to lock->holder by current_thread() */
+void thread_donate(struct thread *, struct thread *);
+
 
 #endif /* threads/thread.h */

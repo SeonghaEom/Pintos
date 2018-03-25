@@ -32,6 +32,12 @@
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 
+
+static bool priority_less(const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED);
+
+static bool less( struct thread *a,  struct thread *b);
+
+static int find_max(struct list *list);
 /* Initializes semaphore SEMA to VALUE.  A semaphore is a
    nonnegative integer along with two atomic operators for
    manipulating it:
@@ -48,6 +54,8 @@ sema_init (struct semaphore *sema, unsigned value)
 
   sema->value = value;
   list_init (&sema->waiters);
+  sema->highest_thread = NULL;
+  
 }
 
 /* Down or "P" operation on a semaphore.  Waits for SEMA's value
@@ -67,13 +75,28 @@ sema_down (struct semaphore *sema)
 
   old_level = intr_disable ();
   while (sema->value == 0) 
-    {
-      list_push_back (&sema->waiters, &thread_current ()->elem);
+    { 
+      /*PRIORITY_DONATE: change list_push_back to list_insert_ordered*/   
+      list_reverse(&sema->waiters);
+      list_insert_ordered (&sema->waiters, &thread_current ()->elem, priority_less, NULL);
+      list_reverse(&sema->waiters);
+      sema->highest_thread =list_entry( list_front(&sema->waiters),struct thread,elem);
+   /*   list_push_back(&sema->waiters, &thread_current()->elem);*/
       thread_block ();
     }
   sema->value--;
   intr_set_level (old_level);
 }
+
+static bool
+priority_less(const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED)
+{
+  const struct thread *a = list_entry (a_, struct thread, elem);
+  const struct thread *b = list_entry (b_, struct thread, elem);
+  return a->priority <= b->priority;
+}
+
+
 
 /* Down or "P" operation on a semaphore, but only if the
    semaphore is not already 0.  Returns true if the semaphore is
@@ -114,8 +137,13 @@ sema_up (struct semaphore *sema)
 
   old_level = intr_disable ();
   if (!list_empty (&sema->waiters)) 
-    thread_unblock (list_entry (list_pop_front (&sema->waiters),
-                                struct thread, elem));
+  {
+    thread_unblock (list_entry (list_pop_front (&sema->waiters), struct thread, elem));
+    if (!list_empty(&sema->waiters))
+      { sema->highest_thread =list_entry(list_front(&sema->waiters), struct thread, elem);}
+    else
+    {sema->highest_thread=NULL;}
+  }
   sema->value++;
   intr_set_level (old_level);
 }
@@ -131,15 +159,13 @@ sema_self_test (void)
   struct semaphore sema[2];
   int i;
 
-  printf ("Testing semaphores..\n");
   sema_init (&sema[0], 0);
   sema_init (&sema[1], 0);
   thread_create ("sema-test", PRI_DEFAULT, sema_test_helper, &sema);
   for (i = 0; i < 10; i++) 
     {
-      sema_up (&sema[0]);printf("sema_self_test, sema_up, sema[0], %d번째\n", i);
-      sema_down (&sema[1]);printf("sema_self_test, sema_down, sema[1], %d번째\n", i);
-    }
+      sema_up (&sema[0]);
+      sema_down (&sema[1]);    }
   printf ("done.\n");
 }
 
@@ -152,9 +178,8 @@ sema_test_helper (void *sema_)
 
   for (i = 0; i < 10; i++) 
     {
-      sema_down (&sema[0]);printf("sema_test_helper, sema_down, sema[0], %d번째\n", i);
-      sema_up (&sema[1]);printf("sema_test_helper, sema_up, sema[1], %d번째\n", i);
-    }
+      sema_down (&sema[0]);
+      sema_up (&sema[1]);    }
 }
 
 /* Initializes LOCK.  A lock can be held by at most a single
@@ -179,6 +204,7 @@ lock_init (struct lock *lock)
 
   lock->holder = NULL;
   sema_init (&lock->semaphore, 1);
+
 }
 
 /* Acquires LOCK, sleeping until it becomes available if
@@ -191,14 +217,35 @@ lock_init (struct lock *lock)
    we need to sleep. */
 void
 lock_acquire (struct lock *lock)
-{
+{ 
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
+  struct thread *a= lock->holder;
+  struct thread *b= thread_current();
+  
+  /*PRIORITY_DONATION: donate priority if needed, NESTED, CHAIN DONATIONS*/
+  if (lock->holder != NULL)
+     {
+       b->wait_holder = a;
+       while (1){
+       if (need_donate(a,b))
+           {thread_donate(a,b);}
+       if (a->wait_holder != NULL){
+       b = b->wait_holder;
+       a = a->wait_holder;
+       }
+       else break;
+       }
 
+     }
+  
+  /*success in acquiring lock*/
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
+  list_push_back(&thread_current()->my_locks,&lock->lock_elem);
 }
+
 
 /* Tries to acquires LOCK and returns true if successful or false
    on failure.  The lock must not already be held by the current
@@ -231,9 +278,50 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
 
+
+  list_remove(&lock->lock_elem);
+  /*PRIORITY_DONATE: restore the original priority if donated */
+  if ((lock->holder)->priority != ((lock->holder)->original)){
+    if (!list_empty(&lock->holder->my_locks))
+        {  lock->holder->priority =find_max(&lock->holder->my_locks);   }
+    else
+    {
+      lock->holder->priority = lock->holder->original;
+    }
+  }
+
+
   lock->holder = NULL;
   sema_up (&lock->semaphore);
+  thread_yield();
+
 }
+
+static int
+find_max (struct list *list)
+{
+  struct list_elem *max = list_begin(list); /*list=> lock->holder->my_locks*/
+  struct thread *max_highest_thread = (&list_entry(max, struct lock, lock_elem)->semaphore)->highest_thread;
+  struct list_elem *e;
+  struct lock *next_lock = list_entry(e, struct lock, lock_elem);
+  struct thread *highest_thread = (&next_lock->semaphore)->highest_thread;
+
+  if (max != list_end (list))
+  {
+    for (e = list_next (max); e!=list_end(list); e=list_next(e))
+      if (less(max_highest_thread, highest_thread))
+        max = e;
+  }
+  return max_highest_thread->priority;
+}
+
+
+static bool
+less(struct thread *a, struct thread *b)
+{
+  return a->priority < b->priority;
+}
+
 
 /* Returns true if the current thread holds LOCK, false
    otherwise.  (Note that testing whether some other thread holds
@@ -295,7 +383,10 @@ cond_wait (struct condition *cond, struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   
   sema_init (&waiter.semaphore, 0);
+
   list_push_back (&cond->waiters, &waiter.elem);
+
+
   lock_release (lock);
   sema_down (&waiter.semaphore);
   lock_acquire (lock);

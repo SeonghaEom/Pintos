@@ -79,6 +79,7 @@ static bool wake_less (const struct list_elem *a_, const struct list_elem *b_, v
 static bool run_less (const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED);
 static bool need_yield(void);
 
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -223,6 +224,21 @@ thread_create (const char *name, int priority,
   return tid;
 }
 
+/*PRIORITY_DONATE: return true if thread A has smaller priority than thread B */
+bool
+need_donate(struct thread *a, struct thread *b)
+{
+  return a->priority < b->priority;
+}
+
+/*PRIORITY_DONATE: donate B's prioriy to A */
+void
+thread_donate(struct thread *a, struct thread *b) /*a=lock->holder, b=thread_current() */
+{
+  
+  a->priority = b->priority;
+
+}
 /* Puts the current thread to sleep.  It will not be scheduled
    again until awoken by thread_unblock().
 
@@ -520,9 +536,14 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
-  t->priority = priority;
+  t->priority=priority;
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
+
+  /*PRIORITY_DONATION */
+  t->original = priority;
+  list_init(&t->my_locks);
+  t->wait_holder = NULL;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
