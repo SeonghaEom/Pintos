@@ -1,4 +1,4 @@
-/* This file is derived from source code for the Nachtic void sema_test_helper (void *sema_);os
+/* This file is derived from source code for the Nachos
    instructional operating system.  The Nachos copyright notice
    is reproduced in full below. */
 
@@ -338,7 +338,6 @@ lock_release (struct lock *lock)
   lock->holder = NULL;
   sema_up (&lock->semaphore);
 
-  thread_yield();
 }
 
 /* Returns true if the current thread holds LOCK, false
