@@ -106,7 +106,6 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   /* Init list my_locks for first thread */
-  list_init (&initial_thread->my_locks);
   initial_thread->tid = allocate_tid ();
 }
 
@@ -215,8 +214,8 @@ thread_create (const char *name, int priority,
   intr_set_level (old_level);
 
   /* Add to run queue. */
-  list_init (&t->my_locks);
   thread_unblock (t);
+  
   if (t->priority > thread_current()->priority) 
     thread_yield();
 
@@ -525,6 +524,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
+  list_init (&t->my_locks);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

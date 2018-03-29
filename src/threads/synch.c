@@ -248,8 +248,12 @@ lock_acquire (struct lock *lock)
         struct lock *lock_nest = lock->holder->waiting_lock;
         while (lock_nest != NULL)
         {
+          /* Update lock->holder->waiting_lock's waiters */
           update_priority_of_semaphore (&lock_nest->semaphore);
+          /* Update lock->holder->waiting_lock->holder's priority */
           update_priority_of_lock_holder (lock_nest);
+          /* Iterate above two instruction again with 
+           * lock->holder->waiting_lock->holder->waiting_lock */
           lock_nest = lock_nest->holder->waiting_lock;
         }
       }
@@ -373,6 +377,10 @@ update_priority_of_semaphore (struct semaphore *sema)
     struct list_elem *e = list_begin (&sema->waiters);
     struct thread *t = list_entry (e, struct thread, elem);
     sema->highest_priority = t->priority;
+  }
+  else 
+  {
+    sema->highest_priority = 0;
   }
 }
 
