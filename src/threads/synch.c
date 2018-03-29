@@ -70,14 +70,15 @@ sema_down (struct semaphore *sema)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
+
   while (sema->value == 0) 
     {
+      /* Push current thread in sema's waiters and sort */
       list_push_back (&sema->waiters, &thread_current ()->elem);
       sort_priority_thread_list (&sema->waiters);
       
-      struct list_elem *e = list_front (&sema->waiters);
-      struct thread *t = list_entry (e, struct thread, elem);
-      sema->highest_priority = t->priority;
+      /* Update highest_prioirty in sema */
+      update_priority_of_semaphore (sema);
       
       thread_block ();
     }
@@ -125,7 +126,6 @@ sema_up (struct semaphore *sema)
   
   if (!list_empty (&sema->waiters))
   { 
-    
     sort_priority_thread_list (&sema->waiters);
     /* Only one waiter */
     if (list_size (&sema->waiters) == 1)
@@ -143,12 +143,9 @@ sema_up (struct semaphore *sema)
     struct thread *t = list_entry (list_pop_front (&sema->waiters), struct thread, elem);
     thread_unblock (t);
     
-    //thread_unblock (highest_priority_thread_in_list (&sema->waiters));
-    //thread_unblock (list_entry (list_pop_front (&sema->waiters),
-    //                            struct thread, elem));
   }
   sema->value++;
-  /* Should yield here, I want to think more about here... TODO */
+  /* Should yield here */
   thread_yield ();
   intr_set_level (old_level);
 }
@@ -229,8 +226,6 @@ lock_acquire (struct lock *lock)
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
  
-  /* First acquire of lock */
-  //if (lock->holder == NULL) 
   /* Holder exists */
   if (lock->holder != NULL) 
   {
@@ -243,16 +238,10 @@ lock_acquire (struct lock *lock)
         lock->holder->is_donated = true;
         lock->holder->real_priority = lock->holder->priority;
       }
-      /* Not the first, but donation again*/
-      //else 
-      //{
-        
-      //}
+      
       /* Priority donation. */
       lock->holder->priority = thread_current ()->priority;
-      /* Update highest priority in lock's semaphore 
-       * TODO : I don't know should I update lock.semaphore here or nor! */
-      update_priority_of_semaphore (&lock->semaphore);
+      
       /* Nested donation */
       if (lock->holder->waiting_lock != NULL)
       {
@@ -264,10 +253,9 @@ lock_acquire (struct lock *lock)
           lock_nest = lock_nest->holder->waiting_lock;
         }
       }
-      
-      /* Current threads is waiting for lock */
-      thread_current ()->waiting_lock = lock;
     }
+    /* Current threads is waiting for lock */
+    thread_current ()->waiting_lock = lock;
   }
 
   sema_down (&lock->semaphore);
@@ -337,7 +325,6 @@ lock_release (struct lock *lock)
 
   lock->holder = NULL;
   sema_up (&lock->semaphore);
-
 }
 
 /* Returns true if the current thread holds LOCK, false
@@ -361,7 +348,7 @@ update_priority_of_lock_holder (struct lock *lock)
     struct list_elem *e;
     int new_priority = holder->real_priority;
 
-    /* Find highest priority and set it to priority(fake, donated) */
+    /* Find highest priority and set it to priority(donated) */
     for (e = list_begin (&holder->my_locks);
         e != list_end (&holder->my_locks);
         e = list_next (e))
@@ -380,22 +367,12 @@ update_priority_of_lock_holder (struct lock *lock)
 void
 update_priority_of_semaphore (struct semaphore *sema)
 {
+  sort_priority_thread_list (&sema->waiters);
   if (list_size (&sema->waiters) != 0)
   {
-    struct list_elem *e;
-    int new_highest_priority = sema->highest_priority;
-    /* find new highest priority in waiters */
-    for (e = list_begin (&sema->waiters);
-        e != list_end (&sema->waiters);
-        e = list_next (e))
-    {
-      struct thread *t = list_entry (e, struct thread, elem);
-      if (t->priority > new_highest_priority)
-      {
-        new_highest_priority = t->priority;
-      }
-    }
-    sema->highest_priority = new_highest_priority;
+    struct list_elem *e = list_begin (&sema->waiters);
+    struct thread *t = list_entry (e, struct thread, elem);
+    sema->highest_priority = t->priority;
   }
 }
 
