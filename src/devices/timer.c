@@ -182,9 +182,9 @@ static void
 timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
-  thread_tick ();
   uint64_t current_time = timer_ticks ();
   thread_wake (current_time);
+  thread_tick ();
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

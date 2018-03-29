@@ -17,20 +17,20 @@
 #endif
 
 /* Random value for struct thread's `magic' member.
-   Used to detect stack overflow.  See the big comment at the top
-   of thread.h for details. */
+ * Used to detect stack overflow.  See the big comment at the top
+ * of thread.h for details. */
 #define THREAD_MAGIC 0xcd6abf4b
 
 /* List of processes in THREAD_READY state, that is, processes
-   that are ready to run but not actually running. */
+ * that are ready to run but not actually running. */
 static struct list ready_list;
 
 /* List of processes in THREAD_BLOCKED stat, that is, processes 
-   that are blocked. */
+ * that are blocked. */
 static struct list wait_list;
 
 /* List of all processes.  Processes are added to this list
-   when they are first scheduled and removed when they exit. */
+ * when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
 /* Idle thread. */
@@ -60,8 +60,8 @@ static long long user_ticks;    /* # of timer ticks in user programs. */
 static unsigned thread_ticks;   /* # of timer ticks since last yield. */
 
 /* If false (default), use round-robin scheduler.
-   If true, use multi-level feedback queue scheduler.
-   Controlled by kernel command-line option "-o mlfqs". */
+ * If true, use multi-level feedback queue scheduler.
+ * Controlled by kernel command-line option "-o mlfqs". */
 bool thread_mlfqs;
 
 static void kernel_thread (thread_func *, void *aux);
@@ -75,21 +75,22 @@ static void *alloc_frame (struct thread *, size_t size);
 static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
-static bool wake_less (const struct list_elem *a_, const struct list_elem *b_, void *aus UNUSED);
+static bool priority_more (const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED);
+static bool wake_less (const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED);
 
 /* Initializes the threading system by transforming the code
-   that's currently running into a thread.  This can't work in
-   general and it is possible in this case only because loader.S
-   was careful to put the bottom of the stack at a page boundary.
-
-   Also initializes the run queue and the tid lock.
-
-   After calling this function, be sure to initialize the page
-   allocator before trying to create any threads with
-   thread_create().
-
-   It is not safe to call thread_current() until this function
-   finishes. */
+ * that's currently running into a thread.  This can't work in
+ * general and it is possible in this case only because loader.S
+ * was careful to put the bottom of the stack at a page boundary.
+ * 
+ * Also initializes the run queue and the tid lock.
+ * 
+ * After calling this function, be sure to initialize the page
+ * allocator before trying to create any threads with
+ * thread_create().
+ * 
+ * It is not safe to call thread_current() until this function
+ * finishes. */
 void
 thread_init (void) 
 {
@@ -104,6 +105,8 @@ thread_init (void)
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
+  /* Init list my_locks for first thread */
+  list_init (&initial_thread->my_locks);
   initial_thread->tid = allocate_tid ();
 }
 
@@ -212,7 +215,11 @@ thread_create (const char *name, int priority,
   intr_set_level (old_level);
 
   /* Add to run queue. */
+  list_init (&t->my_locks);
   thread_unblock (t);
+  if (t->priority > thread_current()->priority) 
+    thread_yield();
+
   return tid;
 }
 
@@ -249,8 +256,10 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
+  
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
+  
   intr_set_level (old_level);
 }
 
@@ -371,6 +380,25 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current ()->priority = new_priority;
+  thread_current ()->real_priority = new_priority;
+
+  // TODO : Should think about current thread's waiting lock
+  //if (thread_current ()->waiting_lock != NULL)
+
+  // If current thread has any number of locks, 
+  if (list_size (&thread_current ()->my_locks) != 0)
+  {
+    struct list_elem *e = list_begin (&thread_current ()->my_locks);
+    struct lock *l = list_entry (e, struct lock, elem);
+    update_priority_of_lock_holder (l);
+  }
+
+  /* I wonder that we should sort ready_list again here or not */
+  list_sort (&ready_list, priority_more, NULL);
+  if (! list_empty (&ready_list)) 
+    /* If new_priority is lower than highest priority in ready_list, yield */
+    if (list_entry (list_front (&ready_list), struct thread, elem)->priority > new_priority)
+      thread_yield();
 }
 
 /* Returns the current thread's priority. */
@@ -523,7 +551,26 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+    return highest_priority_thread_in_list (&ready_list);
+}
+
+/* Returns thread which has highest priority in current ready_list 
+ * Must check given list is not empty */
+struct thread *
+highest_priority_thread_in_list (struct list *list)
+{
+  if (list_empty (list))
+    return idle_thread;
+  else 
+    list_sort (list, priority_more, NULL);
+    return list_entry (list_pop_front (list), struct thread, elem);  
+}
+
+void
+sort_priority_thread_list (struct list *list)
+{
+  if (!list_empty (list))
+    list_sort (list, priority_more, NULL);
 }
 
 /* With given current time TIME, wake threads in wait_list
@@ -555,7 +602,16 @@ thread_wake (uint64_t time) {
     }
   }
 }
+/* used for sort ready_list according to priority 
+ * It is simple comparison only according to priority */
+static bool
+priority_more (const struct list_elem *a_, const struct list_elem *b_, void *aux UNUSED)
+{
+  const struct thread *a = list_entry (a_, struct thread, elem);
+  const struct thread *b = list_entry (b_, struct thread, elem);
 
+  return a->priority > b->priority;
+}
 /* used for sort wait_list according to wake_me_time */
 static bool
 wake_less (const struct list_elem *a_ , const struct list_elem *b_, void *aux UNUSED)
