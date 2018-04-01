@@ -4,12 +4,14 @@
 #include <list.h>
 #include <stdbool.h>
 
+
 /* A counting semaphore. */
 struct semaphore 
   {
     unsigned value;             /* Current value. */
     struct list waiters;        /* List of waiting threads. */
     struct thread* highest_thread;
+
   };
 
 void sema_init (struct semaphore *, unsigned value);
@@ -32,6 +34,9 @@ void lock_acquire (struct lock *);
 bool lock_try_acquire (struct lock *);
 void lock_release (struct lock *);
 bool lock_held_by_current_thread (const struct lock *);
+void update_donation_thread (struct thread *);
+
+
 
 /* Condition variable. */
 struct condition 

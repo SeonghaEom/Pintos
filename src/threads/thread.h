@@ -90,7 +90,7 @@ struct thread
     int priority;                       /* Priority. */
 
     int original;                       /* PRIORITY_DONATION: Storing original priority */
-    struct thread *wait_holder;              /* PRIORITY_DONATION: Storing what this thread should donate to */
+    struct lock *wait_lock;              /* PRIORITY_DONATION: Storing what this thread is waiting for */
     struct list my_locks;               /*PRIORITY_DONATION: a list that stores acquired locks */
 
     bool is_alarm_clock_on;             /* Does wait for timer */
@@ -154,6 +154,9 @@ void thread_wake (uint64_t time);
 bool need_donate(struct thread *, struct thread *);
 /*PRIORITY_DONATION: donate priority to lock->holder by current_thread() */
 void thread_donate(struct thread *, struct thread *);
+
+bool need_yield(void);
+void priority_sort(struct list *);
 
 
 #endif /* threads/thread.h */
