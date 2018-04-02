@@ -17,9 +17,12 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#define DEL " "     /* ARG PASSING: defining delimiter */
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+
+
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -30,6 +33,10 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
+  
+  /* ARG PASSING */
+  char ** ptr ;
+  strtok_r (file_name, DEL, ptr);
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */

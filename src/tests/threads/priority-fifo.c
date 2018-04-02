@@ -52,7 +52,7 @@ test_priority_fifo (void)
 
   thread_set_priority (PRI_DEFAULT + 2);
   for (i = 0; i < THREAD_CNT; i++) 
-    {
+    { printf("%d\n", i);
       char name[16];
       struct simple_thread_data *d = data + i;
       snprintf (name, sizeof name, "%d", i);
@@ -90,10 +90,11 @@ simple_thread_func (void *data_)
   int i;
   
   for (i = 0; i < ITER_CNT; i++) 
-    {
+    { 
       lock_acquire (data->lock);
       *(*data->op)++ = data->id;
       lock_release (data->lock);
       thread_yield ();
+
     }
 }
