@@ -17,9 +17,19 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"     /* including malloc header file */
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+
+/* ARG PASSING static functions and variables */
+static char *argv[30];      /* pointer pointing at an array of character pointer size of 30, that stores program name and arguments */
+static int argc=1;      /* int value counting number of arguments + program name */
+static char * arr;      /* a string copying FILE_NAME */
+static char * glob_save_ptr;        /* pointer for updating parsing location */
+
+static void parse_name (char **string, char **argv);        /* function for parsing program name */
+static void parse_arg (char **string, char **argv, int argc);       /* function for parsing arguments */
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -37,6 +47,21 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+
+  /* ARG PASSING: copying FILE_NAME to arr and parsing it */
+  arr = (char *) malloc (strlen(fn_copy)+1);
+  if (arr == NULL)
+    return TID_ERROR;
+
+  strlcpy ( arr, file_name, strlen(fn_copy)+1);
+
+  /* ARG PASSING: parsing name here */
+  parse_name (&arr, argv);
+  /* ARG PASSING: parsing arguments here */
+  parse_arg ( &arr, argv, argc);
+
+
+  free(arr);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
@@ -87,8 +112,10 @@ start_process (void *file_name_)
    does nothing. */
 int
 process_wait (tid_t child_tid UNUSED) 
-{
+{ while(1)
+  {
   return -1;
+  }
 }
 
 /* Free the current process's resources. */
@@ -431,13 +458,57 @@ setup_stack (void **esp)
 {
   uint8_t *kpage;
   bool success = false;
+  /*ARG PASSING: local variables */
+  int i = argc;     /* iterator argc->0 , used twice */
+  char *buf[argc];  /* buffer array storing address of each elements */
+  uint32_t tmp;     /* temporary variable storing argv 's address */
+
+
+
+  buf[argc] = (uint8_t)0;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
+      {
         *esp = PHYS_BASE;
+        /* storing arguments in argv backward from top of the stck*/
+        while ( i>0 )
+        {
+          *esp = *esp - strlen(&argv[i-1]) - 1;
+          * ((uint32_t *)esp) = argv[i-1];
+          buf[i-1] = &argv[i-1];
+          i--;
+        }
+
+        /* word alignment */
+        *esp = *esp -4 + ((PHYS_BASE - *esp)%4);
+        /* restoring i to argc */
+        i = argc;
+
+        /* storing address of each elements in argv[] */
+        while (i>0)
+        {
+          *esp -= 4;
+          *((uint32_t *)esp) = buf[i];
+          i--;
+        }
+
+        /* storing tmp variable to store argv start address */
+        tmp = esp;
+        *esp -= 4;
+        *((uint32_t *)esp) = tmp;
+
+        /* storing argc */
+        *esp -=4;
+        * ((uint32_t *)esp ) = argc;
+
+        /* fake return address = 0 */
+        *esp -=4;
+        *((uint32_t *) esp) = 0;
+      }
       else
         palloc_free_page (kpage);
     }
@@ -462,4 +533,26 @@ install_page (void *upage, void *kpage, bool writable)
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
+}
+
+static void
+parse_name (char **arr, char **argv)
+{
+  char * save_ptr;
+
+  argv[0] = strtok_r ( *arr, " ", &save_ptr);
+  glob_save_ptr = save_ptr;
+}
+
+static void
+parse_arg ( char **arr, char **argv, int argc)
+{
+  char * token;
+
+  for (token = strtok_r ( NULL, " ", &glob_save_ptr); token != NULL; token = strtok_r ( NULL, " ", &glob_save_ptr))
+  {
+    argv[argc] = token;
+    printf ("argv[%d] = %s\n", argc, argv[argc]);
+    argc++;
+  }
 }
