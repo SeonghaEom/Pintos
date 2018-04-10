@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <syscall-nr.h>     /* SYSCALL: syscall number library */
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/tss.h"
@@ -21,13 +22,13 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
-static char *argv[14];
-static int argc=1;
+static char *argv[50];
+static int argc;
 static char * arr;
 static char * glob_save_ptr;
 
-static void parse_name (char **string, char **argv);
-static void parse_arg (char **string, char **argv, int argc);
+static void parse_name (char **string, char **argv_);
+static void parse_arg (char **argv_, int * argc_);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -36,7 +37,6 @@ static void parse_arg (char **string, char **argv, int argc);
 tid_t
 process_execute (const char *file_name) 
 {
-    //printf("arr = %x\n", arr);
   char *fn_copy;
   tid_t tid;
 
@@ -49,14 +49,10 @@ process_execute (const char *file_name)
   
   // allocating memory for fn_copy
   arr = (char *) malloc(strlen(fn_copy)+1);
- // printf("arr address = %x\n", arr);
   if (arr == NULL)
     return TID_ERROR;
   strlcpy (arr, file_name, strlen(fn_copy)+1);
-  printf("arr = %s\n", arr);
-  //printf("arr address = %x\n", arr);
   parse_name (&arr, argv);
-
   free(arr);
 
 
@@ -111,7 +107,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 { while (1)
-  { }
+  { int i=1;}
  //  return -1;
 
 }
@@ -240,9 +236,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
-  
 
-  parse_arg ( &arr, argv , argc );
+  parse_arg ( argv, &argc);
   
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -251,7 +246,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (&argv[0]);
+  file = filesys_open (argv[0]);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", argv[0]);
@@ -338,7 +333,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
-
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
@@ -460,52 +454,68 @@ setup_stack (void **esp)
 {
   uint8_t *kpage;
   bool success = false;
-  int i = argc;
+  int i;
   char *buf[argc];
   void * fake_ret_addr = 0;
   uint32_t tmp;
-
+  int mid;
 
   buf[argc] = (uint8_t)0;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
-    {
-      success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
+  {  
+    success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
       {
         *esp = PHYS_BASE;
+        i = argc;
+
         while (i >0)
-        {
-          *esp = *esp - strlen(&argv[i-1]) - 1;
-          memcpy ( esp, &argv[i], strlen(&argv[i-1])-1 );
+        {  
+          *esp = *esp - (uint32_t)(strlen(argv[i-1])) - 1;
+          memcpy ( *esp, argv[i-1], strlen(argv[i-1])+1 );
           buf[i-1] = &argv[i-1];
           i--;
+
+        }
+        
+
+        mid = *esp;
+        while ( mid % 4 != 0 )
+        {  
+           *esp = *esp - 1;
+           *(uint8_t *)(*esp) = (uint8_t)0;
+           //memcpy ( *esp, 0, 1);
+           mid -= 1;
         }
 
-        *esp = *esp -4 + ((PHYS_BASE-*esp)%4);
+    
         i = argc;       
         while (i>0)
-        {
+        { 
           *esp -= 4;
-          memcpy ( esp, &buf[i], (size_t) 4);
+          * ((uint32_t *)*esp) = buf[i];
+      
+          //memcpy ( esp, &buf[i], (size_t) 4);
           i--;
-        }
 
+        }
+      
         tmp = * (uint32_t *)esp;
 
         *esp -= 4;
-        *((uint32_t *)esp) = tmp;
+        *((uint32_t *)*esp) = tmp;
         //memcpy ( esp , &tmp), (size_t) 4);
 
         *esp -= 4;
-        *((uint32_t *)esp) = argc;
+        *((uint32_t *)*esp) = argc;
        // memcpy ( esp, &argc, (size_t) 4);
 
         *esp -=4;
-        *((uint32_t *)esp) = 0;
+        *((uint32_t *)*esp) = 0;
        // memcpy ( esp, fake_ret_addr, (size_t) 4);
-        
+
       }
       else
         palloc_free_page (kpage);
@@ -536,31 +546,27 @@ install_page (void *upage, void *kpage, bool writable)
 
 
 static void
-parse_name( char ** arr, char **argv)
+parse_name( char ** arr, char** argv_)
 { 
   char * save_ptr;
 
-  argv[0] =  strtok_r (*arr, " " , &save_ptr );
+  argv_[0] =  strtok_r (*arr, " " , &save_ptr );
   glob_save_ptr = save_ptr;
   *arr = NULL;
 }
 
 static void
-parse_arg ( char ** arr, char **argv, int argc )
+parse_arg ( char ** argv_, int * argc_)
 { 
-  char * token;
-  
-  for (token = strtok_r (*arr, " ", &glob_save_ptr); token != NULL;
-        token = strtok_r (NULL, " ", &glob_save_ptr))
-     printf ("'%s'\n", token);
-  /*
-  while ( (ret_ptr = strtok_r (*arr, " " , &glob_save_ptr)) != NULL)
+
+  *argc_ = 1;
+  char * ret_ptr;
+
+  while ( (ret_ptr = strtok_r (NULL, " " , &glob_save_ptr)) != NULL)
   {
-    argv[argc] = ret_ptr;
-    printf("argv[%d] = %s\n", argc, argv[argc]);
-    argc++;
+    argv_[*argc_] = ret_ptr;
+    (*argc_)++;
   }
-  */
 }
 /*
 static void
