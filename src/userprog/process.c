@@ -22,10 +22,10 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
-static char *argv[50];
-static int argc;
-static char * arr;
-static char * glob_save_ptr;
+static char *argv[50];          // arguments
+static int argc;                // number of arguments
+static char *arr;
+static char *glob_save_ptr;
 
 static void parse_name (char **string, char **argv_);
 static void parse_arg (char **argv_, int * argc_);
@@ -47,21 +47,19 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
   
-  // allocating memory for fn_copy
-  arr = (char *) malloc(strlen(fn_copy)+1);
+  /* allocating memory for fn_copy  */
+  arr = (char *) malloc (strlen (fn_copy)+1);
   if (arr == NULL)
     return TID_ERROR;
-  strlcpy (arr, file_name, strlen(fn_copy)+1);
+  strlcpy (arr, file_name, strlen (fn_copy)+1);
   parse_name (&arr, argv);
-  free(arr);
-
+  free (arr);
 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
-
 }
 
 /* A thread function that loads a user process and starts it
@@ -106,10 +104,12 @@ start_process (void *file_name_)
    does nothing. */
 int
 process_wait (tid_t child_tid UNUSED) 
-{ while (1)
-  { int i=1;}
+{ 
+  while (1)
+  { 
+    int i = 1;
+  }
  //  return -1;
-
 }
 
 /* Free the current process's resources. */
@@ -228,7 +228,6 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    Returns true if successful, false otherwise. */
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
-
 { 
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
@@ -236,8 +235,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
-
-  parse_arg ( argv, &argc);
+  
+  // parse arguments
+  parse_arg (argv, &argc);
   
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -454,11 +454,11 @@ setup_stack (void **esp)
 {
   uint8_t *kpage;
   bool success = false;
-  int i;
-  char *buf[argc];
-  void * fake_ret_addr = 0;
-  uint32_t tmp;
-  int mid;
+  int i;                        /* Index */
+  char *buf[argc];              /* */
+  void *fake_ret_addr = 0;      /* Fake return address, set to 0 */
+  uint32_t tmp;                 /* */
+  int mid;                      /* */
 
   buf[argc] = (uint8_t)0;
 
@@ -477,19 +477,17 @@ setup_stack (void **esp)
           memcpy ( *esp, argv[i-1], strlen(argv[i-1])+1 );
           buf[i-1] = &argv[i-1];
           i--;
-
         }
-        
 
         mid = *esp;
+        /* Padding with 0 */
         while ( mid % 4 != 0 )
         {  
            *esp = *esp - 1;
            *(uint8_t *)(*esp) = (uint8_t)0;
-           //memcpy ( *esp, 0, 1);
+           //memcpy (*esp, 0, 1);
            mid -= 1;
         }
-
     
         i = argc;       
         while (i>0)
@@ -543,31 +541,32 @@ install_page (void *upage, void *kpage, bool writable)
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
 
-
-
+/* Pares *arr and save first string in argv[0].
+ * Also save the pointer after first string in glob_save_ptr */ 
 static void
-parse_name( char ** arr, char** argv_)
+parse_name (char **arr, char **argv_)
 { 
-  char * save_ptr;
+  char *save_ptr;
 
-  argv_[0] =  strtok_r (*arr, " " , &save_ptr );
+  argv_[0] = strtok_r (*arr, " ", &save_ptr);
   glob_save_ptr = save_ptr;
   *arr = NULL;
 }
 
+/* Save other arguments in argv[] and get argc */
 static void
-parse_arg ( char ** argv_, int * argc_)
+parse_arg (char **argv_, int *argc_)
 { 
-
   *argc_ = 1;
-  char * ret_ptr;
+  char *ret_ptr;
 
-  while ( (ret_ptr = strtok_r (NULL, " " , &glob_save_ptr)) != NULL)
+  while ((ret_ptr = strtok_r (NULL, " " , &glob_save_ptr)) != NULL)
   {
     argv_[*argc_] = ret_ptr;
     (*argc_)++;
   }
 }
+
 /*
 static void
 parse ( char ** arr, char **argv, int argc
