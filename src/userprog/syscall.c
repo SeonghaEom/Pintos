@@ -14,7 +14,9 @@ static void valid_address (void *);
 static int read_sysnum (void *);
 static void read_arguments (void *esp, void **argv, int argc); 
 static void halt (void);
-  
+static int write (int, const void *, unsigned);
+static void exit (int status, struct intr_frame *f);
+
 void
 syscall_init (void) 
 {
@@ -25,6 +27,7 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
+  printf ("Syscall!\n");
   /* Check that given stack pointer address is valid */
   valid_address (f->esp);
   /* sysnum and arguments */
@@ -32,7 +35,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   void *argv[3];
   /* Read syscall number and arguuments */
   sysnum = read_sysnum (f->esp);
-  hex_dump ((int) f->esp, f->esp, 50, true);
+  //hex_dump ((int) f->esp, f->esp, 50, true);
   
   /* sysnum */
   printf ("sysnum : %d\n", sysnum);
@@ -44,7 +47,11 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     /* 1, Terminate this process */
     case SYS_EXIT:
-
+      read_arguments (f->esp, &argv[0], 1);
+      
+      int status = (int)argv[0]; 
+      
+      exit (status, f);   
       break;
     /* 2, Start another process */
     case SYS_EXEC:
@@ -69,12 +76,12 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     /* 9, Write to a file */
     case SYS_WRITE:
-      printf ("WRITE\n");
+      //printf ("WRITE\n");
       read_arguments (f->esp, &argv[0], 3);
       
-      int fd = argv[0];
-      void *buffer = argv[1];
-      unsigned size = argv[2];
+      int fd = (int)argv[0];
+      void *buffer = (void *)argv[1];
+      unsigned size = (unsigned)argv[2];
       
       write (fd, buffer, size);
       break;
@@ -92,16 +99,15 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
   }
   
-  printf ("system call!\n");
-  thread_exit ();
+  //thread_exit ();
 }
 
 /* Read syscall number with esp in syscall_handler */
 static int
 read_sysnum (void *esp)
 {
-  printf ("esp : %p\n", esp);
-  printf ("value in esp : %d\n", *((int *)esp));
+  //printf ("esp : %p\n", esp);
+  //printf ("value in esp : %d\n", *((int *)esp));
   return *(int *)esp;
 }
 /* Check the given user-provided pointer is valid */
@@ -144,10 +150,10 @@ read_arguments (void *esp, void **argv, int argc)
   esp += 4;
   while (count != argc)
   {
-    printf ("argv[count] : %p\n", &argv[count]);
-    printf ("esp : %p\n", esp);
+    //printf ("argv[count] : %p\n", &argv[count]);
+    //printf ("esp : %p\n", esp);
     memcpy (&argv[count], esp, 4);
-    printf ("%d th : %d\n", count, (int *) argv[count]);
+    //printf ("%d th : %d\n", count, (int) argv[count]);
     esp += 4;
     count++;
   }
@@ -160,17 +166,25 @@ halt (void)
   shutdown_power_off ();
 }
 
-/* Terminate the current user proegram, returning status to the kernel */
+/* Terminate the current user program, returning status to the kernel */
 static void
-exit (int status)
+exit (int status, struct intr_frame *f)
 {
-  return status;
+  /* Save status in eax */
+  f->eax = status;
+  thread_exit ();
 }
+
 /* Write size bytes from buffer to the open fild fd */
 static int
 write (int fd, const void *buffer, unsigned size)
 {
   /* TODO */
-  //putbuf ();
+  /* Write to consol */
+  if (fd == 1)
+  {
+    putbuf (buffer, size);
+  }
+
   return 1;
 }

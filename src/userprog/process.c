@@ -116,6 +116,7 @@ process_wait (tid_t child_tid UNUSED)
 void
 process_exit (void)
 {
+  printf ("process_exit\n");
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
@@ -470,15 +471,20 @@ setup_stack (void **esp)
       {
         *esp = PHYS_BASE;
         i = argc;
-
+        
+        /* pushing arguments reversely to esp by length of each arguments */
         while (i >0)
-        {  
+        {
           *esp = *esp - (uint32_t)(strlen(argv[i-1])) - 1;
+          //printf ("before memcpy, esp points to = %s\n", argv[i-1]);
           memcpy ( *esp, argv[i-1], strlen(argv[i-1])+1 );
-          buf[i-1] = &argv[i-1];
+          //printf ("~~~~~~esp points to = %s\n", *(size_t *)esp);
+          buf[i-1] = *esp;
+          // printf ("buf[%d] = %x\n", i-1, buf[i-1]);
           i--;
         }
-
+        buf[argc] = (uint32_t)0;
+        //printf ("buf[argc] = %x\n");
         mid = *esp;
         /* Padding with 0 */
         while ( mid % 4 != 0 )
@@ -489,23 +495,28 @@ setup_stack (void **esp)
            mid -= 1;
         }
     
+        /* pushing each stack address of arguments that are pushed */
         i = argc;       
-        while (i>0)
+        while (i>=0)
         { 
           *esp -= 4;
+          // printf("buf[%d] = %x\n", i, buf[i]);
           * ((uint32_t *)*esp) = buf[i];
-      
+          // printf (" ~~~~~~~~~argument address = %x\n", (uint32_t *)*esp);
           //memcpy ( esp, &buf[i], (size_t) 4);
           i--;
 
         }
       
+        /* pushing *argv[] */
         tmp = * (uint32_t *)esp;
 
         *esp -= 4;
         *((uint32_t *)*esp) = tmp;
-        //memcpy ( esp , &tmp), (size_t) 4);
 
+        //memcpy ( esp , &tmp), (size_t) 4);
+        
+        /* pushing argc */
         *esp -= 4;
         *((uint32_t *)*esp) = argc;
        // memcpy ( esp, &argc, (size_t) 4);
@@ -518,6 +529,8 @@ setup_stack (void **esp)
       else
         palloc_free_page (kpage);
     }
+
+  hex_dump (0xbfffffbc, 0xbfffffbc, 100, true);
   return success;
 }
 

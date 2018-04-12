@@ -288,6 +288,7 @@ thread_tid (void)
 void
 thread_exit (void) 
 {
+  printf ("thread_exit\n");
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
@@ -300,7 +301,9 @@ thread_exit (void)
   intr_disable ();
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
+  //printf ("a\n");
   schedule ();
+  //printf ("b\n");
   NOT_REACHED ();
 }
 
