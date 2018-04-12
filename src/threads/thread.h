@@ -106,9 +106,6 @@ struct thread
     struct semaphore *exit_sema;        /* semaphore for child exit */
     struct semaphore *load_sema;         /* semaphore for child loading */
 
-    char *save_ptr;                     /* pointer for strtok_r */
-    char *argv[50];                     /* array for pointers */
-    int argc;                           /* argument counts */
 #endif
 
     /* Owned by thread.c. */
@@ -154,5 +151,5 @@ int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 
 struct thread *find_child (tid_t pid);
-
+struct thread *find_thread (tid_t tid);
 #endif /* threads/thread.h */
