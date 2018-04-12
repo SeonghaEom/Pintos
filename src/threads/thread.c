@@ -473,6 +473,12 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
+
+#ifdef USERPROG
+  /* initialization of parent list_elem 안함 */
+  list_init (&t->child);
+
+#endif
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and
@@ -588,3 +594,27 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+/* Try to find child with pid in current thread's child */
+struct thread *
+find_child (tid_t pid)
+{
+  struct list_elem *e;
+  struct list *child_list = &thread_current ()->child;
+
+  /* child_list is not empty */
+  if (list_size (child_list) != 0)
+  {
+    /* child list is not empty, find child by pid */
+    for (e = list_begin (child_list); e != list_end (child_list);
+         e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, child_elem);
+      /* We found child with pid PID */
+      if (t->tid == pid)
+        return t;
+    }
+  }
+  /* There no such child with pid PID */
+  return NULL;
+}

@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "synch.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -18,6 +19,7 @@ enum thread_status
    You can redefine this to whatever type you like. */
 typedef int tid_t;
 #define TID_ERROR ((tid_t) -1)          /* Error value for tid_t. */
+
 
 /* Thread priorities. */
 #define PRI_MIN 0                       /* Lowest priority. */
@@ -96,11 +98,24 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    struct thread *parent;              /* parent process */
+    struct list child;                  /* list of child processes */
+    struct list_elem child_elem;        /* list_elem for list child */
+
+    int exit_status;                    /* return status for child */
+    struct semaphore *exit_sema;        /* semaphore for child exit */
+    struct semaphore *load_sema;         /* semaphore for child loading */
+
+    char *save_ptr;                     /* pointer for strtok_r */
+    char *argv[50];                     /* array for pointers */
+    int argc;                           /* argument counts */
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
+
+
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -137,5 +152,7 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+struct thread *find_child (tid_t pid);
 
 #endif /* threads/thread.h */
