@@ -50,7 +50,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       read_arguments (f->esp, &argv[0], 1);
       
       int status = (int)argv[0]; 
-      
+       
       exit (status, f);   
       break;
     /* 2, Start another process */
