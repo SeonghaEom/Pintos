@@ -24,7 +24,7 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static void parse_arg (char **argv_, int * argc_, char **save_ptr);
-static void close_all_files ();
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -182,6 +182,7 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+  //printf ("process_exit done\n");
 }
 
 /* Sets up the CPU for running user code in the current
@@ -626,29 +627,6 @@ parse_arg (char **argv_, int *argc_, char **save_ptr)
     (*argc_)++;
   }
 }
-
-/*
-static void
-parse ( char ** arr, char **argv, int argc
-*/
-
-/* close all files in open files in current thread 
-static void
-close_all_files ()
-{
-  struct list *open_files = &thread_current ()->open_files;
-  struct list_elem *e; 
-  while (!list_empty (open_files))
-  {
-    e = list_front (open_files);
-    struct filedescriptor *filedes =
-      list_entry (e, struct filedescriptor, elem);
-    close (filedes->fd);
-  }
-}*/
-
-
-
 
 
 

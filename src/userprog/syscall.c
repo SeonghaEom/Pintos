@@ -42,7 +42,7 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  //printf ("Syscall!\n");
+  printf ("Syscall!\n");
   /* Check that given stack pointer address is valid */
   valid_address (f->esp);
   /* sysnum and arguments */
