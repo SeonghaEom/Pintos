@@ -84,7 +84,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       read_arguments (f->esp, &argv[0], 1);
       int pid = (int) argv[0];
       
-      wait(pid);
+      wait (pid);
       break;
     /* 4, Create a file */
     case SYS_CREATE:
@@ -245,7 +245,7 @@ exit (int status)
 {
   /* sema_up exit_sema. */
   /* exit_sema doesn't exist */
-  if (thread_current ()->exit_sema == NULL)
+  if (thread_current ()->exit_sema == NULL || thread_current ()->exit_sema == -858993460)
   {
     thread_current ()->exit_status = status;
     thread_exit ();
@@ -255,6 +255,7 @@ exit (int status)
   {
     struct semaphore *exit_sema = thread_current ()->exit_sema; 
     sema_up (exit_sema);
+    
     thread_current ()->exit_status = status; 
     thread_exit ();
   }

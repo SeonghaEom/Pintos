@@ -618,3 +618,25 @@ find_child (tid_t pid)
   /* There no such child with pid PID */
   return NULL;
 }
+
+/* Find thread with pid in all_list */
+struct thread *
+find_thread (tid_t tid)
+{
+  struct list_elem *e;
+  
+  /* all_list is not empty */
+  if (list_size (&all_list) != 0)
+  {
+    for (e = list_begin (&all_list); e != list_end (&all_list);
+         e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, allelem);
+      /* We found thread with pid */
+      if (t->tid == tid)
+        return t;
+    }
+  }
+  return NULL;
+}
+

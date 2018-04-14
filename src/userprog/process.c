@@ -30,8 +30,8 @@ static void parse_arg (char **argv_, int * argc_, char **save_ptr);
    thread id, or TID_ERROR if the thread cannot be created. */
 tid_t
 process_execute (const char *file_name) 
-{ /*synchronization until child process loeads well */
-
+{ 
+  /*synchronization until child process loeads well */
   char *fn_copy;
   tid_t tid;
 
@@ -41,12 +41,30 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-  
+ 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-
+  
+  struct thread *child = find_thread (tid);
+  if (child->load_sema == NULL)
+  {
+    struct semaphore *load_sema = (struct semaphore *) malloc (sizeof (struct semaphore));
+    sema_init (load_sema, 0);
+    child->load_sema = load_sema;
+    sema_down (load_sema);
+  }
+  else 
+  {
+    sema_down (child->load_sema);
+  }
+  
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy); 
+    palloc_free_page (fn_copy);
+  /* Push child in child_list */
+  else 
+  {
+    list_push_back (&thread_current ()->child, &child->child_elem);
+  }
   return tid;
 }
 
@@ -59,10 +77,6 @@ start_process (void *file_name_)
   struct intr_frame if_;
   bool success;
 
-
-  /* set pid_t here */
-  //current_thread ()->pid = current_thread ()->tid;
-
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -70,14 +84,19 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
 
   success = load (file_name, &if_.eip, &if_.esp);
-
+  if (thread_current ()->load_sema == NULL)
+  {
+    struct semaphore *load_sema = (struct semaphore *) malloc (sizeof (struct semaphore));
+    sema_init (load_sema, 1);
+  } 
+  else
+  {
+    sema_up (thread_current ()->load_sema);
+  }
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
     thread_exit ();
-
-
-
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -100,10 +119,7 @@ start_process (void *file_name_)
    does nothing. */
 int
 process_wait (tid_t child_tid) 
-{ while (1)
-  {
-    int i;
-  }
+{
   struct semaphore *exit_sema;
   struct thread *t;
   t = find_child (child_tid);
@@ -115,15 +131,19 @@ process_wait (tid_t child_tid)
   {
     return -1;
   }*/
-
+  printf ("child_tid : %d\n", child_tid); 
   /* child process thread is null */
   if (t == NULL)
   {
+    printf ("t is null!\n");
     return -1;
   }
   /* exit_sema exists, don't wait twice */
-  else if (t->exit_sema != NULL)
+  else if (t->exit_sema != NULL && t->exit_sema != -858993460)
   {    
+    printf ("t->exit_sema is not null!\n");
+    printf ("t->exit_sema : %d\n", (int *) t->exit_sema);
+    printf ("t->exit_status : %d\n", t->exit_status);
     return -1;
   }
   /* not the direct child of current_thread() 
@@ -133,6 +153,7 @@ process_wait (tid_t child_tid)
   }*/
   else 
   {
+    printf ("new sema\n");
     /* creating a local semaphore and then allocating it to child */
     exit_sema = (struct semaphore *) malloc (sizeof (struct semaphore));
     sema_init (exit_sema, 0);
@@ -159,7 +180,6 @@ process_wait (tid_t child_tid)
 }
 
 
-
 /* Free the current process's resources. */
 void
 process_exit (void)
@@ -168,6 +188,10 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  if (cur->exit_sema != NULL)
+  {
+    sema_up (&cur->exit_sema);
+  }
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -185,12 +209,7 @@ process_exit (void)
       pagedir_destroy (pd);
     }
 
-  /* sema_up */
 
-  if (cur->exit_sema != NULL)
-  {
-    sema_up (&cur->exit_sema);
-  }
 }
 
 /* Sets up the CPU for running user code in the current
@@ -569,7 +588,6 @@ setup_stack (void **esp, char **argv, int *argc)
           *esp -= 4;
           // printf("buf[%d] = %x\n", i, buf[i]);
           * ((uint32_t *)*esp) = buf[i];
-           printf (" ~~~~~~~~~argument address = %x\n", (uint32_t *)*esp);
           //memcpy ( esp, &buf[i], (size_t) 4);
           i--;
 
