@@ -30,7 +30,7 @@ static int read (int fd, void *buffer, unsigned size);
 static void seek (int fd, unsigned position);
 static unsigned tell (int fd);
 static void close (int fd);
-//static void close_all_files (void);
+static void close_all_files (void);
 
 void
 syscall_init (void) 
@@ -247,14 +247,14 @@ static void
 exit (int status)
 {
   /* close all files */
-  //close_all_files ();
+  close_all_files ();
   
   /* exit_sema doesn't exist */
   if (thread_current ()->exit_sema == NULL || thread_current ()->exit_sema == -858993460)
   {
     thread_current ()->exit_status = status;
     printf ("%s: exit(%d)\n", thread_current()->argv_name, status);
-    thread_exit (status);
+    thread_exit ();
   }
   /* exit_sema exists */
   else 
@@ -265,7 +265,7 @@ exit (int status)
     sema_up (exit_sema);
     
     printf("%s: exit(%d)\n", thread_current()->argv_name, status);
-    thread_exit (status);
+    thread_exit ();
   }
 }
 
@@ -458,7 +458,7 @@ close (int fd)
 }
 
 /* close all files in open files in current thread */
-void
+static void
 close_all_files ()
 {
   struct list *open_files = &thread_current ()->open_files;
