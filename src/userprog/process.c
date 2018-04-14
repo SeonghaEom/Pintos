@@ -47,7 +47,7 @@ process_execute (const char *file_name)
   if (arr == NULL)
     return TID_ERROR;
   strlcpy (arr, file_name, strlen (fn_copy)+1);
-  parse_name (&arr, thread_current ()->process->argv);
+  parse_name (&arr, thread_current ()->argv);
   free (arr);
 
   /* Create a new thread to execute FILE_NAME. */
@@ -105,38 +105,50 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
+  struct semaphore *exit_sema;
   struct thread *t;
   t = find_child (child_tid);
   // TODO : should we need to deal with invalid TID??
   /* dont't wait twice */
-  if ( t != NULL && &(t->child->process)->exit_sema != NULL && child_tid == t->tid)
+  if ( t != NULL && t->exit_sema != NULL
+      && child_tid == t->tid)
   {
-    return EXIT_FAILURE;
+    return -1;
   }
 
   /* child process thread is null return -1 */
   if (t == NULL)
   {
-    return EXIT_FAILURE;
+    return -1;
+  }
+  /* not the direct child of current_thread() */
+  else if ( t->tid != child_tid)
+  {
+    return -1;
   }
   else 
   { 
-    while (t->process->exit_status == NULL)
+    /* creating a local sema phore and then allocating it to child */
+    exit_sema = (struct semaphore *) malloc (sizeof (struct semaphore));
+    sema_init (exit_sema, 0);
+    t->exit_sema = exit_sema;
+
+    while (t->exit_status == NULL)
     {
-      sema_down (&t->process->exit_sema);
+      sema_down (&t->exit_sema);
     }
     
-    int exit_status = t->process->exit_status;
+    int exit_status = t->exit_status;
     
     /* If tid was terminated by the kernel, returns -1*/
-    /* If process_wait () has already been successfully called */
+    /* If process_wait () has already: been successfully called */
     if (exit_status == -1 || exit_status == -2)
     {
-      return EXIT_FAILURE;
+      return -1;
     }
-    else if (exit_status == 0)
+    else if(exit_status == 0)
     {
-      return EXIT_SUCCESS;
+      return 0;
     }
   }
 }
@@ -170,9 +182,9 @@ process_exit (void)
 
   /* sema_up */
 
-  if (cur->process->exit_sema != NULL)
+  if (cur->exit_sema != NULL)
   {
-    sema_up (&cur->process->exit_sema);
+    sema_up (&cur->exit_sema);
   }
 }
 
@@ -198,7 +210,7 @@ int process_write (int fd, void *buffer, unsigned size)
   /* fd==1 reserved from standard output */
   if (fd == 1) 
   {
-    putbuf (buffer, size)
+    putbuf (buffer, size);
     return (int)size;
   }
   return -1;
@@ -293,8 +305,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   
   // parse arguments
   printf ("a\n");
-  parse_arg (t->process->argv,
-      &(thread_current ()->process->argc));
+  parse_arg (t->argv,
+      &(thread_current ()->argc));
   
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -303,10 +315,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (t->process->argv[0]);
+  file = filesys_open (t->argv[0]);
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", t->process->argv[0]);
+      printf ("load: %s: open failed\n", t->argv[0]);
       goto done; 
     }
 
@@ -512,7 +524,7 @@ setup_stack (void **esp)
   uint8_t *kpage;
   bool success = false;
   int i;                        /* Index */
-  int argc = thread_current ()->process->argc;
+  int argc = thread_current ()->argc;
   char *buf[argc];              /* */
   void *fake_ret_addr = 0;      /* Fake return address, set to 0 */
   uint32_t tmp;                 /* */
@@ -533,9 +545,9 @@ setup_stack (void **esp)
         /* pushing arguments reversely to esp by length of each arguments */
         while (i >=0)
         {
-          *esp = *esp - (uint32_t)(strlen(t->process->argv[i-1])) - 1;
+          *esp = *esp - (uint32_t)(strlen(t->argv[i-1])) - 1;
           //printf ("before memcpy, esp points to = %s\n", argv[i-1]);
-          memcpy (*esp, t->process->argv[i-1], strlen((t->process->argv[i-1])+1 ));
+          memcpy (*esp, t->argv[i-1], strlen((t->argv[i-1])+1 ));
           //printf ("~~~~~~esp points to = %s\n", *(size_t *)esp);
           buf[i-1] = *esp;
           // printf ("buf[%d] = %x\n", i-1, buf[i-1]);
@@ -620,7 +632,7 @@ parse_name (char **arr, char **argv_)
   char *save_ptr;
 
   argv_[0] = strtok_r (*arr, " ", &save_ptr);
-  thread_current ()->process->save_ptr = save_ptr;
+  thread_current ()->save_ptr = save_ptr;
   *arr = NULL;
 }
 
@@ -630,7 +642,7 @@ parse_arg (char **argv_, int *argc_)
 { 
   *argc_ = 1;
   char *ret_ptr;
-  char *save_ptr = thread_current ()->process->save_ptr;  
+  char *save_ptr = thread_current ()->save_ptr;  
   while ((ret_ptr = strtok_r (NULL, " " , &save_ptr)) != NULL)
   {
     argv_[*argc_] = ret_ptr;

@@ -10,13 +10,13 @@
 #include <string.h>
 
 static void syscall_handler (struct intr_frame *);
-static void valid_address (void *);
+static bool valid_address (void *);
 static int read_sysnum (void *);
 static void read_arguments (void *esp, void **argv, int argc); 
 static void halt (void);
 static int write (int, const void *, unsigned);
 static void exit (int status);
-
+static tid_t exec (const char *cmd_line);
 static int wait (tid_t pid);
 
 
@@ -58,7 +58,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     /* 2, Start another process */
     case SYS_EXEC:
-      read_arguments (f->esp, &argv[0]. 1);
+      read_arguments (f->esp, &argv[0], 1);
       char * cmd_line = (char *) argv[0];
 
       exec (cmd_line);
@@ -182,9 +182,9 @@ static void
 exit (int status)
 {
   /* sema_up exit_sema */
-  struct semaphore exit_sema = thread_current ()->process->exit_sema;
-  thread_current ()->process->exit_status = status;
-  sema_up (&exit_sema);
+  struct semaphore *exit_sema = thread_current ()->exit_sema;
+  thread_current ()->exit_status = status;
+  sema_up (exit_sema);
   /* Kill all child */
   
   thread_exit ();
@@ -198,8 +198,8 @@ wait (tid_t pid)
   return process_wait(pid);
 } 
 
-static pid_t
-exec ( const char *cmd_line);
+static tid_t
+exec ( const char *cmd_line)
 {
   return process_execute (cmd_line);
 }

@@ -600,14 +600,20 @@ struct thread *
 find_child (tid_t pid)
 {
   struct list_elem *e;
-  struct list child_list = thread_current ()->child;
-  for (e = list_begin (&child_list); e != list_end (&child_list);
-       e = list_next (e))
+  struct list *child_list = &thread_current ()->child;
+
+  /* child_list is not empty */
+  if (list_size (child_list) != 0)
   {
-    struct thread *t = list_entry (e, struct thread, child_elem);
-    /* We found child with pid PID */
-    if (t->tid == pid)
-      return t;
+    /* child list is not empty, find child by pid */
+    for (e = list_begin (child_list); e != list_end (child_list);
+         e = list_next (e))
+    {
+      struct thread *t = list_entry (e, struct thread, child_elem);
+      /* We found child with pid PID */
+      if (t->tid == pid)
+        return t;
+    }
   }
   /* There no such child with pid PID */
   return NULL;

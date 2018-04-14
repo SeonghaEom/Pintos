@@ -101,23 +101,21 @@ struct thread
     struct thread *parent;              /* parent process */
     struct list child;                  /* list of child processes */
     struct list_elem child_elem;        /* list_elem for list child */
-    struct process *process;            /* process */
+
+    int exit_status;                    /* return status for child */
+    struct semaphore *exit_sema;        /* semaphore for child exit */
+    struct semaphore *load_sema;         /* semaphore for child loading */
+
+    char *save_ptr;                     /* pointer for strtok_r */
+    char *argv[50];                     /* array for pointers */
+    int argc;                           /* argument counts */
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
 
-/* struct for process */
-struct process
-{
-  //pid_t pid;                          /* process id = thread id */
-  char *argv[50];                       /* array storing character pointers */
-  int argc;                             /* argument counts */
-  char *save_ptr;                       /* save_ptr */
-  int exit_status;                      /* exit_status */
-  struct semaphore exit_sema;           /* semaphore for waiting child process's exit */
-};
+
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
