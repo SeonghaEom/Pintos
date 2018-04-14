@@ -22,8 +22,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
-static void parse_name (char **string, char **argv_);
-static void parse_arg (char **argv_, int * argc_);
+static void parse_arg (char **argv_, int * argc_, char **save_ptr);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -32,6 +31,7 @@ static void parse_arg (char **argv_, int * argc_);
 tid_t
 process_execute (const char *file_name) 
 { /*synchronization until child process loeads well */
+
   char *fn_copy;
   tid_t tid;
 
@@ -42,17 +42,9 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
   
-  /* allocating memory for fn_copy  */
-  char *arr = (char *) malloc (strlen (fn_copy)+1);
-  if (arr == NULL)
-    return TID_ERROR;
-  strlcpy (arr, file_name, strlen (fn_copy)+1);
-  parse_name (&arr, thread_current ()->argv);
-  free (arr);
-
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-    
+
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -63,11 +55,11 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-  printf ("a\n");
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-  
+
+
   /* set pid_t here */
   //current_thread ()->pid = current_thread ()->tid;
 
@@ -76,12 +68,16 @@ start_process (void *file_name_)
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
+
   success = load (file_name, &if_.eip, &if_.esp);
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
     thread_exit ();
+
+
+
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -104,7 +100,10 @@ start_process (void *file_name_)
    does nothing. */
 int
 process_wait (tid_t child_tid) 
-{
+{ while (1)
+  {
+    int i;
+  }
   struct semaphore *exit_sema;
   struct thread *t;
   t = find_child (child_tid);
@@ -282,7 +281,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, char **argv, int * argc);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -295,19 +294,27 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
 {
-  printf ("load\n");
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
   off_t file_ofs;
   bool success = false;
   int i;
-  
-  // parse arguments
-  printf ("a\n");
-  parse_arg (t->argv,
-      &(thread_current ()->argc));
-  
+
+  /* parsing arguments now */
+  char *argv[50];
+  int argc;
+  char *save_ptr;
+
+
+  /* allocating memory for fn_copy  */
+  char *arr = (char *) malloc (strlen (file_name)+1);
+  if (arr == NULL)
+    return TID_ERROR;
+  strlcpy (arr, file_name, strlen(file_name)+1);
+  argv[0] = strtok_r (arr, " ", &save_ptr);
+  parse_arg ( argv, &argc, &save_ptr);
+
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -315,10 +322,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (t->argv[0]);
+  file = filesys_open (argv[0]);
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", t->argv[0]);
+      printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
 
@@ -395,7 +402,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp, argv, &argc))
     goto done;
 
   /* Start address. */
@@ -519,19 +526,17 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp) 
+setup_stack (void **esp, char **argv, int *argc) 
 {
   uint8_t *kpage;
   bool success = false;
   int i;                        /* Index */
-  int argc = thread_current ()->argc;
-  char *buf[argc];              /* */
+  char *buf[*argc];              /* */
   void *fake_ret_addr = 0;      /* Fake return address, set to 0 */
   uint32_t tmp;                 /* */
   int mid;                      /* */
-  struct thread *t = thread_current();
 
-  buf[argc] = (uint8_t)0;
+  buf[*argc] = (uint8_t)0;
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
@@ -540,20 +545,20 @@ setup_stack (void **esp)
       if (success)
       {
         *esp = PHYS_BASE;
-        i = argc;
+        i = *argc;
         
         /* pushing arguments reversely to esp by length of each arguments */
-        while (i >=0)
+        while (i >0)
         {
-          *esp = *esp - (uint32_t)(strlen(t->argv[i-1])) - 1;
+          *esp = *esp - (uint32_t)(strlen(argv[i-1])) - 1;
           //printf ("before memcpy, esp points to = %s\n", argv[i-1]);
-          memcpy (*esp, t->argv[i-1], strlen((t->argv[i-1])+1 ));
-          //printf ("~~~~~~esp points to = %s\n", *(size_t *)esp);
+          memcpy (*esp, argv[i-1], strlen(argv[i-1])+1 );
+          //printf ("~~~~~~esp pushed = %s\n", *(size_t *)esp);
           buf[i-1] = *esp;
           // printf ("buf[%d] = %x\n", i-1, buf[i-1]);
           i--;
         }
-        buf[argc] = (uint32_t)0;
+        buf[*argc] = (uint32_t)0;
         //printf ("buf[argc] = %x\n");
         mid = *esp;
         /* Padding with 0 */
@@ -566,7 +571,7 @@ setup_stack (void **esp)
         }
     
         /* pushing each stack address of arguments that are pushed */
-        i = argc;       
+        i = *argc;       
         while (i>=0)
         { 
           *esp -= 4;
@@ -588,7 +593,7 @@ setup_stack (void **esp)
         
         /* pushing argc */
         *esp -= 4;
-        *((uint32_t *)*esp) = argc;
+        *((uint32_t *)*esp) = *argc;
        // memcpy ( esp, &argc, (size_t) 4);
 
         *esp -=4;
@@ -624,26 +629,13 @@ install_page (void *upage, void *kpage, bool writable)
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
 
-/* Pares *arr and save first string in argv[0].
- * Also save the pointer after first string in glob_save_ptr */ 
-static void
-parse_name (char **arr, char **argv_)
-{ 
-  char *save_ptr;
-
-  argv_[0] = strtok_r (*arr, " ", &save_ptr);
-  thread_current ()->save_ptr = save_ptr;
-  *arr = NULL;
-}
-
 /* Save other arguments in argv[] and get argc */
 static void
-parse_arg (char **argv_, int *argc_)
+parse_arg (char **argv_, int *argc_, char **save_ptr)
 { 
   *argc_ = 1;
   char *ret_ptr;
-  char *save_ptr = thread_current ()->save_ptr;  
-  while ((ret_ptr = strtok_r (NULL, " " , &save_ptr)) != NULL)
+  while ((ret_ptr = strtok_r (NULL, " " , save_ptr)) != NULL)
   {
     argv_[*argc_] = ret_ptr;
     (*argc_)++;
