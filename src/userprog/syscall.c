@@ -16,10 +16,10 @@ static bool valid_address (void *);
 static int read_sysnum (void *);
 static void read_arguments (void *esp, void **argv, int argc); 
 static void halt (void);
-static int write (int, const void *, unsigned);
+static int write (int, const void *, unsigned, struct intr_frame *);
 static void exit (int status);
-static tid_t exec (const char *cmd_line);
-static int wait (tid_t pid);
+static tid_t exec (const char *cmd_line, struct intr_frame *f);
+static int wait (tid_t pid, struct intr_frame *f);
 static bool create (const char *file, unsigned initial_size);
 static bool remove (const char *file);
 static int open (const char *file);
@@ -77,14 +77,14 @@ syscall_handler (struct intr_frame *f UNUSED)
       {
         exit (-1);
       }
-      exec (cmd_line);
+      exec (cmd_line, f);
       break;
     /* 3, Wait for a child process to die */
     case SYS_WAIT:
       read_arguments (f->esp, &argv[0], 1);
       int pid = (int) argv[0];
       
-      wait (pid);
+      wait (pid, f);
       break;
     /* 4, Create a file */
     case SYS_CREATE:
@@ -145,7 +145,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       {
         exit (-1);
       }
-      write (fd, buffer, size);
+      write (fd, buffer, size, f);
       break;
     /* 10, Change position in a file */
     case SYS_SEEK:
@@ -243,13 +243,7 @@ halt (void)
 static void
 exit (int status)
 {
-  if (&thread_current ()->child_elem != NULL && 
-      &thread_current ()->child_elem != -858993460)
-  { 
-    printf ("child_elem : %x\n", &thread_current ()->child_elem);
-    list_remove (&thread_current ()->child_elem);
-  }
-  /* sema_up exit_sema. */
+
   /* exit_sema doesn't exist */
   if (thread_current ()->exit_sema == NULL || thread_current ()->exit_sema == -858993460)
   {
@@ -262,10 +256,8 @@ exit (int status)
   {
     struct semaphore *exit_sema = thread_current ()->exit_sema; 
      
-    //printf ("exit sema %x\n", exit_sema); 
     
     thread_current ()->exit_status = status;
-    //printf ("exit_status = %d\n", thread_current ()->exit_status);
     sema_up (exit_sema);
     
     printf("%s: exit(%d)\n", thread_current()->file_name, status);
@@ -276,16 +268,16 @@ exit (int status)
 
 /* waits for pid(child) and retrieve the pid(child)'s exit status */
 static int
-wait (tid_t pid)
+wait (tid_t pid, struct intr_frame *f)
 {
-  return process_wait (pid);
+  f->eax = process_wait (pid);
 } 
 
 /* Runs the executable whose name is given in cmd_line */
 static tid_t
-exec (const char *cmd_line)
+exec (const char *cmd_line, struct intr_frame *f)
 {
-  return process_execute (cmd_line);
+  f->eax = process_execute (cmd_line);
 }
 
 /* Create */
@@ -297,13 +289,13 @@ create (const char *file, unsigned initial_size)
 
 /* Write */
 static int
-write (int fd, const void *buffer, unsigned size)
+write (int fd, const void *buffer, unsigned size, struct intr_frame *f)
 {
   /* fd==1 reserved from standard output */
   if (fd == 1) 
   {
     putbuf (buffer, size);
-    return (int)size;
+    f->eax = (int)size;
   }
   return -1;
 }

@@ -184,6 +184,14 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+  struct semaphore *exit_sema = (struct semaphore *) malloc (sizeof (struct semaphore));
+  sema_init (exit_sema, 0);
+  t->exit_sema = exit_sema;
+
+  struct semaphore *load_sema = (struct semaphore *) malloc (sizeof (struct semaphore));
+  sema_init (load_sema, 0);
+  t->load_sema = load_sema;
+
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -602,7 +610,6 @@ find_child (tid_t pid)
   struct list_elem *e;
   struct list *child_list = &thread_current ()->child;
 
-  printf ("child list size = %d\n", list_size (child_list));
   /* child_list is not empty */
   if (list_size (child_list) != 0)
   {
@@ -612,7 +619,6 @@ find_child (tid_t pid)
     {
       struct thread *t = list_entry (e, struct thread, child_elem);
       /* We found child with pid PID */
-      printf ("child pid is %d\n", t->tid);
       if (t->tid == pid)
         return t;
     }

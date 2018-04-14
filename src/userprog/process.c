@@ -46,18 +46,11 @@ process_execute (const char *file_name)
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   
   struct thread *child = find_thread (tid);
-  if (child->load_sema == NULL)
-  {
-    struct semaphore *load_sema = (struct semaphore *) malloc (sizeof (struct semaphore));
-    sema_init (load_sema, 0);
-    child->load_sema = load_sema;
-    sema_down (load_sema);
-  }
-  else 
-  {
-    sema_down (child->load_sema);
-  }
+
+  /* sema_down the load_sema */
+  sema_down (child->load_sema);
   
+
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
   /* Push child in child_list */
@@ -84,20 +77,16 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
 
   success = load (file_name, &if_.eip, &if_.esp);
-  if (thread_current ()->load_sema == NULL)
-  {
-    struct semaphore *load_sema = (struct semaphore *) malloc (sizeof (struct semaphore));
-    sema_init (load_sema, 1);
-  } 
-  else
-  {
-    sema_up (thread_current ()->load_sema);
-  }
+
+
+  /* sema up the load_sema */
+  sema_up (thread_current ()->load_sema);
+
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+  if (!success)
     thread_exit ();
-
+ 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -120,54 +109,25 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
-  struct semaphore *exit_sema;
+  //struct semaphore *exit_sema;
   struct thread *t;
   t = find_child (child_tid);
   
   // TODO : should we need to deal with invalid TID??
-  /* dont't wait twice 
-  if ( t != NULL && t->exit_sema != NULL
-      && child_tid == t->tid)
-  {
-    return -1;
-  }*/
-  //printf ("find_child = %x\n", t);
-  //printf ("child_tid : %d\n", child_tid); 
   /* child process thread is null */
   if (t == NULL)
-  { 
-    printf ("t is null!\n");
+  {
     return -1;
   }
   /* exit_sema exists, don't wait twice */
-  else if (t->exit_sema != NULL && t->exit_sema != -858993460)
-  {    
-    //printf ("t->exit_sema is not null!\n");
-    printf ("t->exit_sema : %x\n", t->exit_sema);
-    //printf ("t->exit_status : %d\n", t->exit_status);
-    return -1;
-  }
-  /* not the direct child of current_thread() 
-  else if ( t->tid != child_tid)
-  {
-    return -1;
-  }*/
+
   else 
   {
-    printf ("new sema\n");
     /* creating a local semaphore and then allocating it to child */
-    exit_sema = (struct semaphore *) malloc (sizeof (struct semaphore));
-    sema_init (exit_sema, 0);
-    t->exit_sema = exit_sema;
 
-    while (t->exit_status == NULL)
-    { 
-      //printf ("sema_down\n");
-      sema_down (&t->exit_sema);
-    }
-    
+    sema_down (t->exit_sema);
+    //list_remove (&t->child_elem);
     int exit_status = t->exit_status;
-    printf(" t->exit_status = %d\n", exit_status);
     
     /* If tid was terminated by the kernel, returns -1*/
     /* If process_wait () has already: been successfully called */
@@ -178,6 +138,10 @@ process_wait (tid_t child_tid)
     else if(exit_status == 0)
     {
       return 0;
+    }
+    else
+    {
+      return exit_status;
     }
   }
 }
