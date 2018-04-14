@@ -23,7 +23,7 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static void parse_arg (char **argv_, int * argc_, char **save_ptr);
-
+static void close_all_files ();
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -85,7 +85,8 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success)
-    thread_exit ();
+    printf ("a\n");
+    thread_exit (-1);
  
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -149,12 +150,17 @@ process_wait (tid_t child_tid)
 
 /* Free the current process's resources. */
 void
-process_exit (void)
+process_exit (int status)
 {
   //printf ("process_exit\n");
   struct thread *cur = thread_current ();
+  
+  if (cur->tid == 1)
+    return;
+  close_all_files ();
+  cur->status = status;
   uint32_t *pd;
-
+  
   /*
   if (cur->exit_sema != NULL)
   {
@@ -293,7 +299,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     return TID_ERROR;
   strlcpy (arr, file_name, strlen(file_name)+1);
   argv[0] = strtok_r (arr, " ", &save_ptr);
-  thread_current ()->file_name = argv[0];
+  thread_current ()->argv_name = argv[0];
   parse_arg (argv, &argc, &save_ptr);
 
   /* Allocate and activate page directory. */
@@ -307,6 +313,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
+      success = false;
       goto done; 
     }
 
@@ -320,6 +327,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       || ehdr.e_phnum > 1024) 
     {
       printf ("load: %s: error loading executable\n", file_name);
+      success = false;
       goto done; 
     }
 
@@ -627,6 +635,20 @@ static void
 parse ( char ** arr, char **argv, int argc
 */
 
+/* close all files in open files in current thread 
+static void
+close_all_files ()
+{
+  struct list *open_files = &thread_current ()->open_files;
+  struct list_elem *e; 
+  while (!list_empty (open_files))
+  {
+    e = list_front (open_files);
+    struct filedescriptor *filedes =
+      list_entry (e, struct filedescriptor, elem);
+    close (filedes->fd);
+  }
+}*/
 
 
 

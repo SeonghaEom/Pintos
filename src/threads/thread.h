@@ -106,7 +106,7 @@ struct thread
     struct semaphore *exit_sema;        /* semaphore for child exit */
     struct semaphore *load_sema;        /* semaphore for child loading */
 
-    char * file_name;                   /* file name omitting arguments */
+    char * argv_name;                   /* file name omitting arguments */
     
     struct list open_files;             /* open files */
     int next_fd;
@@ -122,6 +122,7 @@ struct filedescriptor
     int fd;
     char *filename;
     struct list_elem elem;
+    struct semaphore *file_sema;
   };
 
 /* If false (default), use round-robin scheduler.
@@ -144,7 +145,7 @@ struct thread *thread_current (void);
 tid_t thread_tid (void);
 const char *thread_name (void);
 
-void thread_exit (void) NO_RETURN;
+void thread_exit (int status) NO_RETURN;
 void thread_yield (void);
 
 /* Performs some operation on thread t, given auxiliary data AUX. */

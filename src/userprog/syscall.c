@@ -10,16 +10,18 @@
 #include <string.h>
 #include "filesys/filesys.h"
 #include "userprog/process.h"
+#include "filesys/file.h"
+#include "devices/input.h"
 
 static void syscall_handler (struct intr_frame *);
 static bool valid_address (void *);
 static int read_sysnum (void *);
 static void read_arguments (void *esp, void **argv, int argc); 
 static void halt (void);
-static int write (int, const void *, unsigned, struct intr_frame *);
+static int write (int, const void *, unsigned);
 static void exit (int status);
-static tid_t exec (const char *cmd_line, struct intr_frame *f);
-static int wait (tid_t pid, struct intr_frame *f);
+static tid_t exec (const char *cmd_line);
+static int wait (tid_t pid);
 static bool create (const char *file, unsigned initial_size);
 static bool remove (const char *file);
 static int open (const char *file);
@@ -28,6 +30,7 @@ static int read (int fd, void *buffer, unsigned size);
 static void seek (int fd, unsigned position);
 static unsigned tell (int fd);
 static void close (int fd);
+//static void close_all_files (void);
 
 void
 syscall_init (void) 
@@ -77,14 +80,14 @@ syscall_handler (struct intr_frame *f UNUSED)
       {
         exit (-1);
       }
-      exec (cmd_line, f);
+      f->eax = exec (cmd_line);
       break;
     /* 3, Wait for a child process to die */
     case SYS_WAIT:
       read_arguments (f->esp, &argv[0], 1);
       int pid = (int) argv[0];
       
-      wait (pid, f);
+      f->eax = wait (pid);
       break;
     /* 4, Create a file */
     case SYS_CREATE:
@@ -95,7 +98,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       {
         exit (-1);
       }
-      create (file, initial_size);
+      f->eax = create (file, initial_size);
       break;
     /* 5, Delete a file */
     case SYS_REMOVE:
@@ -105,7 +108,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       {
         exit (-1);
       }
-      remove (file);
+      f->eax = remove (file);
       break;
     /* 6, Open a file */
     case SYS_OPEN:
@@ -115,13 +118,13 @@ syscall_handler (struct intr_frame *f UNUSED)
       {
         exit (-1);
       }
-      open (file);
+      f->eax = open (file);
       break;
     /* 7, Obtain a file's size */
     case SYS_FILESIZE:
       read_arguments (f->esp, &argv[0], 1);
       fd = (int) argv[0];
-      filesize (fd);
+      f->eax = filesize (fd);
       break;
     /* 8, Read from a file */
     case SYS_READ:
@@ -133,7 +136,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       {
         exit (-1);
       }
-      read (fd, buffer, size);
+      f->eax = read (fd, buffer, size);
       break;
     /* 9, Write to a file */
     case SYS_WRITE:
@@ -145,7 +148,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       {
         exit (-1);
       }
-      write (fd, buffer, size, f);
+      f->eax = write (fd, buffer, size);
       break;
     /* 10, Change position in a file */
     case SYS_SEEK:
@@ -158,7 +161,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_TELL:
       read_arguments (f->esp, &argv[0], 1);
       fd = (int) argv[0];
-      tell (fd);
+      f->eax = tell (fd);
       break;
     /* 12, Close a file */
     case SYS_CLOSE:
@@ -243,41 +246,42 @@ halt (void)
 static void
 exit (int status)
 {
-
+  /* close all files */
+  //close_all_files ();
+  
   /* exit_sema doesn't exist */
   if (thread_current ()->exit_sema == NULL || thread_current ()->exit_sema == -858993460)
   {
     thread_current ()->exit_status = status;
-    printf ("%s: exit(%d)\n", thread_current()->file_name, status);
-    thread_exit ();
+    printf ("%s: exit(%d)\n", thread_current()->argv_name, status);
+    thread_exit (status);
   }
   /* exit_sema exists */
   else 
   {
     struct semaphore *exit_sema = thread_current ()->exit_sema; 
      
-    
     thread_current ()->exit_status = status;
     sema_up (exit_sema);
     
-    printf("%s: exit(%d)\n", thread_current()->file_name, status);
-    thread_exit ();
+    printf("%s: exit(%d)\n", thread_current()->argv_name, status);
+    thread_exit (status);
   }
 }
 
 
 /* waits for pid(child) and retrieve the pid(child)'s exit status */
 static int
-wait (tid_t pid, struct intr_frame *f)
+wait (tid_t pid)
 {
-  f->eax = process_wait (pid);
+  return process_wait (pid);
 } 
 
 /* Runs the executable whose name is given in cmd_line */
 static tid_t
-exec (const char *cmd_line, struct intr_frame *f)
+exec (const char *cmd_line)
 {
-  f->eax = process_execute (cmd_line);
+  return process_execute (cmd_line);
 }
 
 /* Create */
@@ -289,21 +293,44 @@ create (const char *file, unsigned initial_size)
 
 /* Write */
 static int
-write (int fd, const void *buffer, unsigned size, struct intr_frame *f)
+write (int fd, const void *buffer, unsigned size)
 {
   /* fd==1 reserved from standard output */
   if (fd == 1) 
   {
-    putbuf (buffer, size);
-    f->eax = (int)size;
+    int rest = (int) size;
+    while (rest >= 300)
+    {
+      putbuf (buffer, 300);
+      buffer += 300;
+      rest -= 300;
+    }
+    putbuf (buffer, rest);
+    rest = 0;
+
+    return size;
   }
-  return -1;
+  else if (fd == 0)
+    exit (-1);
+  else
+  {
+    struct filedescriptor *filedes = find_file (fd);
+
+    if (filedes == NULL)
+      exit (-1);
+    else
+    {
+      struct file *f = filesys_open (filedes->filename);
+      return (int) file_write (f, buffer, (off_t) size);
+      //return (int) file_write_at (f, (const void *) buffer, (off_t) size, f->pos);   
+    }
+  }
 }
 
 /* Remove */
 static bool
 remove (const char *file)
-{
+{ 
   return filesys_remove (file);
 }
 
@@ -311,26 +338,29 @@ remove (const char *file)
 static int
 open (const char *file)
 {    
-  printf ("open\n");
+  //printf ("open\n");
   
   /* file open fail */
-  if (filesys_open (file) != NULL)
+  if (filesys_open (file) == NULL)
   {
-    exit (-1);
+    //printf ("NULL!\n");
+    return -1;
   }
   /* file open success */
   else 
   {
     int new_fd = thread_current ()->next_fd;
-    printf ("new_fd : %d\n", new_fd);
+    //printf ("new_fd : %d\n", new_fd);
     thread_current ()->next_fd++;
     /* create new filedescriptor */
-    struct filedescriptor *fd =
+    struct filedescriptor *filedes =
       (struct filedescriptor*) malloc (sizeof (struct filedescriptor));
-    fd->fd = new_fd;
-    fd->filename = file;
+    
+    filedes->fd = new_fd;
+    filedes->filename = file;
     /* push it open_files */
-    list_push_back (&thread_current ()->open_files, &fd->elem);
+    list_push_back (&thread_current ()->open_files, &filedes->elem);
+    return new_fd;
   }
 }
 
@@ -353,31 +383,92 @@ filesize (int fd)
 
 /* Read */
 static int
-read (int fd UNUSED, void *buffer UNUSED, unsigned size UNUSED)
+read (int fd, void *buffer, unsigned size)
 {
-  /* TODO */
+  /* fd == 0 */
+  if (fd == 0) 
+  {
+    int i;
+    for (i = 0; i < (int)size; i++)
+    {
+      input_getc ();
+    }
+    return size;
+  }
+  else if (fd == 1)
+  {
+    exit (-1);
+  }
+  else
+  {
+    struct filedescriptor *filedes = find_file (fd);
+    if (filedes == NULL)
+      exit (-1);
+    else 
+    {
+      struct file *f = filesys_open (filedes->filename);
+      int result = (int) file_read (f, buffer, size);
+      //int result = (int) file_read_at (f, buffer, size, f->pos); 
+      return result;
+    }
+  }
   return 1;
 }
 
 /* Seek */
 static void
-seek (int fd UNUSED, unsigned position UNUSED)
+seek (int fd UNUSED, unsigned position)
 {
-  /* TODO */
-  return;
+  struct filedescriptor *filedes = find_file (fd);
+  if (filedes == NULL)
+    exit (-1);
+  else 
+  {
+    struct file *f = filesys_open (filedes->filename);
+    file_seek (f, (off_t) position);
+  }
 }
 
+/* Tell */
 static unsigned 
-tell (int fd UNUSED)
+tell (int fd)
 {
-  /* TODO */
-  return (unsigned) 0;
+  struct filedescriptor *filedes = find_file (fd);
+  if (filedes == NULL)
+    exit (-1);
+  else 
+  {
+    struct file *f = filesys_open (filedes->filename);
+    return (unsigned) file_tell (f);
+  }
 }
 
 static void
-close (int fd UNUSED)
+close (int fd)
 {
-  /* TODO */
-  return;
+  struct filedescriptor *filedes = find_file (fd);
+  if (filedes == NULL)
+    exit (-1);
+  else 
+  {
+    list_remove (&filedes->elem);
+    struct file *f = filesys_open (filedes->filename);
+    file_close (f);
+  }
+}
+
+/* close all files in open files in current thread */
+void
+close_all_files ()
+{
+  struct list *open_files = &thread_current ()->open_files;
+  struct list_elem *e; 
+  while (!list_empty (open_files))
+  {
+    e = list_front (open_files);
+    struct filedescriptor *filedes =
+      list_entry (e, struct filedescriptor, elem);
+    close (filedes->fd);
+  }
 }
 
