@@ -15,7 +15,10 @@ static int read_sysnum (void *);
 static void read_arguments (void *esp, void **argv, int argc); 
 static void halt (void);
 static int write (int, const void *, unsigned);
-static void exit (int status, struct intr_frame *f);
+static void exit (int status);
+
+static int wait (tid_t pid);
+
 
 void
 syscall_init (void) 
@@ -49,15 +52,24 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_EXIT:
       read_arguments (f->esp, &argv[0], 1);
       
-      int status = (int)argv[0]; 
+      int status = (int) argv[0]; 
       
-      exit (status, f);   
+      exit (status);   
       break;
     /* 2, Start another process */
     case SYS_EXEC:
+      read_arguments (f->esp, &argv[0]. 1);
+      char * cmd_line = (char *) argv[0];
+
+      exec (cmd_line);
       break;
     /* 3, Wait for a child process to die */
     case SYS_WAIT:
+      read_arguments (f->esp, &argv[0], 1);
+
+      int pid = (int) argv[0];
+      
+      wait(pid);
       break;
     /* 4, Create a file */
     case SYS_CREATE:
@@ -76,14 +88,13 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     /* 9, Write to a file */
     case SYS_WRITE:
-      //printf ("WRITE\n");
       read_arguments (f->esp, &argv[0], 3);
       
       int fd = (int)argv[0];
       void *buffer = (void *)argv[1];
       unsigned size = (unsigned)argv[2];
       
-      write (fd, buffer, size);
+      process_write (fd, buffer, size);
       break;
     /* 10, Change position in a file */
     case SYS_SEEK:
@@ -110,33 +121,33 @@ read_sysnum (void *esp)
   //printf ("value in esp : %d\n", *((int *)esp));
   return *(int *)esp;
 }
-/* Check the given user-provided pointer is valid */
-static void 
+/* Check the given user-provided pointer is valid and return -1  later */
+static bool 
 valid_address (void *uaddr)
 {
   /* First check given pointer is NULL */
   if (uaddr == NULL) 
   {
-    thread_exit ();
+    return 0;
   }
   /* Non NULL address */
   else 
   {
-    /* Check given pointer is user vaddr */
+    /* Check given pointer is user vaddr, point to user address */
     if (is_user_vaddr (uaddr))  
     {
       /* Check given pointer is mapped or unmapped */
       uint32_t *pd = thread_current()->pagedir;
       if (pagedir_get_page (pd, uaddr) == NULL)
       {
-        thread_exit ();
+        return 0;
       }
-      return;
+      return 1;
     }
     /* Not in user virtual address */
     else 
     {
-      thread_exit ();
+      return 0;
     }
   }
 }
@@ -168,23 +179,27 @@ halt (void)
 
 /* Terminate the current user program, returning status to the kernel */
 static void
-exit (int status, struct intr_frame *f)
+exit (int status)
 {
-  /* Save status in eax */
-  f->eax = status;
+  /* sema_up exit_sema */
+  struct semaphore exit_sema = thread_current ()->process->exit_sema;
+  thread_current ()->process->exit_status = status;
+  sema_up (&exit_sema);
+  /* Kill all child */
+  
   thread_exit ();
 }
 
-/* Write size bytes from buffer to the open fild fd */
-static int
-write (int fd, const void *buffer, unsigned size)
-{
-  /* TODO */
-  /* Write to consol */
-  if (fd == 1)
-  {
-    putbuf (buffer, size);
-  }
 
-  return 1;
+/* waits for pid(child) and retrieve the pid(child)'s exit status */
+static int
+wait (tid_t pid)
+{
+  return process_wait(pid);
+} 
+
+static pid_t
+exec ( const char *cmd_line);
+{
+  return process_execute (cmd_line);
 }
