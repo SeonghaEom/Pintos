@@ -288,7 +288,7 @@ thread_tid (void)
 void
 thread_exit (void) 
 {
-  printf ("thread_exit\n");
+  //printf ("thread_exit\n");
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
@@ -602,6 +602,7 @@ find_child (tid_t pid)
   struct list_elem *e;
   struct list *child_list = &thread_current ()->child;
 
+  printf ("child list size = %d\n", list_size (child_list));
   /* child_list is not empty */
   if (list_size (child_list) != 0)
   {
@@ -611,6 +612,7 @@ find_child (tid_t pid)
     {
       struct thread *t = list_entry (e, struct thread, child_elem);
       /* We found child with pid PID */
+      printf ("child pid is %d\n", t->tid);
       if (t->tid == pid)
         return t;
     }

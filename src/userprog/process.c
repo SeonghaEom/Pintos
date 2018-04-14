@@ -131,19 +131,20 @@ process_wait (tid_t child_tid)
   {
     return -1;
   }*/
-  printf ("child_tid : %d\n", child_tid); 
+  //printf ("find_child = %x\n", t);
+  //printf ("child_tid : %d\n", child_tid); 
   /* child process thread is null */
   if (t == NULL)
-  {
+  { 
     printf ("t is null!\n");
     return -1;
   }
   /* exit_sema exists, don't wait twice */
   else if (t->exit_sema != NULL && t->exit_sema != -858993460)
   {    
-    printf ("t->exit_sema is not null!\n");
-    printf ("t->exit_sema : %d\n", (int *) t->exit_sema);
-    printf ("t->exit_status : %d\n", t->exit_status);
+    //printf ("t->exit_sema is not null!\n");
+    printf ("t->exit_sema : %x\n", t->exit_sema);
+    //printf ("t->exit_status : %d\n", t->exit_status);
     return -1;
   }
   /* not the direct child of current_thread() 
@@ -160,11 +161,13 @@ process_wait (tid_t child_tid)
     t->exit_sema = exit_sema;
 
     while (t->exit_status == NULL)
-    {
+    { 
+      //printf ("sema_down\n");
       sema_down (&t->exit_sema);
     }
     
     int exit_status = t->exit_status;
+    printf(" t->exit_status = %d\n", exit_status);
     
     /* If tid was terminated by the kernel, returns -1*/
     /* If process_wait () has already: been successfully called */
@@ -184,14 +187,16 @@ process_wait (tid_t child_tid)
 void
 process_exit (void)
 {
-  printf ("process_exit\n");
+  //printf ("process_exit\n");
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  /*
   if (cur->exit_sema != NULL)
   {
     sema_up (&cur->exit_sema);
   }
+  */
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -324,7 +329,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
     return TID_ERROR;
   strlcpy (arr, file_name, strlen(file_name)+1);
   argv[0] = strtok_r (arr, " ", &save_ptr);
-  parse_arg ( argv, &argc, &save_ptr);
+  thread_current ()->file_name = argv[0];
+  parse_arg (argv, &argc, &save_ptr);
 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -615,7 +621,7 @@ setup_stack (void **esp, char **argv, int *argc)
         palloc_free_page (kpage);
     }
 
-  hex_dump (0xbfffffbc, 0xbfffffbc, 100, true);
+  //hex_dump (0xbfffffbc, 0xbfffffbc, 100, true);
   return success;
 }
 

@@ -39,7 +39,7 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  printf ("Syscall!\n");
+  //printf ("Syscall!\n");
   /* Check that given stack pointer address is valid */
   valid_address (f->esp);
   /* sysnum and arguments */
@@ -54,7 +54,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   unsigned size;
   int fd; 
   /* sysnum */
-  printf ("sysnum : %d\n", sysnum);
+  //printf ("sysnum : %d\n", sysnum);
   switch (sysnum)
   {
     /* 0, Halt the operating systems */
@@ -243,20 +243,32 @@ halt (void)
 static void
 exit (int status)
 {
+  if (&thread_current ()->child_elem != NULL && 
+      &thread_current ()->child_elem != -858993460)
+  { 
+    printf ("child_elem : %x\n", &thread_current ()->child_elem);
+    list_remove (&thread_current ()->child_elem);
+  }
   /* sema_up exit_sema. */
   /* exit_sema doesn't exist */
   if (thread_current ()->exit_sema == NULL || thread_current ()->exit_sema == -858993460)
   {
     thread_current ()->exit_status = status;
+    printf ("%s: exit(%d)\n", thread_current()->file_name, status);
     thread_exit ();
   }
   /* exit_sema exists */
   else 
   {
     struct semaphore *exit_sema = thread_current ()->exit_sema; 
+     
+    //printf ("exit sema %x\n", exit_sema); 
+    
+    thread_current ()->exit_status = status;
+    //printf ("exit_status = %d\n", thread_current ()->exit_status);
     sema_up (exit_sema);
     
-    thread_current ()->exit_status = status; 
+    printf("%s: exit(%d)\n", thread_current()->file_name, status);
     thread_exit ();
   }
 }

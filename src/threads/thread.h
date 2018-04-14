@@ -106,6 +106,8 @@ struct thread
     struct semaphore *exit_sema;        /* semaphore for child exit */
     struct semaphore *load_sema;         /* semaphore for child loading */
 
+    char * file_name;                   /* file name omitting arguments */
+
 #endif
 
     /* Owned by thread.c. */
