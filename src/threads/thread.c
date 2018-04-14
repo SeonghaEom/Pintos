@@ -595,7 +595,7 @@ allocate_tid (void)
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
-/* Try to find child with pid in current thread */
+/* Try to find child with pid in current thread's child */
 struct thread *
 find_child (tid_t pid)
 {

@@ -107,27 +107,33 @@ process_wait (tid_t child_tid)
   struct semaphore *exit_sema;
   struct thread *t;
   t = find_child (child_tid);
+  
   // TODO : should we need to deal with invalid TID??
-  /* dont't wait twice */
+  /* dont't wait twice 
   if ( t != NULL && t->exit_sema != NULL
       && child_tid == t->tid)
   {
     return -1;
-  }
+  }*/
 
-  /* child process thread is null return -1 */
+  /* child process thread is null */
   if (t == NULL)
   {
     return -1;
   }
-  /* not the direct child of current_thread() */
+  /* exit_sema exists, don't wait twice */
+  else if (t->exit_sema != NULL)
+  {    
+    return -1;
+  }
+  /* not the direct child of current_thread() 
   else if ( t->tid != child_tid)
   {
     return -1;
-  }
+  }*/
   else 
-  { 
-    /* creating a local sema phore and then allocating it to child */
+  {
+    /* creating a local semaphore and then allocating it to child */
     exit_sema = (struct semaphore *) malloc (sizeof (struct semaphore));
     sema_init (exit_sema, 0);
     t->exit_sema = exit_sema;
@@ -141,7 +147,7 @@ process_wait (tid_t child_tid)
     
     /* If tid was terminated by the kernel, returns -1*/
     /* If process_wait () has already: been successfully called */
-    if (exit_status == -1 || exit_status == -2)
+    if (exit_status == -1)
     {
       return -1;
     }
@@ -202,20 +208,6 @@ process_activate (void)
      interrupts. */
   tss_update ();
 }
-
-/* write size bytes from buffer to the open file fd */
-int process_write (int fd, void *buffer, unsigned size)
-{
-  /* fd==1 reserved from standard output */
-  if (fd == 1) 
-  {
-    putbuf (buffer, size);
-    return (int)size;
-  }
-  return -1;
-}
-
-
 
 /* We load ELF binaries.  The following definitions are taken
    from the ELF specification, [ELF1], more-or-less verbatim.  */
