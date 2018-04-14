@@ -318,16 +318,45 @@ remove (const char *file)
 /* Open */
 static int
 open (const char *file)
-{
-  return filesys_open (file);  
+{    
+  printf ("open\n");
+  
+  /* file open fail */
+  if (filesys_open (file) != NULL)
+  {
+    exit (-1);
+  }
+  /* file open success */
+  else 
+  {
+    int new_fd = thread_current ()->next_fd;
+    printf ("new_fd : %d\n", new_fd);
+    thread_current ()->next_fd++;
+    /* create new filedescriptor */
+    struct filedescriptor *fd =
+      (struct filedescriptor*) malloc (sizeof (struct filedescriptor));
+    fd->fd = new_fd;
+    fd->filename = file;
+    /* push it open_files */
+    list_push_back (&thread_current ()->open_files, &fd->elem);
+  }
 }
 
 /* Filesize */
 static int
-filesize (int fd UNUSED)
+filesize (int fd)
 {
-  /* TODO */
-  return 1;
+  struct filedescriptor *filedes = find_file (fd);
+  if (filedes == NULL)
+  {
+    exit (-1);
+  }
+  else 
+  {
+    struct file *f = filesys_open (filedes->filename);
+    int length = file_length (f);
+    return length;
+  }
 }
 
 /* Read */

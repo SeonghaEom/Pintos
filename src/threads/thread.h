@@ -104,17 +104,25 @@ struct thread
 
     int exit_status;                    /* return status for child */
     struct semaphore *exit_sema;        /* semaphore for child exit */
-    struct semaphore *load_sema;         /* semaphore for child loading */
+    struct semaphore *load_sema;        /* semaphore for child loading */
 
     char * file_name;                   /* file name omitting arguments */
-
+    
+    struct list open_files;             /* open files */
+    int next_fd;
 #endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
 
-
+/* fild descriptor */
+struct filedescriptor
+  {
+    int fd;
+    char *filename;
+    struct list_elem elem;
+  };
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
@@ -129,7 +137,6 @@ void thread_print_stats (void);
 
 typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
-
 void thread_block (void);
 void thread_unblock (struct thread *);
 
@@ -154,4 +161,5 @@ int thread_get_load_avg (void);
 
 struct thread *find_child (tid_t pid);
 struct thread *find_thread (tid_t tid);
+struct filedescriptor *find_file (int fd);
 #endif /* threads/thread.h */

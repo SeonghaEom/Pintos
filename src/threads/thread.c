@@ -477,7 +477,8 @@ init_thread (struct thread *t, const char *name, int priority)
 #ifdef USERPROG
   /* initialization of parent list_elem 안함 */
   list_init (&t->child);
-
+  list_init (&t->open_files);
+  t->next_fd = 2;
 #endif
 }
 
@@ -637,6 +638,28 @@ find_thread (tid_t tid)
       /* We found thread with pid */
       if (t->tid == tid)
         return t;
+    }
+  }
+  return NULL;
+}
+
+/* Find open file in open_files */
+struct filedescriptor *
+find_file (int fd)
+{
+  struct list_elem *e;
+  struct list *fds = &thread_current ()->open_files;
+
+  /* open_files is not empty */
+  if (list_size (fds) != 0)
+  {
+    for (e = list_begin (fds); e != list_end (fds);
+         e = list_next (e))
+    {
+      struct filedescriptor *f = list_entry (e, struct filedescriptor, elem);
+      /* We found thread with fd */
+      if (f->fd == fd)
+        return f;
     }
   }
   return NULL;
