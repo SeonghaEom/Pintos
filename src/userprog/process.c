@@ -24,7 +24,6 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static void parse_arg (char **argv_, int * argc_, char **save_ptr);
-static void close_all_files ();
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -87,7 +86,7 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success)
-    printf ("a\n");
+    //printf ("a\n");
     thread_exit ();
  
   /* Start the user process by simulating a return from an
