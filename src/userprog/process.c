@@ -19,6 +19,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+//#include <syscall.h>
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -87,7 +88,7 @@ start_process (void *file_name_)
   palloc_free_page (file_name);
   if (!success)
     printf ("a\n");
-    thread_exit (-1);
+    thread_exit ();
  
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -151,15 +152,13 @@ process_wait (tid_t child_tid)
 
 /* Free the current process's resources. */
 void
-process_exit (int status)
+process_exit (void)
 {
   //printf ("process_exit\n");
   struct thread *cur = thread_current ();
+  //printf ("cur->tid : %d\n", cur->tid); 
   
-  if (cur->tid == 1)
-    return;
-  close_all_files ();
-  cur->status = status;
+  
   uint32_t *pd;
   
   /*
@@ -184,8 +183,6 @@ process_exit (int status)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-
-
 }
 
 /* Sets up the CPU for running user code in the current
