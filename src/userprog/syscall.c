@@ -19,7 +19,7 @@ static int read_sysnum (void *);
 static void read_arguments (void *esp, void **argv, int argc); 
 static void halt (void);
 static int write (int, const void *, unsigned);
-static void exit (int status);
+//static void exit (int status);
 static tid_t exec (const char *cmd_line);
 static int wait (tid_t pid);
 static bool create (const char *file, unsigned initial_size);
@@ -42,7 +42,7 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  printf ("Syscall!\n");
+  //printf ("Syscall!\n");
   /* Check that given stack pointer address is valid */
   valid_address (f->esp);
   /* sysnum and arguments */
@@ -57,7 +57,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   unsigned size;
   int fd; 
   /* sysnum */
-  printf ("sysnum : %d\n", sysnum);
+  //printf ("sysnum : %d\n", sysnum);
   switch (sysnum)
   {
     /* 0, Halt the operating systems */
@@ -135,7 +135,6 @@ syscall_handler (struct intr_frame *f UNUSED)
       //valid_address (&fd);
       valid_address ((void *) buffer);
       f->eax = write (fd, buffer, size);
-      printf ("write done\n");
       break;
     /* 10, Change position in a file */
     case SYS_SEEK:
@@ -160,9 +159,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       printf ("sysnum : default\n");
       break;
   }
-  
   //thread_exit ();
-  printf ("handler done\n");
+
 }
 
 /* Read syscall number with esp in syscall_handler */
@@ -178,7 +176,7 @@ read_sysnum (void *esp)
 static void 
 valid_address (void *uaddr)
 {
-  printf ("valid_address\n");
+  //printf ("valid_address\n");
   //printf ("%x\n", uaddr);
   /* First check given pointer is NULL */
   if (uaddr == NULL) 
@@ -222,7 +220,6 @@ read_arguments (void *esp, void **argv, int argc)
     //printf ("argv[count] : %p\n", &argv[count]);
     //printf ("esp : %p\n", esp);
     memcpy (&argv[count], esp, 4);
-    printf ("adfadffdfdfdf %d\n", *(int *)esp);
     valid_address (esp);
     //printf ("%d th : %d\n", count, (int) argv[count]);
     esp += 4;
@@ -238,7 +235,7 @@ halt (void)
 }
 
 /* Terminate the current user program, returning status to the kernel */
-static void
+void
 exit (int status)
 {
   /* close all files */
@@ -316,7 +313,7 @@ write (int fd, const void *buffer, unsigned size)
     else
     {
       struct file *f = filesys_open (filedes->filename);
-      valid_address (f);
+      //valid_address (f);
       return (int) file_write (f, buffer, (off_t) size);
       //return (int) file_write_at (f, (const void *) buffer, (off_t) size, f->pos);   
     }
@@ -409,7 +406,7 @@ read (int fd, void *buffer, unsigned size)
     else 
     {
       struct file *f = filesys_open (filedes->filename);
-      valid_address (f);
+      //valid_address (f);
       int result = (int) file_read (f, buffer, size);
       //int result = (int) file_read_at (f, buffer, size, f->pos); 
       return result;
