@@ -192,6 +192,10 @@ thread_create (const char *name, int priority,
   sema_init (load_sema, 0);
   t->load_sema = load_sema;
 
+  struct semaphore *error_sema = (struct semaphore *) malloc (sizeof (struct semaphore));
+  sema_init (error_sema, 0);
+  t->error_sema = error_sema;
+
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */

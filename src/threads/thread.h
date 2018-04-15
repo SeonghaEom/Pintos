@@ -105,11 +105,12 @@ struct thread
     int exit_status;                    /* return status for child */
     struct semaphore *exit_sema;        /* semaphore for child exit */
     struct semaphore *load_sema;        /* semaphore for child loading */
-
+    struct semaphore *error_sema;       /* semaphore for child load error */
     char * argv_name;                   /* file name omitting arguments */
     
     struct list open_files;             /* open files */
     int next_fd;
+    bool load_success;
 #endif
 
     /* Owned by thread.c. */

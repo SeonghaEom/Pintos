@@ -14,7 +14,7 @@
 #include "devices/input.h"
 
 static void syscall_handler (struct intr_frame *);
-static bool valid_address (void *);
+static void valid_address (void *);
 static int read_sysnum (void *);
 static void read_arguments (void *esp, void **argv, int argc); 
 static void halt (void);
@@ -57,7 +57,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   unsigned size;
   int fd; 
   /* sysnum */
-  //printf ("sysnum : %d\n", sysnum);
+  printf ("sysnum : %d\n", sysnum);
   switch (sysnum)
   {
     /* 0, Halt the operating systems */
@@ -76,10 +76,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       read_arguments (f->esp, &argv[0], 1);
       char * cmd_line = (char *) argv[0];
       /* Invalid address */
-      if (!valid_address (cmd_line))
-      {
-        exit (-1);
-      }
+      valid_address (cmd_line);
       f->eax = exec (cmd_line);
       break;
     /* 3, Wait for a child process to die */
@@ -94,30 +91,23 @@ syscall_handler (struct intr_frame *f UNUSED)
       read_arguments (f->esp, &argv[0], 2);
       file = (const char *) argv[0];
       unsigned initial_size = (unsigned) argv[1];
-      if (!valid_address ((void *) file))
-      {
-        exit (-1);
-      }
+      valid_address ((void *) file);
       f->eax = create (file, initial_size);
       break;
     /* 5, Delete a file */
     case SYS_REMOVE:
       read_arguments (f->esp, &argv[0], 1);
       file = (const char *) argv[0];
-      if (!valid_address ((void *) file))
-      {
-        exit (-1);
-      }
+      valid_address ((void *) file);
+      
       f->eax = remove (file);
       break;
     /* 6, Open a file */
     case SYS_OPEN:
       read_arguments (f->esp, &argv[0], 1);
       file = (const char *) argv[0];
-      if (!valid_address ((void *) file))
-      {
-        exit (-1);
-      }
+      valid_address ((void *) file);
+
       f->eax = open (file);
       break;
     /* 7, Obtain a file's size */
@@ -132,10 +122,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       fd = (int) argv[0];
       buffer = (void *) argv[1];
       size = (unsigned) argv[2];
-      if (!valid_address ((void *) buffer))
-      {
-        exit (-1);
-      }
+      //valid_address (&fd);
+      valid_address ((void *) buffer);
       f->eax = read (fd, buffer, size);
       break;
     /* 9, Write to a file */
@@ -144,11 +132,10 @@ syscall_handler (struct intr_frame *f UNUSED)
       fd = (int) argv[0];
       buffer = (void *) argv[1];
       size = (unsigned) argv[2];
-      if (!valid_address ((void *) buffer))
-      {
-        exit (-1);
-      }
+      //valid_address (&fd);
+      valid_address ((void *) buffer);
       f->eax = write (fd, buffer, size);
+      printf ("write done\n");
       break;
     /* 10, Change position in a file */
     case SYS_SEEK:
@@ -175,6 +162,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   }
   
   //thread_exit ();
+  printf ("handler done\n");
 }
 
 /* Read syscall number with esp in syscall_handler */
@@ -187,13 +175,15 @@ read_sysnum (void *esp)
 }
 
 /* Check the given user-provided pointer is valid and return -1  later */
-static bool 
+static void 
 valid_address (void *uaddr)
 {
+  printf ("valid_address\n");
+  //printf ("%x\n", uaddr);
   /* First check given pointer is NULL */
   if (uaddr == NULL) 
   {
-    return 0;
+    exit (-1);
   }
   /* Non NULL address */
   else 
@@ -201,18 +191,21 @@ valid_address (void *uaddr)
     /* Check given pointer is user vaddr, point to user address */
     if (is_user_vaddr (uaddr))  
     {
+      //printf ("user_vaddr\n");
       /* Check given pointer is mapped or unmapped */
       uint32_t *pd = thread_current()->pagedir;
       if (pagedir_get_page (pd, uaddr) == NULL)
       {
-        return 0;
+        //printf ("unmapped\n");
+        exit (-1);
       }
-      return 1;
+      //printf ("aa\n");
+      return;
     }
     /* Not in user virtual address */
     else 
     {
-      return 0;
+      exit (-1);
     }
   }
 }
@@ -229,6 +222,8 @@ read_arguments (void *esp, void **argv, int argc)
     //printf ("argv[count] : %p\n", &argv[count]);
     //printf ("esp : %p\n", esp);
     memcpy (&argv[count], esp, 4);
+    printf ("adfadffdfdfdf %d\n", *(int *)esp);
+    valid_address (esp);
     //printf ("%d th : %d\n", count, (int) argv[count]);
     esp += 4;
     count++;
@@ -321,6 +316,7 @@ write (int fd, const void *buffer, unsigned size)
     else
     {
       struct file *f = filesys_open (filedes->filename);
+      valid_address (f);
       return (int) file_write (f, buffer, (off_t) size);
       //return (int) file_write_at (f, (const void *) buffer, (off_t) size, f->pos);   
     }
@@ -385,8 +381,14 @@ filesize (int fd)
 static int
 read (int fd, void *buffer, unsigned size)
 {
+  //printf ("fd : %d\n");
+
+  thread_yield ();
+  
+  if (fd < 0)
+    exit (-1);
   /* fd == 0 */
-  if (fd == 0) 
+  else if (fd == 0) 
   {
     int i;
     for (i = 0; i < (int)size; i++)
@@ -407,12 +409,12 @@ read (int fd, void *buffer, unsigned size)
     else 
     {
       struct file *f = filesys_open (filedes->filename);
+      valid_address (f);
       int result = (int) file_read (f, buffer, size);
       //int result = (int) file_read_at (f, buffer, size, f->pos); 
       return result;
     }
   }
-  return 1;
 }
 
 /* Seek */

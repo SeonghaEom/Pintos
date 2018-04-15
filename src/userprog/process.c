@@ -19,7 +19,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
-//#include <syscall.h>
+#include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -47,11 +47,21 @@ process_execute (const char *file_name)
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   
   struct thread *child = find_thread (tid);
-
   /* sema_down the load_sema */
   sema_down (child->load_sema);
   
- printf ("load_sema in child = %x\n", thread_current()->load_sema);
+  //printf ("load_sema in child = %x\n", thread_current()->load_sema);
+  //printf ("child->load_success = %s\n", child->load_success? "True" : "False");
+  if (!child->load_success)
+  {
+    //printf ("a\n");
+    tid = TID_ERROR;
+  }
+  //printf ("b\n");
+  /* sema_up the exit_seam */
+  sema_up (child->error_sema); 
+  thread_yield (); 
+  //printf ("c\n");
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
@@ -60,6 +70,8 @@ process_execute (const char *file_name)
   {
     list_push_back (&thread_current ()->child, &child->child_elem);
   }
+
+  //printf ("tid : %d\n", tid);
   return tid;
 }
 
@@ -79,16 +91,26 @@ start_process (void *file_name_)
   if_.eflags = FLAG_IF | FLAG_MBS;
 
   success = load (file_name, &if_.eip, &if_.esp);
-
+  
+  thread_current ()->load_success = success;
 
   /* sema up the load_sema */
   sema_up (thread_current ()->load_sema);
-
+  
+  /* sema down the exit_sema */
+  sema_down (thread_current ()->error_sema);
+  
+  //printf ("success? : %s\n", success? "True" : "False");
   /* If load failed, quit. */
-  palloc_free_page (file_name);
+  //printf ("qq\n");
+  //palloc_free_page (file_name);
+  //printf ("qqqq\n");
   if (!success)
     //printf ("a\n");
+    //printf("%s: exit(%d)\n", thread_current()->argv_name, -1);
     thread_exit ();
+
+  //printf ("zzz\n");
  
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
