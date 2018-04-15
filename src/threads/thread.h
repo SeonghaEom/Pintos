@@ -111,6 +111,8 @@ struct thread
     struct list open_files;             /* open files */
     int next_fd;
     bool load_success;
+    
+    struct semaphore child_sema;
 #endif
 
     /* Owned by thread.c. */

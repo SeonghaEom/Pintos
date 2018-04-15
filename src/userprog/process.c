@@ -35,14 +35,13 @@ process_execute (const char *file_name)
   /*synchronization until child process loeads well */
   char *fn_copy;
   tid_t tid;
-
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
- 
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   
@@ -61,6 +60,8 @@ process_execute (const char *file_name)
   /* sema_up the exit_seam */
   sema_up (child->error_sema); 
   thread_yield (); 
+  sema_up (&thread_current ()->child_sema);
+  
   //printf ("c\n");
 
   if (tid == TID_ERROR)
@@ -70,7 +71,6 @@ process_execute (const char *file_name)
   {
     list_push_back (&thread_current ()->child, &child->child_elem);
   }
-
   //printf ("tid : %d\n", tid);
   return tid;
 }
@@ -99,17 +99,18 @@ start_process (void *file_name_)
   
   /* sema down the exit_sema */
   sema_down (thread_current ()->error_sema);
-  
+  sema_up (&thread_current ()->parent->child_sema);
   //printf ("success? : %s\n", success? "True" : "False");
   /* If load failed, quit. */
   //printf ("qq\n");
   //palloc_free_page (file_name);
   //printf ("qqqq\n");
   if (!success)
+  {
     //printf ("a\n");
     //printf("%s: exit(%d)\n", thread_current()->argv_name, -1);
     thread_exit ();
-
+  }
   //printf ("zzz\n");
  
   /* Start the user process by simulating a return from an
@@ -337,6 +338,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       success = false;
       goto done; 
     }
+  file_deny_write (file);
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr

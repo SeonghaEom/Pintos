@@ -32,6 +32,7 @@ static unsigned tell (int fd);
 static void close (int fd);
 static void close_all_files (void);
 
+
 void
 syscall_init (void) 
 {
@@ -67,8 +68,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     /* 1, Terminate this process */
     case SYS_EXIT:
       read_arguments (f->esp, &argv[0], 1);
-      int status = (int) argv[0]; 
-      
+      int status = (int) argv[0];       
       exit (status);   
       break;
     /* 2, Start another process */
@@ -332,9 +332,9 @@ static int
 open (const char *file)
 {    
   //printf ("open\n");
-  
+  struct file* f= filesys_open (file);
   /* file open fail */
-  if (filesys_open (file) == NULL)
+  if (f == NULL)
   {
     //printf ("NULL!\n");
     return -1;

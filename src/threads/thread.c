@@ -490,6 +490,8 @@ init_thread (struct thread *t, const char *name, int priority)
   /* initialization of parent list_elem 안함 */
   list_init (&t->child);
   list_init (&t->open_files);
+  sema_init (&t->child_sema, 1);
+  t->parent = running_thread ();
   t->next_fd = 2;
 #endif
 }
