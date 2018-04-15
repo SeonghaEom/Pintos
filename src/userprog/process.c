@@ -50,6 +50,7 @@ process_execute (const char *file_name)
   /* sema_down the load_sema */
   sema_down (child->load_sema);
   
+ printf ("load_sema in child = %x\n", thread_current()->load_sema);
 
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy);
