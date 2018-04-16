@@ -12,6 +12,7 @@
 #include "userprog/process.h"
 #include "filesys/file.h"
 #include "devices/input.h"
+#include "threads/malloc.h"
 
 static void syscall_handler (struct intr_frame *);
 static void valid_address (void *);
@@ -243,10 +244,7 @@ exit (int status)
   close_all_files ();
   
   /* exit_sema exists */
-    struct semaphore *exit_sema = thread_current ()->exit_sema; 
-     
     thread_current ()->exit_status = status;
-    
     printf("%s: exit(%d)\n", thread_current()->argv_name, status);
     thread_exit ();
 }
@@ -281,6 +279,7 @@ static int
 write (int fd, const void *buffer, unsigned size)
 {
   /* fd==1 reserved from standard output */
+
   if (fd == 1) 
   {
     int rest = (int) size;
@@ -295,16 +294,24 @@ write (int fd, const void *buffer, unsigned size)
 
     return size;
   }
+
+
   else if (fd == 0)
+  {
+    
     exit (-1);
+  }
   else
   {
     struct filedescriptor *filedes = find_file (fd);
 
     if (filedes == NULL)
+    {
       exit (-1);
+    }
     else
     {
+      thread_yield();
       struct file *f = find_file (fd)->file;
       //valid_address (f);
       lock_acquire (file_lock);
@@ -323,6 +330,8 @@ remove (const char *file)
   lock_acquire (file_lock);
   bool result =  filesys_remove (file);
   lock_release (file_lock);
+  //free (file_lock);
+
   return result;
 }
 
@@ -334,6 +343,7 @@ open (const char *file)
   lock_acquire(file_lock);
   struct file *open_file = filesys_open(file);
   lock_release(file_lock);
+ 
   /* file open fail */
   if (open_file == NULL)
   {
@@ -407,13 +417,16 @@ read (int fd, void *buffer, unsigned size)
   {
     struct filedescriptor *filedes = find_file (fd);
     if (filedes == NULL)
+    { 
       exit (-1);
+    }
     else 
     {
       struct file *f = find_file (fd)->file;
       lock_acquire(file_lock);
       int result = (int) file_read (f, buffer, size);
       lock_release (file_lock);
+
       //int result = (int) file_read_at (f, buffer, size, f->pos); 
       return result;
     }
@@ -433,6 +446,7 @@ seek (int fd , unsigned position)
     lock_acquire (file_lock);
     file_seek (f, (off_t) position);
     lock_release (file_lock);
+
   }
 }
 
@@ -449,6 +463,7 @@ tell (int fd)
     lock_acquire (file_lock);
     unsigned result = (unsigned) file_tell (f);
     lock_release (file_lock);
+
     return result;
   }
 }
@@ -464,7 +479,6 @@ close (int fd)
   struct filedescriptor *filedes = find_file (fd);
   if (filedes == NULL)
   {
-    //printf("hello\n");
     exit (-1);
   }
   else 
@@ -474,6 +488,7 @@ close (int fd)
     lock_acquire (file_lock);
     file_close (f);
     lock_release (file_lock);
+    //free (file_lock);
   }
 }
 

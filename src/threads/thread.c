@@ -37,6 +37,7 @@ static struct thread *initial_thread;
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
 
+
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
   {
@@ -314,6 +315,7 @@ thread_exit (void)
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
   //printf ("a\n");
+
   schedule ();
   //printf ("b\n");
   NOT_REACHED ();
@@ -553,6 +555,7 @@ thread_schedule_tail (struct thread *prev)
 #ifdef USERPROG
   /* Activate the new address space. */
   process_activate ();
+  sema_down(exit_status_sema);
 #endif
 
   /* If the thread we switched from is dying, destroy its struct
@@ -613,19 +616,21 @@ struct thread *
 find_child (tid_t pid)
 {
   struct list_elem *e;
-  struct list *child_list = &thread_current ()->child;
-
+  struct list* child_list = &(thread_current ()->child);
+  struct thread *t;
   /* child_list is not empty */
   if (list_size (child_list) != 0)
   {
     /* child list is not empty, find child by pid */
-    for (e = list_begin (child_list); e != list_end (child_list);
-         e = list_next (e))
+    for (e = list_begin (child_list); e != list_end (child_list); 
+        e = list_next (e))
     {
-      struct thread *t = list_entry (e, struct thread, child_elem);
+      t = list_entry (e, struct thread, child_elem);
       /* We found child with pid PID */
       if (t->tid == pid)
+      {
         return t;
+      }
     }
   }
   /* There no such child with pid PID */

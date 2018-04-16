@@ -173,7 +173,5 @@ main (int argc, char *argv[])
       msg ("success. program forked %d times.", howmany);
       msg ("end");
     }
-
   return expected_depth;
 }
-// vim: sw=2

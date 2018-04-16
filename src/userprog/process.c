@@ -31,6 +31,7 @@ static void parse_arg (char **argv_, int * argc_, char **save_ptr);
 tid_t
 process_execute (const char *file_name) 
 { 
+  //printf("process_Execute enter, %s\n", file_name);
   /*synchronization until child process loeads well */
   char *fn_copy;
   tid_t tid;
@@ -59,7 +60,7 @@ process_execute (const char *file_name)
   //printf ("b\n");
   /* sema_up the exit_seam */
   sema_up (child->error_sema); 
-  thread_yield (); 
+  //thread_yield (); 
   //printf ("c\n");
 
   if (tid == TID_ERROR)
@@ -68,6 +69,7 @@ process_execute (const char *file_name)
   else 
   {
     list_push_back (&thread_current ()->child, &child->child_elem);
+    
   }
 
   //printf ("tid : %d\n", tid);
@@ -79,6 +81,7 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
+  //printf("start_process enter, %s\n", file_name_);
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
@@ -133,6 +136,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
+  //printf ("process_Wait enter tid = %d\n", (int) child_tid);
   //struct semaphore *exit_sema;
   struct thread *t;
   t = find_child (child_tid);
@@ -147,12 +151,16 @@ process_wait (tid_t child_tid)
 
   else 
   {
+
     /* creating a local semaphore and then allocating it to child */
-    //printf("sema value %d\n", t->exit_sema->value);
+    //printf("sema down %d\n", t->exit_sema->value);
     sema_down (t->exit_sema);
 
     int exit_status = t->exit_status;
-    
+
+    sema_up (exit_status_sema);
+
+    //printf("exit status  = %d\n", exit_status);
     list_remove(&t->child_elem);
     /* If tid was terminated by the kernel, returns -1*/
     /* If process_wait () has already: been successfully called */
@@ -177,10 +185,11 @@ process_wait (tid_t child_tid)
 void
 process_exit (void)
 {
+  //printf ("process_exit entrer, %d\n", thread_current()->tid);
   struct thread *cur = thread_current ();
   if(cur->parent != NULL)
   {
-  struct filedescriptor *f = find_file_by_name(cur->argv_name, cur->parent->open_files);
+  struct filedescriptor *f = find_file_by_name(cur->argv_name, &cur->parent->open_files);
   if (  f != NULL)
   {
     file_allow_write ( f ->file);
@@ -198,6 +207,8 @@ process_exit (void)
      to the kernel-only page directory. */
   pd = cur->pagedir;
   sema_up(cur->exit_sema);
+  //printf("sema up = %d\n", cur->exit_sema->value);
+
   if (pd != NULL) 
     {
       /* Correct ordering here is crucial.  We must set
@@ -307,6 +318,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
 {
+  //printf("load enter %s\n", file_name);
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -316,18 +328,19 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* parsing arguments now */
   char *argv[50];
   int argc;
-  char *save_ptr;
+  char *save_ptr, *delete;
 
 
   /* allocating memory for fn_copy  */
   char *arr = (char *) malloc (strlen (file_name)+1);
+  //delete = arr;
   if (arr == NULL)
     return TID_ERROR;
   strlcpy (arr, file_name, strlen(file_name)+1);
   argv[0] = strtok_r (arr, " ", &save_ptr);
-  thread_current ()->argv_name = argv[0];
+  thread_current()->argv_name = argv[0];
   parse_arg (argv, &argc, &save_ptr);
-
+  
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -428,7 +441,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   success = true;
  done:
   /* We arrive here whether the load is successful or not. */
+  //printf("file_close\n");
   file_close (file);
+  //free(delete);
+  //free (arr)
   return success;
 }
 
@@ -657,8 +673,6 @@ parse_arg (char **argv_, int *argc_, char **save_ptr)
     (*argc_)++;
   }
 }
-
-
 
 
 

@@ -106,6 +106,7 @@ struct thread
     struct semaphore *exit_sema;        /* semaphore for child exit */
     struct semaphore *load_sema;        /* semaphore for child loading */
     struct semaphore *error_sema;       /* semaphore for child load error */
+    struct semaphore *exit_status_sema;
     char * argv_name;                   /* file name omitting arguments */
     
     struct list open_files;             /* open files */
@@ -165,4 +166,5 @@ int thread_get_load_avg (void);
 struct thread *find_child (tid_t pid);
 struct thread *find_thread (tid_t tid);
 struct filedescriptor *find_file (int fd);
+struct filedescriptor *find_file_by_name (char * file_name, struct list *parent_list );
 #endif /* threads/thread.h */
