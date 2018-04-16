@@ -19,6 +19,7 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
+#include "threads/synch.h"
 #include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
@@ -158,7 +159,7 @@ process_wait (tid_t child_tid)
 
     int exit_status = t->exit_status;
 
-    sema_up (exit_status_sema);
+    sema_up (t->exit_status_sema);
 
     //printf("exit status  = %d\n", exit_status);
     list_remove(&t->child_elem);
@@ -207,6 +208,7 @@ process_exit (void)
      to the kernel-only page directory. */
   pd = cur->pagedir;
   sema_up(cur->exit_sema);
+  sema_down(cur->exit_status_sema);
   //printf("sema up = %d\n", cur->exit_sema->value);
 
   if (pd != NULL) 
@@ -328,7 +330,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* parsing arguments now */
   char *argv[50];
   int argc;
-  char *save_ptr, *delete;
+  char *save_ptr; //*delete;
 
 
   /* allocating memory for fn_copy  */
@@ -565,7 +567,6 @@ setup_stack (void **esp, char **argv, int *argc)
   bool success = false;
   int i;                        /* Index */
   char *buf[*argc];              /* */
-  void *fake_ret_addr = 0;      /* Fake return address, set to 0 */
   uint32_t tmp;                 /* */
   int mid;                      /* */
 
@@ -593,7 +594,7 @@ setup_stack (void **esp, char **argv, int *argc)
         }
         buf[*argc] = (uint32_t)0;
         //printf ("buf[argc] = %x\n");
-        mid = *esp;
+        mid = (int)*esp;
         /* Padding with 0 */
         while ( mid % 4 != 0 )
         {  
@@ -609,7 +610,7 @@ setup_stack (void **esp, char **argv, int *argc)
         { 
           *esp -= 4;
           // printf("buf[%d] = %x\n", i, buf[i]);
-          * ((uint32_t *)*esp) = buf[i];
+          * ((uint32_t *)*esp) = (uint32_t) buf[i];
           //memcpy ( esp, &buf[i], (size_t) 4);
           i--;
 
