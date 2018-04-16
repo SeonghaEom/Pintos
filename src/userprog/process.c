@@ -198,18 +198,18 @@ process_exit (void)
   }
   uint32_t *pd;
   
-  /*
-  if (cur->exit_sema != NULL)
-  {
-    sema_up (&cur->exit_sema);
-  }
-  */
+
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
   sema_up(cur->exit_sema);
   sema_down(cur->exit_status_sema);
   //printf("sema up = %d\n", cur->exit_sema->value);
+  
+  free (cur->exit_sema);
+  free (cur->exit_status_sema);
+  free (cur->load_sema);
+  free (cur->error_sema);
 
   if (pd != NULL) 
     {
@@ -345,8 +345,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
   
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
-  if (t->pagedir == NULL) 
+  if (t->pagedir == NULL)
+  {
+    free (arr);
     goto done;
+  }
   process_activate ();
 
   /* Open executable file. */
@@ -356,6 +359,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
+      free (arr);
       success = false;
       goto done; 
     }
@@ -371,6 +375,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     {
       printf ("load: %s: error loading executable\n", file_name);
       success = false;
+      free (arr);
       goto done; 
     }
 
@@ -435,7 +440,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Set up stack. */
   if (!setup_stack (esp, argv, &argc))
+  {
+    free (arr);
     goto done;
+  }
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
@@ -445,9 +453,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* We arrive here whether the load is successful or not. */
   //printf("file_close\n");
   file_close (file);
-  //free(delete);
-  //free (arr)
   return success;
+
+  free (arr);
 }
 
 /* load() helpers. */

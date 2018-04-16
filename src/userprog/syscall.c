@@ -246,6 +246,7 @@ exit (int status)
   /* exit_sema exists */
     thread_current ()->exit_status = status;
     printf("%s: exit(%d)\n", thread_current()->argv_name, status);
+    close_all_files();
     thread_exit ();
 }
 
@@ -330,7 +331,6 @@ remove (const char *file)
   lock_acquire (file_lock);
   bool result =  filesys_remove (file);
   lock_release (file_lock);
-  //free (file_lock);
 
   return result;
 }
@@ -347,7 +347,6 @@ open (const char *file)
   /* file open fail */
   if (open_file == NULL)
   {
-    //printf ("NULL!\n");
     return -1;
   }
   /* file open success */
@@ -411,6 +410,8 @@ read (int fd, void *buffer, unsigned size)
   }
   else if (fd == 1)
   {
+    struct filedescriptor *filedes = find_file (fd);
+    free (filedes);
     exit (-1);
   }
   else
@@ -479,6 +480,7 @@ close (int fd)
   struct filedescriptor *filedes = find_file (fd);
   if (filedes == NULL)
   {
+    free (filedes);
     exit (-1);
   }
   else 
@@ -488,7 +490,7 @@ close (int fd)
     lock_acquire (file_lock);
     file_close (f);
     lock_release (file_lock);
-    //free (file_lock);
+    free (filedes);
   }
 }
 

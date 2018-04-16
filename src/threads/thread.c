@@ -11,6 +11,7 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
+#include "threads/malloc.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #endif
@@ -196,6 +197,10 @@ thread_create (const char *name, int priority,
   struct semaphore *error_sema = (struct semaphore *) malloc (sizeof (struct semaphore));
   sema_init (error_sema, 0);
   t->error_sema = error_sema;
+
+  struct semaphore *exit_status_sema = (struct semaphore *) malloc (sizeof (struct semaphore));
+  sema_init (exit_status_sema, 0);
+  t->exit_status_sema = exit_status_sema;
 
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -555,7 +560,6 @@ thread_schedule_tail (struct thread *prev)
 #ifdef USERPROG
   /* Activate the new address space. */
   process_activate ();
-  sema_down(exit_status_sema);
 #endif
 
   /* If the thread we switched from is dying, destroy its struct
