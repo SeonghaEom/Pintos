@@ -124,6 +124,7 @@ struct filedescriptor
     char *filename;
     struct list_elem elem;
     struct semaphore *file_sema;
+    struct file *file;
   };
 
 /* If false (default), use round-robin scheduler.

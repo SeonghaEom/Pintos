@@ -24,7 +24,6 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static void parse_arg (char **argv_, int * argc_, char **save_ptr);
-
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -149,11 +148,12 @@ process_wait (tid_t child_tid)
   else 
   {
     /* creating a local semaphore and then allocating it to child */
-
+    //printf("sema value %d\n", t->exit_sema->value);
     sema_down (t->exit_sema);
-    //list_remove (&t->child_elem);
+
     int exit_status = t->exit_status;
     
+    list_remove(&t->child_elem);
     /* If tid was terminated by the kernel, returns -1*/
     /* If process_wait () has already: been successfully called */
     if (exit_status == -1)
@@ -166,6 +166,7 @@ process_wait (tid_t child_tid)
     }
     else
     {
+      //printf("exit_status\n");
       return exit_status;
     }
   }
@@ -176,11 +177,15 @@ process_wait (tid_t child_tid)
 void
 process_exit (void)
 {
-  //printf ("process_exit\n");
   struct thread *cur = thread_current ();
-  //printf ("cur->tid : %d\n", cur->tid); 
-  
-  
+  if(cur->parent != NULL)
+  {
+  struct filedescriptor *f = find_file_by_name(cur->argv_name, cur->parent->open_files);
+  if (  f != NULL)
+  {
+    file_allow_write ( f ->file);
+  }
+  }
   uint32_t *pd;
   
   /*
@@ -192,6 +197,7 @@ process_exit (void)
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
+  sema_up(cur->exit_sema);
   if (pd != NULL) 
     {
       /* Correct ordering here is crucial.  We must set
@@ -307,7 +313,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
-
   /* parsing arguments now */
   char *argv[50];
   int argc;
@@ -330,7 +335,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
+  lock_acquire (file_lock);
   file = filesys_open (argv[0]);
+  lock_release (file_lock);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);

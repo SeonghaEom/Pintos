@@ -669,7 +669,32 @@ find_file (int fd)
       struct filedescriptor *f = list_entry (e, struct filedescriptor, elem);
       /* We found thread with fd */
       if (f->fd == fd)
+      {
         return f;
+      }
+    }
+  }
+  return NULL;
+}
+
+struct filedescriptor *
+find_file_by_name (char * file_name, struct list *parent_list )
+{
+  struct list_elem *e;
+  struct list *fds = parent_list;
+
+  /* open_files is not empty */
+  if (list_size (fds) != 0)
+  {
+    for (e = list_begin (fds); e != list_end (fds);
+         e = list_next (e))
+    {
+      struct filedescriptor *f = list_entry (e, struct filedescriptor, elem);
+      /* We found thread with fd */
+      if (!strcmp(f->filename,file_name))
+      {
+        return f;
+      }
     }
   }
   return NULL;
