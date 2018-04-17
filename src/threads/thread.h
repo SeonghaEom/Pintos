@@ -107,7 +107,7 @@ struct thread
     struct semaphore *load_sema;        /* semaphore for child loading */
     struct semaphore *error_sema;       /* semaphore for child load error */
     struct semaphore *exit_status_sema; /* semaphore for safely saving child exit status */
-    char * argv_name;                   /* file name omitting arguments */
+    char *argv_name;                   /* file name omitting arguments */
     
     struct list open_files;             /* open files */
     int next_fd;
@@ -122,9 +122,9 @@ struct thread
 struct filedescriptor
   {
     int fd;
-    char *filename;
+    const char *filename;
     struct list_elem elem;
-    struct semaphore *file_sema;
+    //struct semaphore *file_sema;
     struct file *file;
   };
 
