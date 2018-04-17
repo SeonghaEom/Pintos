@@ -108,7 +108,9 @@ struct thread
     struct semaphore *error_sema;       /* semaphore for child load error */
     struct semaphore *exit_status_sema; /* semaphore for safely saving child exit status */
     char *argv_name;                   /* file name omitting arguments */
-    
+    char *arr;
+    struct file *my_file;
+
     struct list open_files;             /* open files */
     int next_fd;
     bool load_success;

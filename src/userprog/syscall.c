@@ -31,7 +31,7 @@ static int read (int fd, void *buffer, unsigned size);
 static void seek (int fd, unsigned position);
 static unsigned tell (int fd);
 static void close (int fd);
-static void close_all_files (void);
+//static void close_all_files (void);
 
 void
 syscall_init (void) 
@@ -241,12 +241,12 @@ void
 exit (int status)
 {
   /* close all files */
-  close_all_files ();
+  //close_all_files ();
   
   /* exit_sema exists */
     thread_current ()->exit_status = status;
-    printf("%s: exit(%d)\n", thread_current()->argv_name, status);
-    close_all_files();
+    //printf("%d, %s: exit(%d)\n", thread_current()->tid, thread_current ()->argv_name, status);
+    printf("%s: exit(%d)\n", thread_current ()->argv_name, status);
     thread_exit ();
 }
 
@@ -352,6 +352,7 @@ open (const char *file)
   /* file open success */
   else 
   {
+    //printf ("open!\n");
     int new_fd = thread_current ()->next_fd;
     //printf ("new_fd : %d\n", new_fd);
     thread_current ()->next_fd++;
@@ -495,17 +496,24 @@ close (int fd)
 }
 
 /* close all files in open files in current thread */
-static void
-close_all_files ()
+void
+close_all_files (void)
 {
   struct list *open_files = &thread_current ()->open_files;
   struct list_elem *e; 
+  int i = 0;
   while (!list_empty (open_files))
   {
-    e = list_front (open_files);
+    e = list_pop_front (open_files);
     struct filedescriptor *filedes =
       list_entry (e, struct filedescriptor, elem);
-    close (filedes->fd);
+    struct file *f = filedes->file;
+    list_remove (&filedes->elem);
+    file_close (f);
+    free (filedes);
+    i++;
+    //close (filedes->fd);
   }
+  //printf ("%d thread close %d file\n", thread_current ()->tid, i);
 }
 

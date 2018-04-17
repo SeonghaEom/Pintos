@@ -312,17 +312,24 @@ thread_exit (void)
 #ifdef USERPROG
   process_exit ();
 #endif
+  
+  list_remove (&thread_current ()->child_elem);
 
+  free (thread_current ()->arr);  
+  //free (thread_current ()->argv_name);
+  free (thread_current ()->exit_sema);
+  free (thread_current ()->exit_status_sema);
+  free (thread_current ()->load_sema);
+  free (thread_current ()->error_sema);
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
-  list_remove (&thread_current()->allelem);
+  list_remove (&thread_current ()->allelem);
   thread_current ()->status = THREAD_DYING;
-  //printf ("a\n");
 
   schedule ();
-  //printf ("b\n");
+  
   NOT_REACHED ();
 }
 
@@ -495,9 +502,16 @@ init_thread (struct thread *t, const char *name, int priority)
 
 #ifdef USERPROG
   /* initialization of parent list_elem 안함 */
+  t->parent = running_thread ();
   list_init (&t->child);
   list_init (&t->open_files);
   t->next_fd = 2;
+
+  //sema_init (&t->exit_sema, 0);
+  //sema_init (&t->exit_status_sema, 0);
+  //sema_init (&t->load_sema, 0);
+  //sema_init (&t->error_sema, 0);
+
 #endif
 }
 
@@ -700,7 +714,7 @@ find_file_by_name (char * file_name, struct list *parent_list )
     {
       struct filedescriptor *f = list_entry (e, struct filedescriptor, elem);
       /* We found thread with fd */
-      if (!strcmp(f->filename,file_name))
+      if (strcmp(f->filename,file_name) == 0)
       {
         return f;
       }

@@ -46,9 +46,26 @@ process_execute (const char *file_name)
  
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  /*
+  if (tid == TID_ERROR)
+    palloc_free_page (fn_copy);
+  else
+  {
+    struct thread *child = find_thread (tid);
+    sema_down (child->load_sema);
+    if (!child->load_success)
+      palloc_free_page (fn_copy);
+      tid = -1;
+    sema_up (child->error_sema);
+
+    list_push_back (&thread_current ()->child, &child->child_elem);
+    
+  }*/
+  if (tid == TID_ERROR)
+    palloc_free_page (fn_copy);
   
   struct thread *child = find_thread (tid);
-  /* sema_down the load_sema */
+  
   sema_down (child->load_sema);
   
   //printf ("load_sema in child = %x\n", thread_current()->load_sema);
@@ -59,16 +76,16 @@ process_execute (const char *file_name)
     tid = TID_ERROR;
   }
   //printf ("b\n");
-  /* sema_up the exit_seam */
   sema_up (child->error_sema); 
   //thread_yield (); 
   //printf ("c\n");
 
   if (tid == TID_ERROR)
-    palloc_free_page (fn_copy);
-  /* Push child in child_list */
+    return -1;
+    //palloc_free_page (fn_copy);
   else 
   {
+    //printf ("%d executes %d\n", thread_current ()->tid, tid);
     list_push_back (&thread_current ()->child, &child->child_elem);
     
   }
@@ -106,13 +123,16 @@ start_process (void *file_name_)
   //printf ("success? : %s\n", success? "True" : "False");
   /* If load failed, quit. */
   //printf ("qq\n");
-  //palloc_free_page (file_name);
+  /* SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS */ 
+  palloc_free_page (file_name);
   //printf ("qqqq\n");
   if (!success)
-    //printf ("a\n");
+  {  
+    //printf ("%d thread fail to load\n", thread_current ()->tid);
     //printf("%s: exit(%d)\n", thread_current()->argv_name, -1);
+    //palloc_free_page (file_name);
     thread_exit ();
-
+  }
   //printf ("zzz\n");
  
   /* Start the user process by simulating a return from an
@@ -137,7 +157,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid) 
 {
-  //printf ("process_Wait enter tid = %d\n", (int) child_tid);
+  //printf ("%d waits %d\n", thread_current ()->tid, (int) child_tid);
   //struct semaphore *exit_sema;
   struct thread *t;
   t = find_child (child_tid);
@@ -190,26 +210,40 @@ process_exit (void)
   struct thread *cur = thread_current ();
   if(cur->parent != NULL)
   {
-  struct filedescriptor *f = find_file_by_name(cur->argv_name, &cur->parent->open_files);
-  if (  f != NULL)
-  {
-    file_allow_write ( f ->file);
+    //printf ("a\n");
+    /*
+    struct filedescriptor *f = find_file_by_name(cur->argv_name, &cur->parent->open_files);
+    if (f != NULL)
+    {
+      file_allow_write ( f ->file);
+    }
+    */
+    if (cur->my_file != NULL)
+    {
+      file_allow_write (cur->my_file);
+    }
+    lock_acquire (file_lock);
+    file_close (cur->my_file);
+    close_all_files ();
+    lock_release (file_lock);
   }
-  }
+  //printf ("b\n");
   uint32_t *pd;
   
+  //close_all_files ();
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
   sema_up(cur->exit_sema);
   sema_down(cur->exit_status_sema);
+
   //printf("sema up = %d\n", cur->exit_sema->value);
   
-  free (cur->exit_sema);
-  free (cur->exit_status_sema);
-  free (cur->load_sema);
-  free (cur->error_sema);
+  //free (cur->exit_sema);
+  //free (cur->exit_status_sema);
+  //free (cur->load_sema);
+  //free (cur->error_sema);
 
   if (pd != NULL) 
     {
@@ -332,7 +366,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   int argc;
   char *save_ptr; //*delete;
 
-
   /* allocating memory for fn_copy  */
   char *arr = (char *) malloc (strlen (file_name)+1);
   //delete = arr;
@@ -340,14 +373,16 @@ load (const char *file_name, void (**eip) (void), void **esp)
     return TID_ERROR;
   strlcpy (arr, file_name, strlen(file_name)+1);
   argv[0] = strtok_r (arr, " ", &save_ptr);
-  thread_current()->argv_name = argv[0];
+  thread_current ()->arr = arr;
+  thread_current ()->argv_name = argv[0];
   parse_arg (argv, &argc, &save_ptr);
   
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL)
   {
-    free (arr);
+    //printf ("%d page directory allocate fails\n", thread_current ()->tid);
+    //free (arr);
     goto done;
   }
   process_activate ();
@@ -359,8 +394,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
-      free (arr);
-      success = false;
+      //free (arr);
       goto done; 
     }
 
@@ -374,8 +408,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       || ehdr.e_phnum > 1024) 
     {
       printf ("load: %s: error loading executable\n", file_name);
-      success = false;
-      free (arr);
+      //free (arr);
       goto done; 
     }
 
@@ -386,11 +419,19 @@ load (const char *file_name, void (**eip) (void), void **esp)
       struct Elf32_Phdr phdr;
 
       if (file_ofs < 0 || file_ofs > file_length (file))
+      { 
+        printf ("aaaaa!!!!!\n");
+        //free (arr);
         goto done;
+      }
       file_seek (file, file_ofs);
 
       if (file_read (file, &phdr, sizeof phdr) != sizeof phdr)
+      { 
+        printf ("bbbbb!!!!!\n");
+        //free (arr);
         goto done;
+      }
       file_ofs += sizeof phdr;
       switch (phdr.p_type) 
         {
@@ -404,6 +445,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
         case PT_DYNAMIC:
         case PT_INTERP:
         case PT_SHLIB:
+          printf ("cccccc!!!!!\n");
+          //free (arr);
           goto done;
         case PT_LOAD:
           if (validate_segment (&phdr, file)) 
@@ -430,32 +473,42 @@ load (const char *file_name, void (**eip) (void), void **esp)
                 }
               if (!load_segment (file, file_page, (void *) mem_page,
                                  read_bytes, zero_bytes, writable))
+              {
+                //printf ("%d thread fails to load segment\n", thread_current ()->tid);
+                // need to free arr 
+                //free (arr);
                 goto done;
+              }
             }
           else
+          {
+            printf ("ddddd!!!!!\n");
+            //free (arr);
             goto done;
+          }
           break;
         }
     }
-
+  
   /* Set up stack. */
   if (!setup_stack (esp, argv, &argc))
   {
-    free (arr);
+    //printf ("%d thread fails to setup_stack\n", thread_current ()->tid);
+    //free (arr);
     goto done;
   }
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
-
+  t->my_file = file;
   success = true;
  done:
   /* We arrive here whether the load is successful or not. */
   //printf("file_close\n");
-  file_close (file);
+  //file_close (file);
+  //lock_release (file_lock);
   return success;
 
-  free (arr);
 }
 
 /* load() helpers. */
