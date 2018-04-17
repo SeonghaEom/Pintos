@@ -125,6 +125,7 @@ start_process (void *file_name_)
   //printf ("qq\n");
   /* SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS */ 
   palloc_free_page (file_name);
+  //////
   //printf ("qqqq\n");
   if (!success)
   {  
