@@ -45,7 +45,6 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  //printf ("Syscall!\n");
   /* Check that given stack pointer address is valid */
   valid_address (f->esp);
   /* sysnum and arguments */
@@ -60,7 +59,6 @@ syscall_handler (struct intr_frame *f UNUSED)
   unsigned size;
   int fd; 
   /* sysnum */
-  //printf ("sysnum : %d\n", sysnum);
   switch (sysnum)
   {
     /* 0, Halt the operating systems */
@@ -85,7 +83,6 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_WAIT:
       read_arguments (f->esp, &argv[0], 1);
       int pid = (int) argv[0];
-      
       f->eax = wait (pid);
       break;
     /* 4, Create a file */
@@ -101,7 +98,6 @@ syscall_handler (struct intr_frame *f UNUSED)
       read_arguments (f->esp, &argv[0], 1);
       file = (const char *) argv[0];
       valid_address ((void *) file);
-      
       f->eax = remove (file);
       break;
     /* 6, Open a file */
@@ -109,7 +105,6 @@ syscall_handler (struct intr_frame *f UNUSED)
       read_arguments (f->esp, &argv[0], 1);
       file = (const char *) argv[0];
       valid_address ((void *) file);
-
       f->eax = open (file);
       break;
     /* 7, Obtain a file's size */
@@ -161,25 +156,19 @@ syscall_handler (struct intr_frame *f UNUSED)
       printf ("sysnum : default\n");
       break;
   }
-  //thread_exit ();
-
 }
 
 /* Read syscall number with esp in syscall_handler */
 static int
 read_sysnum (void *esp)
 {
-  //printf ("esp : %p\n", esp);
-  //printf ("value in esp : %d\n", *((int *)esp));
   return *(int *)esp;
 }
 
-/* Check the given user-provided pointer is valid and return -1  later */
+/* Check the given user-provided pointer is valid and return -1 later */
 static void 
 valid_address (void *uaddr)
 {
-  //printf ("valid_address\n");
-  //printf ("%x\n", uaddr);
   /* First check given pointer is NULL */
   if (uaddr == NULL) 
   {
@@ -191,15 +180,12 @@ valid_address (void *uaddr)
     /* Check given pointer is user vaddr, point to user address */
     if (is_user_vaddr (uaddr))  
     {
-      //printf ("user_vaddr\n");
       /* Check given pointer is mapped or unmapped */
       uint32_t *pd = thread_current()->pagedir;
       if (pagedir_get_page (pd, uaddr) == NULL)
       {
-        //printf ("unmapped\n");
         exit (-1);
       }
-      //printf ("aa\n");
       return;
     }
     /* Not in user virtual address */
@@ -219,11 +205,8 @@ read_arguments (void *esp, void **argv, int argc)
   esp += 4;
   while (count != argc)
   {
-    //printf ("argv[count] : %p\n", &argv[count]);
-    //printf ("esp : %p\n", esp);
     memcpy (&argv[count], esp, 4);
     valid_address (esp);
-    //printf ("%d th : %d\n", count, (int) argv[count]);
     esp += 4;
     count++;
   }
@@ -240,16 +223,11 @@ halt (void)
 void
 exit (int status)
 {
-  /* close all files */
-  //close_all_files ();
-  
   /* exit_sema exists */
-    thread_current ()->exit_status = status;
-    //printf("%d, %s: exit(%d)\n", thread_current()->tid, thread_current ()->argv_name, status);
-    printf("%s: exit(%d)\n", thread_current ()->argv_name, status);
-    thread_exit ();
+  thread_current ()->exit_status = status;
+  printf("%s: exit(%d)\n", thread_current ()->argv_name, status);
+  thread_exit ();
 }
-
 
 /* waits for pid(child) and retrieve the pid(child)'s exit status */
 static int
@@ -280,7 +258,6 @@ static int
 write (int fd, const void *buffer, unsigned size)
 {
   /* fd==1 reserved from standard output */
-
   if (fd == 1) 
   {
     int rest = (int) size;
@@ -295,11 +272,8 @@ write (int fd, const void *buffer, unsigned size)
 
     return size;
   }
-
-
   else if (fd == 0)
   {
-    
     exit (-1);
   }
   else
@@ -314,12 +288,10 @@ write (int fd, const void *buffer, unsigned size)
     {
       thread_yield();
       struct file *f = find_file (fd)->file;
-      //valid_address (f);
       lock_acquire (file_lock);
       int result = (int) file_write (f, buffer, (off_t) size);
       lock_release (file_lock);
       return result;
-      //return (int) file_write_at (f, (const void *) buffer, (off_t) size, f->pos);   
     }
   }
 }
@@ -339,7 +311,6 @@ remove (const char *file)
 static int
 open (const char *file)
 {    
-  //printf ("open\n");
   lock_acquire(file_lock);
   struct file *open_file = filesys_open(file);
   lock_release(file_lock);
@@ -352,9 +323,7 @@ open (const char *file)
   /* file open success */
   else 
   {
-    //printf ("open!\n");
     int new_fd = thread_current ()->next_fd;
-    //printf ("new_fd : %d\n", new_fd);
     thread_current ()->next_fd++;
     /* create new filedescriptor */
     struct filedescriptor *filedes =
@@ -364,9 +333,9 @@ open (const char *file)
     filedes->filename = file;
     /* push it open_files */
     list_push_back (&thread_current ()->open_files, &filedes->elem);
-    if ( !strcmp ( file, thread_current()->argv_name))
+    if (!strcmp ( file, thread_current()->argv_name))
     {
-     file_deny_write(open_file); 
+      file_deny_write(open_file); 
     }
     return new_fd;
   }
@@ -393,17 +362,17 @@ filesize (int fd)
 static int
 read (int fd, void *buffer, unsigned size)
 {
-  //printf ("fd : %d\n");
-
   thread_yield ();
   
   if (fd < 0)
+  {
     exit (-1);
+  }
   /* fd == 0 */
   else if (fd == 0) 
   {
     int i;
-    for (i = 0; i < (int)size; i++)
+    for (i = 0; i < (int) size; i++)
     {
       input_getc ();
     }
@@ -429,7 +398,6 @@ read (int fd, void *buffer, unsigned size)
       int result = (int) file_read (f, buffer, size);
       lock_release (file_lock);
 
-      //int result = (int) file_read_at (f, buffer, size, f->pos); 
       return result;
     }
   }
@@ -448,7 +416,6 @@ seek (int fd , unsigned position)
     lock_acquire (file_lock);
     file_seek (f, (off_t) position);
     lock_release (file_lock);
-
   }
 }
 
@@ -473,11 +440,12 @@ tell (int fd)
 static void
 close (int fd)
 {
-  if(fd == 1)
+  if (fd == 1)
   {
     exit(-1);
     return;
   }
+
   struct filedescriptor *filedes = find_file (fd);
   if (filedes == NULL)
   {
@@ -512,8 +480,6 @@ close_all_files (void)
     file_close (f);
     free (filedes);
     i++;
-    //close (filedes->fd);
   }
-  //printf ("%d thread close %d file\n", thread_current ()->tid, i);
 }
 

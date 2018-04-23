@@ -126,7 +126,6 @@ struct filedescriptor
     int fd;
     const char *filename;
     struct list_elem elem;
-    //struct semaphore *file_sema;
     struct file *file;
   };
 
