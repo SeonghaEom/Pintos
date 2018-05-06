@@ -1,5 +1,4 @@
-<<<<<<< HEAD
-#indef VM_FRAME_H
+#ifdef VM_FRAME_H
 #define VM_FRAME_H
 
 #include "threads/palloc.h"
@@ -26,12 +25,4 @@ void *frame_alloc (enum palloc_flags flags, struct supple_page_entry *spte);
 void frame_free (void *frame);
 void *frame_evict (enum palloc_flags flags);
 
-#endif / vm/frame.h */
-=======
-/*
- *  2018.05.06
- *  frame.h
- *
- *  To implement PJ3-1 Frame table
- */
->>>>>>> a251b1b068aac0fa0f69016c00c936ed4c08efc2
+#endif
