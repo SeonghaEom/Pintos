@@ -176,7 +176,7 @@ paging_init (void)
           pt = palloc_get_page (PAL_ASSERT | PAL_ZERO);
           pd[pde_idx] = pde_create (pt);
         }
-
+      
       pt[pte_idx] = pte_create_kernel (vaddr, !in_kernel_text);
     }
 

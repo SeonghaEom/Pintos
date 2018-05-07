@@ -21,6 +21,7 @@
 #include "threads/malloc.h"
 #include "threads/synch.h"
 #include "userprog/syscall.h"
+#include "vm/frame.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -378,6 +379,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
           printf ("cccccc!!!!!\n");
           goto done;
         case PT_LOAD:
+          /* TODO */
           if (validate_segment (&phdr, file)) 
             {
               bool writable = (phdr.p_flags & PF_W) != 0;
@@ -510,7 +512,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
+      //uint8_t *kpage = palloc_get_page (PAL_USER);
+      uint8_t *kpage = frame_alloc (PAL_USER, );
       if (kpage == NULL)
         return false;
 
