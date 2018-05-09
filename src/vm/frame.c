@@ -18,7 +18,7 @@ void frame_table_init (void)
 }
 
 /* Add one frame to the frame table */
-void frame_add_to_table (void *frame, struct s_page_table_entry *spte)
+void frame_add_to_table (void *frame, struct spte *spte)
 {
   /* Initialize frame table entry */
   struct frame_table_entry *fte = malloc (sizeof (struct frame_table_entry));
@@ -33,7 +33,7 @@ void frame_add_to_table (void *frame, struct s_page_table_entry *spte)
 }
 
 /* Allocate each frame by palloc_get_page */
-void *frame_alloc (enum palloc_flags flag, struct s_page_table_entry *spte)
+void *frame_alloc (enum palloc_flags flag, struct spte *spte)
 {
   /* Check PAL_USER flag */
   if ((flags & PAL_USER) == 0)
