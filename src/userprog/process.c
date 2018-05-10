@@ -353,14 +353,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
       if (file_ofs < 0 || file_ofs > file_length (file))
       { 
-        printf ("aaaaa!!!!!\n");
         goto done;
       }
       file_seek (file, file_ofs);
 
       if (file_read (file, &phdr, sizeof phdr) != sizeof phdr)
       { 
-        printf ("bbbbb!!!!!\n");
         goto done;
       }
       file_ofs += sizeof phdr;
@@ -376,7 +374,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
         case PT_DYNAMIC:
         case PT_INTERP:
         case PT_SHLIB:
-          printf ("cccccc!!!!!\n");
           goto done;
         case PT_LOAD:
           /* TODO */
@@ -525,13 +522,15 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
       hash_insert (&stp, &stpe->hash_elem);
 
-      /* Get a page of memory. */
+
+      /*
+      // Get a page of memory.
       //uint8_t *kpage = palloc_get_page (PAL_USER);
       uint8_t *kpage = frame_alloc (PAL_USER, );
       if (kpage == NULL)
         return false;
 
-      /* Load this page. */
+      // Load this page. 
       if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
           palloc_free_page (kpage);
@@ -539,13 +538,14 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
         }
       memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
-      /* Add the page to the process's address space. */
+      //Add the page to the process's address space. 
       if (!install_page (upage, kpage, writable)) 
         {
           palloc_free_page (kpage);
           return false; 
         }
-
+      */
+      
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;

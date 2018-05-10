@@ -19,7 +19,7 @@ struct list frame_table;
 /* Frame table entry */
 struct frame_table_entry {
   void *frame;                      /* Physical frame pointer */
-  struct spte *spte;  /* Supplement page entry */      
+  struct spte *spte;                /* Supplement page entry */      
   struct thread *thread;            /* Thread who uses this frame */
   struct list_elem elem;            /* List element */
 };

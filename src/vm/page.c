@@ -73,12 +73,13 @@ spte_load (struct *spte)
     }
   memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
-  /* Add the page to the process's address space. */
+  /* Add the page to the process's address space. Add mapping in page table */
   if (!install_page (upage, kpage, writable)) 
     {
       palloc_free_page (kpage);
       return false; 
     }
+
   /* Set location to page table */
   spte->location = 2;
   return true;
