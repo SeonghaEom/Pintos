@@ -520,7 +520,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       spte->writable = writable;
       spte->location = 0;
 
-      hash_insert (&stp, &stpe->hash_elem);
+      hash_insert (thread_current()->stp, &stpe->hash_elem);
 
 
       /*

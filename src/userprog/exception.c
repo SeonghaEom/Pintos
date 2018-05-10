@@ -13,6 +13,7 @@ static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
+static bool is_mem_valid (void *);
 
 /* Registers handlers for interrupts that can be caused by user
    programs.
@@ -151,10 +152,19 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
   
-   
-  exit (-1);
+  /* Check for supplemental page table memory reference validity 
+   * and if invalid, terminate the process and free all resources */
+  if (!is_mem_valid (fault_addr))
+  {
+    exit (-1);
+  }
+  
+  /* First find spte through fault_addr
+   * and then load each segment lazily */
+  struct spte *spte = spte_lookup (fault_addr);
+  spte_load (spte);
 
-
+  
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. 
@@ -167,3 +177,21 @@ page_fault (struct intr_frame *f)
   */
 }
 
+/* Return true if supplemental page table memory reference is valid
+ * and return false otherwise */
+static bool
+is_mem_valid (void *fault_addr);
+{
+ if (!is_user_vaddr (fault_addr))
+ {
+   return false;
+ }
+ if (spte_lookup (fault_addr) == NULL )
+ {
+   return false;
+ }
+ bool writable = spte_lookup (fault_addr)->writable;
+ write to read-only!
+ if ( !PTE_W && !writable )
+ return true;
+}

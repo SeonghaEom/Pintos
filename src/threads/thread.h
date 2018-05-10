@@ -5,6 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "synch.h"
+#include "vm/page.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -114,6 +115,8 @@ struct thread
     struct list open_files;             /* open files */
     int next_fd;
     bool load_success;
+
+    struct spt *spt;                    /* Supplemental page table */ 
 #endif
 
     /* Owned by thread.c. */

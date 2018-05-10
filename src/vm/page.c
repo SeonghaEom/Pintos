@@ -28,10 +28,9 @@ page_less (const struct hash_elem *a_, const struct hash_elem *b_, void *aux UNU
 }
 
 /* Initialize supplement page table */
-void spt_init (void)
+void spt_init (struct spt *spt)
 {
-  hash_init (&spt, page_hash, page_less, NULL);
-  lock_init (&spt_lock);
+  hash_init (spt, page_hash, page_less, NULL);
 }
 
 /* Return the spte containing the given virtual address, 

@@ -3,21 +3,21 @@
 
 #include <hash.h>
 #include <debug.h>
-#include "threads/synch.h"
 /*  2018.05.08 
  *  KimYoonseo
  *  EomSungha
  */
 /* Supplement page table */
-struct hash spt;
-/* Supplement page table lock */
-struct lock spt_lock;
+struct hash spt
+{
+  struct thread *t;             /* Thread who owns this page */
+  struct spte *spte;            /* Supplement page table entry */
+};
 /* Supplement page table entry */
 struct spte
 {
   struct hash_elem hash_elem;   /* Hash table element */
   void *addr;                   /* Virtual user address */
-  struct thread *t;             /* Thread who owns this page */
   struct file *file;            /* File */
   off_t ofs;                    /* Offset */
   uint32_t read_bytes;          /* Load_segment's read_bytes */
@@ -28,7 +28,7 @@ struct spte
   uint32_t pte;                 /* Page table entry */
 };
 
-void spt_init (void);
+void spt_init (struct spt *spt);
 struct spte *spte_lookup (const void *addr);
 bool spte_load (struct *spte); 
 
