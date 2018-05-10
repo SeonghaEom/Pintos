@@ -501,8 +501,9 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
-
+  
   file_seek (file, ofs);
+
   while (read_bytes > 0 || zero_bytes > 0) 
     {
       /* Calculate how to fill this page.
@@ -510,6 +511,19 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
          and zero the final PAGE_ZERO_BYTES bytes. */
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
+      
+      /* Populate spt */
+      struct spte *spte = malloc (sizeof (struct spte));
+      spte->addr = upage;
+      spte->t = thread_current ();
+      spte->file = file;
+      spte->ofs = ofs;
+      spte->read_bytes = page_read_bytes;
+      spte->zero_bytes = page_zero_bytes;
+      spte->writable = writable;
+      spte->location = 0;
+
+      hash_insert (&stp, &stpe->hash_elem);
 
       /* Get a page of memory. */
       //uint8_t *kpage = palloc_get_page (PAL_USER);
