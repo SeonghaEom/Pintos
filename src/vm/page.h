@@ -12,10 +12,15 @@ struct spte
 {
   struct hash_elem hash_elem;   /* Hash table element */
   void *addr;                   /* Virtual address */
-  struct thraed *t;             /* Thread who owns this page */
+  struct thread *t;             /* Thread who owns this page */
   uint32_t length;              /* Data's length */
-}
+};
 
+struct hash spt;
+
+struct lock spt_lock;
+
+void spt_init (void);
 
 
 
