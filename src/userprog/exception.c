@@ -154,17 +154,23 @@ page_fault (struct intr_frame *f)
   
   /* Check for supplemental page table memory reference validity 
    * and if invalid, terminate the process and free all resources */
-  if (!is_mem_valid (fault_addr))
+  if (user)
   {
-    exit (-1);
-  }
+    if (!is_user_vaddr (fault_addr))
+    {
+      exit (-1);
+    }
   
-  /* First find spte through fault_addr
-   * and then load each segment lazily */
-  struct spte *spte = spte_lookup (fault_addr);
-  spte_load (spte);
+    /* First find spte through fault_addr
+     * and then load each segment lazily */
+    struct spte *spte = spte_lookup (fault_addr);
+    if (spte == NULL)
+    {
+      exit (-1);
+    }
+    fs_load (spte);
 
-  
+  }
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. 
@@ -177,21 +183,3 @@ page_fault (struct intr_frame *f)
   */
 }
 
-/* Return true if supplemental page table memory reference is valid
- * and return false otherwise */
-static bool
-is_mem_valid (void *fault_addr);
-{
- if (!is_user_vaddr (fault_addr))
- {
-   return false;
- }
- if (spte_lookup (fault_addr) == NULL )
- {
-   return false;
- }
- bool writable = spte_lookup (fault_addr)->writable;
- write to read-only!
- if ( !PTE_W && !writable )
- return true;
-}

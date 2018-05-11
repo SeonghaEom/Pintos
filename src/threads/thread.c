@@ -203,7 +203,7 @@ thread_create (const char *name, int priority,
   sema_init (exit_status_sema, 0);
   t->exit_status_sema = exit_status_sema;
 
-  struct spt *spt = (struct spt *) malloc (sizeof (struct spt));
+  struct hash *spt = (struct hash *) malloc (sizeof (struct hash));
   spt_init (spt);
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 

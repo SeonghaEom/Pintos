@@ -31,6 +31,4 @@ void swap_table_init (void); /* Swap table init */
 void swap_out (struct frame_table_entry *frame_table_entry);    /* Swap out */
 void swap_in (struct frame_table_entry *frame_table_entry);     /* Swap in */
 
-struct frame_table_entry *
-swap_find_victim ();           /* Evict which swap slot to evcit
-                               LRU or second chance */
+struct frame_table_entry *swap_find_victim ();          

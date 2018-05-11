@@ -7,12 +7,13 @@
  *  KimYoonseo
  *  EomSungha
  */
-/* Supplement page table */
-struct hash spt
+enum loc_type
 {
-  struct thread *t;             /* Thread who owns this page */
-  struct spte *spte;            /* Supplement page table entry */
-};
+  LOC_FS;   /* Filesys */
+  LOC_SW;   /* Swap table */
+  LOC_PT;   /* Page table */
+}
+
 /* Supplement page table entry */
 struct spte
 {
@@ -23,13 +24,11 @@ struct spte
   uint32_t read_bytes;          /* Load_segment's read_bytes */
   uint32_t zero_bytes;          /* Load_segment's zero_bytes */    
   bool writable;                /* Writable */
-  uint8_t location;             /* Location, 0(executable), 1(swap disk), 2(page table) */
- 
-  uint32_t pte;                 /* Page table entry */
+  loc_type location;            /* Location */ 
 };
 
-void spt_init (struct spt *spt);
+void spt_init (struct hash *spt);
 struct spte *spte_lookup (const void *addr);
-bool spte_load (struct *spte); 
+bool fs_load (struct *spte); 
 
 #endif

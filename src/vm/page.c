@@ -28,7 +28,7 @@ page_less (const struct hash_elem *a_, const struct hash_elem *b_, void *aux UNU
 }
 
 /* Initialize supplement page table */
-void spt_init (struct spt *spt)
+void spt_init (struct hash *spt)
 {
   hash_init (spt, page_hash, page_less, NULL);
 }
@@ -49,7 +49,7 @@ spte_lookup (const void *addr)
 
 /* */
 bool 
-spte_load (struct *spte)
+fs_load (struct *spte)
 {
   struct file *file = spte->file;
   off_t ofs = spte->ofs;

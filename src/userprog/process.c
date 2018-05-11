@@ -512,13 +512,12 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Populate spt */
       struct spte *spte = malloc (sizeof (struct spte));
       spte->addr = upage;
-      spte->t = thread_current ();
       spte->file = file;
       spte->ofs = ofs;
       spte->read_bytes = page_read_bytes;
       spte->zero_bytes = page_zero_bytes;
       spte->writable = writable;
-      spte->location = 0;
+      spte->location = LOC_FS;
 
       hash_insert (thread_current()->stp, &stpe->hash_elem);
 
@@ -567,14 +566,20 @@ setup_stack (void **esp, char **argv, int *argc)
   int mid;                      /* */
 
   buf[*argc] = (uint8_t) 0;
+  
+  /* Frame allocation for this current's stack */
+  //kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  struct spte *spte = (struct spte *) malloc (sizeof (struct spte ));
+  kpage = frame_alloc ( PAL_USER, spte);
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
   {  
     success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
       {
         *esp = PHYS_BASE;
+        /* Spte addr assignment */
+        spte->addr = *esp;
         i = *argc;
         
         /* pushing arguments reversely to esp by length of each arguments */
@@ -619,7 +624,10 @@ setup_stack (void **esp, char **argv, int *argc)
 
       }
       else
-        palloc_free_page (kpage);
+      {
+        //palloc_free_page (kpage);
+        frame_free (kpage);
+      }
     }
 
   //hex_dump (0xbfffffbc, 0xbfffffbc, 100, true);

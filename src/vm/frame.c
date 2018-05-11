@@ -10,6 +10,8 @@
  *  KimYoonseo
  *  EomSungha
  */
+static struct frame_table_entry *find_entry_by_frame (void *frame);
+
 /* Initialize the frame table */
 void frame_table_init (void)
 {
@@ -60,7 +62,39 @@ void *frame_alloc (enum palloc_flags flag, struct spte *spte)
   return frame;
 }
 
+/* Free frame and remove corresponding frame table entry in frame table */
+void frame_free (void *frame)
+{
+  /* First, find frame table entry by frame(physical frame pointer */
+  struct frame_table_entry *fte = find_entry_by_frame (frame);
+  /* Remove frame table entry in frame table */
+  list_remove (&fte->elem);
+  /* Free frame */
+  free (frame);
+  /* Free frame table entry */
+  free (fte);
+}
+
+/* Find the victom in frame table by our POLICY */
 void frame_evict (enum palloc_flags flag)
 {
   struct list_elem *e = list_begin (&frame_table);
+}
+
+/* Find frame table entry in frame table by frame */
+static struct frame_table_entry *
+find_entry_by_frame (void *frame)
+{
+  struct list_eleme *e;
+
+  for (e = list_begin (&frame_table); e != list_end (&frame_table);
+       e = list_next (e))
+  {
+    struct frame_table_entry *fte = list_entry (e, struct frame_table_entry, elem);
+    if (fte->frame == frame)
+    {
+      return fte;
+    }
+  }
+  return NULL;
 }
