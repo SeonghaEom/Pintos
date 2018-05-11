@@ -7,13 +7,15 @@
 #include "threads/vaddr.h"
 #include "userprog/syscall.h"
 #include "vm/page.h"
-
+#include "vm/swap.h"
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
 static bool is_mem_valid (void *);
+/* Check for first swap table init */
+static bool sw_inited = false;
 
 /* Registers handlers for interrupts that can be caused by user
    programs.
@@ -151,7 +153,7 @@ page_fault (struct intr_frame *f)
   not_present = (f->error_code & PF_P) == 0;
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
-  
+#ifdef VM
   /* Check for supplemental page table memory reference validity 
    * and if invalid, terminate the process and free all resources */
   if (user)
@@ -168,9 +170,26 @@ page_fault (struct intr_frame *f)
     {
       exit (-1);
     }
-    fs_load (spte);
-
+    switch (spte->location) 
+    {
+      case LOC_FS:
+        fs_load (spte);
+        break;
+      case LOC_SW:
+        if (!sw_inited)
+        {
+          swap_table_init ();
+          sw_inited = true;
+        }
+        sw_load (spte);
+        break;
+      default:
+        break;
+    }
   }
+#else
+  exit (-1);
+#endif
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. 

@@ -1,6 +1,8 @@
 #include "threads/synch.h"
 #include "devices/block.h"
 #include <bitmap.h>
+#include "vm/swap.h"
+#include <stdio.h>
 /* 2018.05.10
  * EomSungha
  * KimYoonseo
@@ -17,7 +19,7 @@ void swap_table_init (void)
     printf ("No device has been assigned as swap block\n");
     return;
   } 
-  slot_max = swap_block->size/8;
+  size_t slot_max = block_size(swap_block)/8;
   printf ("slot_max: %d\n", slot_max);
   /* Initialize swap bitmap */  
   swap_bm = bitmap_create (slot_max);
@@ -63,7 +65,7 @@ void swap_in (void *frame, size_t swap_index)
   if (swap_index != BITMAP_ERROR)
   {
     /* Read from swap disk */
-    block_read (swap_block,i 8, frame); 
+    block_read (swap_block, 8, frame); 
     /* Update swap bitmap */
     lock_acquire (&swap_lock);
     bitmap_set (swap_bm, swap_index, true); 

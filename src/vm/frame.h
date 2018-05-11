@@ -1,4 +1,4 @@
-#ifdef VM_FRAME_H
+#ifndef VM_FRAME_H
 #define VM_FRAME_H
 
 #include <list.h>

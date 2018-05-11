@@ -21,8 +21,12 @@
 #include "threads/malloc.h"
 #include "threads/synch.h"
 #include "userprog/syscall.h"
+#ifdef VM
+#include <hash.h>
 #include "vm/frame.h"
-
+#include "vm/page.h"
+#include "vm/swap.h"
+#endif
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static void parse_arg (char **argv_, int * argc_, char **save_ptr);
@@ -424,6 +428,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   t->my_file = file;
   success = true;
  done:
+  printf ("load end with %s!\n", success? "True": "False");
   /* We arrive here whether the load is successful or not. */
   return success;
 }
@@ -495,6 +500,7 @@ static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
 {
+  printf ("load_segment!\n");
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
@@ -503,14 +509,17 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 
   while (read_bytes > 0 || zero_bytes > 0) 
     {
+      printf ("load 각각 진행 시작 (%s)\n", thread_current ()->name);
       /* Calculate how to fill this page.
          We will read PAGE_READ_BYTES bytes from FILE
          and zero the final PAGE_ZERO_BYTES bytes. */
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
       
+#ifdef VM
+      /* Lazy load in vm */
       /* Populate spt */
-      struct spte *spte = malloc (sizeof (struct spte));
+      struct spte *spte = (struct spte *) malloc (sizeof (struct spte));
       spte->addr = upage;
       spte->file = file;
       spte->ofs = ofs;
@@ -518,14 +527,12 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       spte->zero_bytes = page_zero_bytes;
       spte->writable = writable;
       spte->location = LOC_FS;
-
-      hash_insert (thread_current()->stp, &stpe->hash_elem);
-
-
-      /*
+      printf ("before hash insert\n");
+      hash_insert (thread_current()->spt, &spte->hash_elem);
+      printf ("after hash insert \n");
+#else
       // Get a page of memory.
-      //uint8_t *kpage = palloc_get_page (PAL_USER);
-      uint8_t *kpage = frame_alloc (PAL_USER, );
+      uint8_t *kpage = palloc_get_page (PAL_USER);
       if (kpage == NULL)
         return false;
 
@@ -543,12 +550,15 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
           palloc_free_page (kpage);
           return false; 
         }
-      */
+#endif
       
       /* Advance. */
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
+      printf ("read_bytes : %d\n", read_bytes);
+      printf ("zero_bytes : %d\n", zero_bytes);
+      printf ("one iteration end\n");
     }
   return true;
 }
@@ -558,6 +568,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp, char **argv, int *argc) 
 {
+  printf ("setup_stack!\n");
   uint8_t *kpage;
   bool success = false;
   int i;                        /* Index */
@@ -568,20 +579,23 @@ setup_stack (void **esp, char **argv, int *argc)
   buf[*argc] = (uint8_t) 0;
   
   /* Frame allocation for this current's stack */
-  //kpage = palloc_get_page (PAL_USER | PAL_ZERO);
-  struct spte *spte = (struct spte *) malloc (sizeof (struct spte ));
+#ifdef VM
+  struct spte *spte = (struct spte *) malloc (sizeof (struct spte *));
   kpage = frame_alloc (PAL_USER, spte);
-
+#else
+  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+#endif
   if (kpage != NULL) 
   {  
     success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
       {
         *esp = PHYS_BASE;
+        i = *argc;
+#ifdef VM
         /* Spte addr assignment */
         spte->addr = *esp;
-        i = *argc;
-        
+#endif
         /* pushing arguments reversely to esp by length of each arguments */
         while (i >0)
         {
@@ -625,11 +639,14 @@ setup_stack (void **esp, char **argv, int *argc)
       }
       else
       {
-        //palloc_free_page (kpage);
+#ifdef VM
         frame_free (kpage);
+#else
+        palloc_free_page (kpage);
+#endif
       }
     }
-
+  printf ("setup stack endi with %s!\n", success? "True" : "False");
   //hex_dump (0xbfffffbc, 0xbfffffbc, 100, true);
   return success;
 }

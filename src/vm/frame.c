@@ -1,5 +1,7 @@
 #include "threads/palloc.h"
+#include "threads/malloc.h"
 #include "threads/synch.h"
+#include "threads/thread.h"
 #include "vm/page.h"
 #include "vm/frame.h"
 #include <stdbool.h>
@@ -38,7 +40,7 @@ void frame_add_to_table (void *frame, struct spte *spte)
 void *frame_alloc (enum palloc_flags flag, struct spte *spte)
 {
   /* Check PAL_USER flag */
-  if ((flags & PAL_USER) == 0)
+  if ((flag & PAL_USER) == 0)
   {
     return NULL;
   }
@@ -76,7 +78,7 @@ void frame_free (void *frame)
 }
 
 /* Find the victom in frame table by our POLICY */
-void frame_evict (enum palloc_flags flag)
+void *frame_evict (enum palloc_flags flag)
 {
   struct list_elem *e = list_begin (&frame_table);
 }
@@ -85,7 +87,7 @@ void frame_evict (enum palloc_flags flag)
 static struct frame_table_entry *
 find_entry_by_frame (void *frame)
 {
-  struct list_eleme *e;
+  struct list_elem *e;
 
   for (e = list_begin (&frame_table); e != list_end (&frame_table);
        e = list_next (e))

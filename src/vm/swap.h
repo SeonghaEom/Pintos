@@ -1,4 +1,4 @@
-#ifdef VM_SWAP_H
+#ifndef VM_SWAP_H
 #define VM_SWAP_H
 
 #include <list.h>

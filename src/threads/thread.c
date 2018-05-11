@@ -13,6 +13,7 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #ifdef USERPROG
+#include <hash.h>
 #include "userprog/process.h"
 #include "vm/page.h"
 #endif
@@ -202,9 +203,11 @@ thread_create (const char *name, int priority,
   struct semaphore *exit_status_sema = (struct semaphore *) malloc (sizeof (struct semaphore));
   sema_init (exit_status_sema, 0);
   t->exit_status_sema = exit_status_sema;
-
+#ifdef VM
   struct hash *spt = (struct hash *) malloc (sizeof (struct hash));
+  t->spt = spt;
   spt_init (spt);
+#endif
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -324,7 +327,9 @@ thread_exit (void)
   free (thread_current ()->exit_status_sema);
   free (thread_current ()->load_sema);
   free (thread_current ()->error_sema);
+#ifdef VM
   free (thread_current ()->spt);
+#endif
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
@@ -516,9 +521,6 @@ init_thread (struct thread *t, const char *name, int priority)
   //sema_init (&t->load_sema, 0);
   //sema_init (&t->error_sema, 0);
   
-
-
-
 #endif
 }
 

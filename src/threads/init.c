@@ -37,7 +37,10 @@
 #include "filesys/filesys.h"
 #include "filesys/fsutil.h"
 #endif
-
+#if VM
+#include "vm/frame.h"
+#include "vm/swap.h"
+#endif
 /* Page directory with kernel mappings only. */
 uint32_t *init_page_dir;
 
@@ -126,7 +129,11 @@ main (void)
   locate_block_devices ();
   filesys_init (format_filesys);
 #endif
-
+#ifdef VM
+  /* Initialize frame table and swap table*/
+  frame_table_init ();   
+  swap_table_init ();
+#endif
   printf ("Boot complete.\n");
   
   /* Run actions specified on kernel command line. */

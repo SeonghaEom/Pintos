@@ -1,21 +1,28 @@
 #include "vm/page.h"
+#include "vm/frame.h"
+#include "vm/swap.h"
 #include <hash.h>
 #include <debug.h>
+#include <string.h>
 #include "threads/synch.h"
+#include "filesys/file.h"
+#include "userprog/pagedir.h"
+#include "threads/thread.h"
 /*
  *  2018.05.08
  *  KimYoonseo
  *  EomSungha
  */
 static unsigned page_hash (const struct hash_elem *p_, void *aux);
-static unsigned page_less (const struct hash_elem *a_, const struct hash_elem *b_,
+static bool page_less (const struct hash_elem *a_, const struct hash_elem *b_,
                            void *aux UNUSED);
+static bool install_page (void *upage, void *kpage, bool writable);
 
 static unsigned
 page_hash (const struct hash_elem *p_, void *aux UNUSED)
 {
-  const struct spte *p = hash_entry (p_, struct page, hash_elem);
-  return hash_bytes (&p->addr, sizeof p->addr);
+  const struct spte *spte = hash_entry (p_, struct spte, hash_elem);
+  return hash_bytes (&spte->addr, sizeof spte->addr);
 }
 
 static bool
@@ -30,6 +37,8 @@ page_less (const struct hash_elem *a_, const struct hash_elem *b_, void *aux UNU
 /* Initialize supplement page table */
 void spt_init (struct hash *spt)
 {
+  printf ("spt_init!\n");
+  printf ("thread : %s\n", thread_current ()->name);
   hash_init (spt, page_hash, page_less, NULL);
 }
 
@@ -37,12 +46,12 @@ void spt_init (struct hash *spt)
  * or a null pointer if no such page exists 
  */
 struct spte *
-spte_lookup (const void *addr)
+spte_lookup (const void *address)
 {
   struct spte spte;
   struct hash_elem *e;
 
-  spte.addr = addr;
+  spte.addr = address;
   e = hash_find (&spte, &spte.hash_elem);
   return e != NULL? hash_entry (e, struct spte, hash_elem) : NULL;
 }
@@ -52,10 +61,10 @@ bool
 fs_load (struct spte *spte)
 {
   struct file *file = spte->file;
-  off_t ofs = spte->ofs;
+  //off_t ofs = spte->ofs;
   uint8_t *upage = spte->addr;
   uint32_t page_read_bytes = spte->read_bytes;
-  uint32_t page_write_bytes = spte->write_bytes;
+  uint32_t page_zero_bytes = spte->zero_bytes;
   bool writable = spte->writable;
   
   /* Get a page of memory. */
@@ -91,8 +100,9 @@ sw_load (struct spte* spte)
   uint32_t swap_index = spte->swap_index;
   bool writable = spte->writable;
   uint8_t *upage = spte->addr;
-  uint8_t *kpage = frame_alloc (PAL_USER, spte);
   
+  /* Get a page of memory */ 
+  uint8_t *kpage = frame_alloc (PAL_USER, spte);
   if (kpage == NULL)
     return false;
   /* Swap in spte */
@@ -107,3 +117,16 @@ sw_load (struct spte* spte)
   spte->location = LOC_PM;
   return true;
 }
+
+/* Copy from process.c */
+static bool
+install_page (void *upage, void *kpage, bool writable)
+{
+  struct thread *t = thread_current ();
+
+  /* Verify that there's not already a page at that virtual
+     address, then map our page there. */
+  return (pagedir_get_page (t->pagedir, upage) == NULL
+          && pagedir_set_page (t->pagedir, upage, kpage, writable));
+}
+
