@@ -47,9 +47,9 @@ spte_lookup (const void *addr)
   return e != NULL? hash_entry (e, struct spte, hash_elem) : NULL;
 }
 
-/* */
+/* Load page from executable */
 bool 
-fs_load (struct *spte)
+fs_load (struct spte *spte)
 {
   struct file *file = spte->file;
   off_t ofs = spte->ofs;
@@ -67,7 +67,7 @@ fs_load (struct *spte)
   /* Load this page. */
   if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
     {
-      palloc_free_page (kpage);
+      frame_free (kpage);
       return false; 
     }
   memset (kpage + page_read_bytes, 0, page_zero_bytes);
@@ -75,12 +75,35 @@ fs_load (struct *spte)
   /* Add the page to the process's address space. Add mapping in page table */
   if (!install_page (upage, kpage, writable)) 
     {
-      palloc_free_page (kpage);
+      frame_free (kpage);
       return false; 
     }
 
-  /* Set location to page table */
-  spte->location = 2;
+  /* Set location to physical memory */
+  spte->location = LOC_PM;
   return true;
 }
 
+/* Load page from swap disk */
+bool
+sw_load (struct spte* spte) 
+{
+  uint32_t swap_index = spte->swap_index;
+  bool writable = spte->writable;
+  uint8_t *upage = spte->addr;
+  uint8_t *kpage = frame_alloc (PAL_USER, spte);
+  
+  if (kpage == NULL)
+    return false;
+  /* Swap in spte */
+  swap_in (kpage, swap_index);
+  
+  if (!install_page (upage, kpage, writable))
+  {
+    frame_free (kpage);
+    return false;
+  }
+  /* Set location to physical memory */
+  spte->location = LOC_PM;
+  return true;
+}

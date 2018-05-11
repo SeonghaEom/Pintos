@@ -570,7 +570,7 @@ setup_stack (void **esp, char **argv, int *argc)
   /* Frame allocation for this current's stack */
   //kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   struct spte *spte = (struct spte *) malloc (sizeof (struct spte ));
-  kpage = frame_alloc ( PAL_USER, spte);
+  kpage = frame_alloc (PAL_USER, spte);
 
   if (kpage != NULL) 
   {  

@@ -9,22 +9,25 @@
  */
 enum loc_type
 {
-  LOC_FS;   /* Filesys */
+  LOC_FS;   /* File System */
   LOC_SW;   /* Swap table */
-  LOC_PT;   /* Page table */
+  LOC_PM;   /* Page table */
 }
 
 /* Supplement page table entry */
 struct spte
 {
   struct hash_elem hash_elem;   /* Hash table element */
-  void *addr;                   /* Virtual user address */
+  void *addr;                   /* User virtual page address */
+  loc_type location;            /* Location */
+  /* In file system */
   struct file *file;            /* File */
   off_t ofs;                    /* Offset */
   uint32_t read_bytes;          /* Load_segment's read_bytes */
   uint32_t zero_bytes;          /* Load_segment's zero_bytes */    
   bool writable;                /* Writable */
-  loc_type location;            /* Location */ 
+  /* When swapped out */
+  uint32_t swap_index;          /* Swap disk's index*/
 };
 
 void spt_init (struct hash *spt);
