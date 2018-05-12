@@ -178,7 +178,6 @@ page_fault (struct intr_frame *f)
     struct spte *spte = spte_lookup (fault_addr);
     if (spte == NULL)
     {
-      kill (f);
       exit (-1);
     }
     switch (spte->location) 
@@ -197,6 +196,11 @@ page_fault (struct intr_frame *f)
       default:
         break;
     }
+  }
+  /* Access by kernel */
+  else 
+  {
+    exit (-1);
   }
 #else
   exit (-1);
