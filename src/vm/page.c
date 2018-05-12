@@ -4,6 +4,7 @@
 #include <hash.h>
 #include <debug.h>
 #include <string.h>
+#include <stdio.h>
 #include "threads/synch.h"
 #include "filesys/file.h"
 #include "userprog/pagedir.h"
@@ -13,6 +14,19 @@
  *  KimYoonseo
  *  EomSungha
  */
+#define BITMASK(SHIFT, CNT) (((1ul << (CNT)) - 1) << (SHIFT))
+
+/* Page offset (bits 0:12). */
+#define PGSHIFT 0                          /* Index of first offset bit. */
+#define PGBITS  12                         /* Number of offset bits. */
+#define PGSIZE  (1 << PGBITS)              /* Bytes in a page. */
+#define PGMASK  BITMASK(PGSHIFT, PGBITS)   /* Page offset bits (0:12). */
+/* Round down to nearest page boundary. */
+static inline void *pg_round_down (const void *va) {
+  return (void *) ((uintptr_t) va & ~PGMASK);
+}
+
+
 static unsigned page_hash (const struct hash_elem *p_, void *aux);
 static bool page_less (const struct hash_elem *a_, const struct hash_elem *b_,
                            void *aux UNUSED);
@@ -37,8 +51,6 @@ page_less (const struct hash_elem *a_, const struct hash_elem *b_, void *aux UNU
 /* Initialize supplement page table */
 void spt_init (struct hash *spt)
 {
-  printf ("spt_init!\n");
-  printf ("thread : %s\n", thread_current ()->name);
   hash_init (spt, page_hash, page_less, NULL);
 }
 
@@ -50,9 +62,10 @@ spte_lookup (const void *address)
 {
   struct spte spte;
   struct hash_elem *e;
-
-  spte.addr = address;
-  e = hash_find (&spte, &spte.hash_elem);
+  
+  /* Page round down to find corresponding page for address */
+  spte.addr = pg_round_down (address);
+  e = hash_find (thread_current ()->spt, &spte.hash_elem);
   return e != NULL? hash_entry (e, struct spte, hash_elem) : NULL;
 }
 
@@ -61,7 +74,7 @@ bool
 fs_load (struct spte *spte)
 {
   struct file *file = spte->file;
-  //off_t ofs = spte->ofs;
+  off_t ofs = spte->ofs;
   uint8_t *upage = spte->addr;
   uint32_t page_read_bytes = spte->read_bytes;
   uint32_t page_zero_bytes = spte->zero_bytes;
@@ -74,7 +87,7 @@ fs_load (struct spte *spte)
     return false;
 
   /* Load this page. */
-  if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+  if (file_read_at (file, kpage, page_read_bytes, ofs) != (int) page_read_bytes)
     {
       frame_free (kpage);
       return false; 
