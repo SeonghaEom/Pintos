@@ -428,7 +428,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   t->my_file = file;
   success = true;
  done:
-  printf ("load end with %s!\n", success? "True": "False");
   /* We arrive here whether the load is successful or not. */
   return success;
 }
@@ -500,16 +499,17 @@ static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
 {
-  printf ("load_segment!\n");
+  //printf ("load_segment!\n");
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
   
   file_seek (file, ofs);
-
+  off_t offset = ofs;
+  
   while (read_bytes > 0 || zero_bytes > 0) 
     {
-      printf ("load 각각 진행 시작 (%s)\n", thread_current ()->name);
+      //printf ("load 각각 진행 시작 (%s)\n", thread_current ()->name);
       /* Calculate how to fill this page.
          We will read PAGE_READ_BYTES bytes from FILE
          and zero the final PAGE_ZERO_BYTES bytes. */
@@ -521,15 +521,17 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Populate spt */
       struct spte *spte = (struct spte *) malloc (sizeof (struct spte));
       spte->addr = upage;
+      //printf ("addr : %p\n", upage);
       spte->file = file;
-      spte->ofs = ofs;
+      spte->ofs = offset;
       spte->read_bytes = page_read_bytes;
       spte->zero_bytes = page_zero_bytes;
       spte->writable = writable;
       spte->location = LOC_FS;
-      printf ("before hash insert\n");
+      //printf ("before hash insert\n");
       hash_insert (thread_current()->spt, &spte->hash_elem);
-      printf ("after hash insert \n");
+      //printf ("after hash insert \n");
+
 #else
       // Get a page of memory.
       uint8_t *kpage = palloc_get_page (PAL_USER);
@@ -556,9 +558,10 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       read_bytes -= page_read_bytes;
       zero_bytes -= page_zero_bytes;
       upage += PGSIZE;
-      printf ("read_bytes : %d\n", read_bytes);
-      printf ("zero_bytes : %d\n", zero_bytes);
-      printf ("one iteration end\n");
+      offset += page_read_bytes;
+      //printf ("read_bytes : %d\n", read_bytes);
+      //printf ("zero_bytes : %d\n", zero_bytes);
+      //printf ("one iteration end\n");
     }
   return true;
 }
@@ -568,7 +571,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 static bool
 setup_stack (void **esp, char **argv, int *argc) 
 {
-  printf ("setup_stack!\n");
   uint8_t *kpage;
   bool success = false;
   int i;                        /* Index */
@@ -646,7 +648,6 @@ setup_stack (void **esp, char **argv, int *argc)
 #endif
       }
     }
-  printf ("setup stack endi with %s!\n", success? "True" : "False");
   //hex_dump (0xbfffffbc, 0xbfffffbc, 100, true);
   return success;
 }
