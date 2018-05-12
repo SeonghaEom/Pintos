@@ -175,6 +175,10 @@ process_exit (void)
       file_allow_write (cur->my_file);
     }
     // File lock
+    if (file_lock->holder != NULL )
+    {
+      lock_release (file_lock);
+    }
     lock_acquire (file_lock);
     // close files 
     file_close (cur->my_file);

@@ -24,7 +24,7 @@ struct frame_table_entry
   struct spte *spte;        /* Supplement page entry */
   struct thread *thread;    /* Thread who uses this frame */
   struct list_elem elem;    /* List element */
-  bool rbit                 /* Reference bit for eviction */
+  bool rbit;                 /* Reference bit for eviction */
 };
 
 void frame_table_init (void);

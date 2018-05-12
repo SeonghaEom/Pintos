@@ -48,7 +48,9 @@ size_t swap_out (void *frame)
   if (swap_index != BITMAP_ERROR)
   {
     /* Write in swap disk */
-    block_write (swap_block, 8, frame);
+    lock_acquire (&swap_lock);
+    block_write (swap_block, swap_index, frame);
+    lock_release (&swap_lock);
   }
   else
   {
@@ -65,7 +67,9 @@ void swap_in (void *frame, size_t swap_index)
   if (swap_index != BITMAP_ERROR)
   {
     /* Read from swap disk */
-    block_read (swap_block, 8, frame); 
+    lock_acquire (&swap_lock);
+    block_read (swap_block, swap_index, frame);
+    lock_release (&swap_lock);
     /* Update swap bitmap */
     lock_acquire (&swap_lock);
     bitmap_set (swap_bm, swap_index, true); 

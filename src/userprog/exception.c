@@ -14,8 +14,6 @@ static long long page_fault_cnt;
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
 static bool is_mem_valid (void *);
-/* Check for first swap table init */
-static bool sw_inited = false;
 
 /* Registers handlers for interrupts that can be caused by user
    programs.
@@ -186,11 +184,6 @@ page_fault (struct intr_frame *f)
         fs_load (spte);
         break;
       case LOC_SW:
-        if (!sw_inited)
-        {
-          swap_table_init ();
-          sw_inited = true;
-        }
         sw_load (spte);
         break;
       default:
