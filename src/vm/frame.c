@@ -29,6 +29,7 @@ void frame_add_to_table (void *frame, struct spte *spte)
   fte->frame = frame;
   fte->spte = spte;
   fte->thread = thread_current();
+  fte->rbit = 0;
   
   /* Push it in frame table */
   lock_acquire (&frame_table_lock);
@@ -56,7 +57,7 @@ void *frame_alloc (enum palloc_flags flag, struct spte *spte)
     while (!frame)
     {
       lock_acquire (&frame_table_lock);
-      frame = frame_evict (flag);
+      frame_evict (flag);
       lock_release (&frame_table_lock);
     }
     frame_add_to_table (frame, spte);
@@ -77,10 +78,33 @@ void frame_free (void *frame)
   free (fte);
 }
 
-/* Find the victom in frame table by our POLICY */
-void *frame_evict (enum palloc_flags flag)
+/* Find the victom in frame table by second chance algorithm
+ * and swapt out */
+void frame_evict (enum palloc_flags flag)
 {
-  struct list_elem *e = list_begin (&frame_table);
+  /* Find the victim in frame table by second chance algorithm */
+  struct frame_table_entry *victim;
+  struct list_elem *i;
+
+  for ( i = list_begin (&frame_table); i != list_end (&frame_table);
+        i = list_next (i))
+  {
+    struct frame_table_entry *fte = list_entry (i, struct frame_table_entry, elem);
+    if (fte->rbit)
+    {
+      victim = fte;
+      break;
+    }
+  }
+  /* Case where all frames have 0 reference bit, FIFO */
+  if (victim == NULL)
+  {
+    victim = list_front (&frame_table);
+  }
+  /* Swap out */
+  swap_out (victim->frame);
+  /* Free frame */
+  frame_free (victim->frame);
 }
 
 /* Find frame table entry in frame table by frame */

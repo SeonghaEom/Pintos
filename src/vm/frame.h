@@ -24,12 +24,13 @@ struct frame_table_entry
   struct spte *spte;        /* Supplement page entry */
   struct thread *thread;    /* Thread who uses this frame */
   struct list_elem elem;    /* List element */
+  bool rbit                 /* Reference bit for eviction */
 };
 
 void frame_table_init (void);
 void frame_add_to_table (void *frame, struct spte *spte);
 void *frame_alloc (enum palloc_flags flags, struct spte *spte);
 void frame_free (void *frame);
-void *frame_evict (enum palloc_flags flags);
+void frame_evict (enum palloc_flags flags);
 
 #endif
