@@ -27,6 +27,9 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+/* Stack grow limit */
+#define STACK_LIMIT 0xbf800000         /* PHYS_BASE - 8MB */
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -118,7 +121,7 @@ struct thread
 #endif
 
 #ifdef VM
-    struct hash *spt;                    /* Supplemental page table */ 
+    struct hash *spt;                   /* Supplemental page table */ 
 #endif
 
     /* Owned by thread.c. */

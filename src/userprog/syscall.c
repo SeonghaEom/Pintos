@@ -13,9 +13,13 @@
 #include "filesys/file.h"
 #include "devices/input.h"
 #include "threads/malloc.h"
+#ifdef VM
+#include "threads/palloc.h"
+#include "vm/frame.h"
+#endif
 
 static void syscall_handler (struct intr_frame *);
-static void valid_address (void *);
+static void valid_address (void *, struct intr_frame *);
 static int read_sysnum (void *);
 static void read_arguments (void *esp, void **argv, int argc); 
 static void halt (void);
@@ -45,8 +49,9 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
+  printf ("syscall_hanlder\n");
   /* Check that given stack pointer address is valid */
-  valid_address (f->esp);
+  valid_address (f->esp, f);
   /* sysnum and arguments */
   int sysnum;
   void *argv[3];
@@ -76,7 +81,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       read_arguments (f->esp, &argv[0], 1);
       char * cmd_line = (char *) argv[0];
       /* Invalid address */
-      valid_address (cmd_line);
+      valid_address (cmd_line, f);
       f->eax = exec (cmd_line);
       break;
     /* 3, Wait for a child process to die */
@@ -90,21 +95,21 @@ syscall_handler (struct intr_frame *f UNUSED)
       read_arguments (f->esp, &argv[0], 2);
       file = (const char *) argv[0];
       unsigned initial_size = (unsigned) argv[1];
-      valid_address ((void *) file);
+      valid_address ((void *) file, f);
       f->eax = create (file, initial_size);
       break;
     /* 5, Delete a file */
     case SYS_REMOVE:
       read_arguments (f->esp, &argv[0], 1);
       file = (const char *) argv[0];
-      valid_address ((void *) file);
+      valid_address ((void *) file, f);
       f->eax = remove (file);
       break;
     /* 6, Open a file */
     case SYS_OPEN:
       read_arguments (f->esp, &argv[0], 1);
       file = (const char *) argv[0];
-      valid_address ((void *) file);
+      valid_address ((void *) file, f);
       f->eax = open (file);
       break;
     /* 7, Obtain a file's size */
@@ -120,7 +125,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       buffer = (void *) argv[1];
       size = (unsigned) argv[2];
       //valid_address (&fd);
-      valid_address ((void *) buffer);
+      valid_address ((void *) buffer, f);
       f->eax = read (fd, buffer, size);
       break;
     /* 9, Write to a file */
@@ -130,7 +135,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       buffer = (void *) argv[1];
       size = (unsigned) argv[2];
       //valid_address (&fd);
-      valid_address ((void *) buffer);
+      valid_address ((void *) buffer, f);
       f->eax = write (fd, buffer, size);
       break;
     /* 10, Change position in a file */
@@ -167,7 +172,7 @@ read_sysnum (void *esp)
 
 /* Check the given user-provided pointer is valid and return -1 later */
 static void 
-valid_address (void *uaddr)
+valid_address (void *uaddr, struct intr_frame * f)
 {
   /* First check given pointer is NULL */
   if (uaddr == NULL) 
@@ -184,7 +189,39 @@ valid_address (void *uaddr)
       uint32_t *pd = thread_current()->pagedir;
       if (pagedir_get_page (pd, uaddr) == NULL)
       {
-        exit (-1);
+        printf("uaddr %x\n", uaddr);
+        /* Stack growth */
+        //uint32_t gap = t->stack_climit - fault_addr;
+        int gap = f->esp - uaddr;
+        //printf ("gap : %d\n", gap);
+        if (gap <= 32 && gap >= (f->esp - PHYS_BASE) )
+        {
+          void *next_bound = pg_round_down (uaddr);
+          //printf ("next bound %x \n stack limit %x\n", next_bound, STACK_LIMIT);
+          if ((uint32_t) next_bound < STACK_LIMIT) 
+          {
+            printf ("next bound exceed growth limit\n");
+            exit (-1);
+          }
+
+          struct spte *spte = (struct spte *) malloc (sizeof (struct spte *));
+          void *kpage = frame_alloc (PAL_USER, spte);
+          if (kpage != NULL)
+          {
+            bool success = install_page (next_bound, kpage, true);
+            if (success)
+            {
+              /* Set spte address */
+              spte->addr = next_bound;
+            }
+            else 
+            {
+              frame_free (kpage);
+              exit (-1);
+            }
+          }
+        }
+        return;
       }
       return;
     }
@@ -206,7 +243,7 @@ read_arguments (void *esp, void **argv, int argc)
   while (count != argc)
   {
     memcpy (&argv[count], esp, 4);
-    valid_address (esp);
+    //TODO: valid_address (esp);
     esp += 4;
     count++;
   }
@@ -363,14 +400,16 @@ static int
 read (int fd, void *buffer, unsigned size)
 {
   thread_yield ();
-  
+  printf("1\n");
   if (fd < 0)
   {
+    printf("a\n");
     exit (-1);
   }
   /* fd == 0 */
   else if (fd == 0) 
   {
+    printf("b\n");
     int i;
     for (i = 0; i < (int) size; i++)
     {
@@ -380,24 +419,28 @@ read (int fd, void *buffer, unsigned size)
   }
   else if (fd == 1)
   {
+    printf("c\n");
     struct filedescriptor *filedes = find_file (fd);
     free (filedes);
     exit (-1);
   }
   else
   {
+    printf("d\n");
     struct filedescriptor *filedes = find_file (fd);
     if (filedes == NULL)
     { 
+      printf("e\n");
       exit (-1);
     }
     else 
     {
+      printf("f\n");
       struct file *f = find_file (fd)->file;
       lock_acquire(file_lock);
       int result = (int) file_read (f, buffer, size);
       lock_release (file_lock);
-
+      printf("g\n");
       return result;
     }
   }

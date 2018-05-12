@@ -6,8 +6,14 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "userprog/syscall.h"
+#ifdef VM
+#include "threads/palloc.h"
+#include "threads/malloc.h"
+#include "userprog/process.h"
+#include "vm/frame.h"
 #include "vm/page.h"
 #include "vm/swap.h"
+#endif
 /* Number of page faults processed. */
 static long long page_fault_cnt;
 
@@ -153,24 +159,58 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
   
   /* For debug */ 
-  /*
+  
   printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
-  */
-
+  
 #ifdef VM
   /* Check for supplemental page table memory reference validity 
    * and if invalid, terminate the process and free all resources */
-  if (user)
+  //if (user)
+  if (true)
   {
     if (!is_user_vaddr (fault_addr))
     {
       exit (-1);
     }
-  
+    if (!not_present && write)
+    {
+      exit (-1);
+    }
+    //uint32_t gap = t->stack_climit - fault_addr;
+    int gap = f->esp - fault_addr;
+    //printf ("gap : %d\n", gap);
+    if (gap <= 32 && gap >= (f->esp - PHYS_BASE) )
+    {
+      void *next_bound = pg_round_down (fault_addr);
+      //printf ("next bound %x \n stack limit %x\n", next_bound, STACK_LIMIT);
+      if ((uint32_t) next_bound < STACK_LIMIT) 
+      {
+        printf ("next bound exceed growth limit\n");
+        exit (-1);
+      }
+
+      struct spte *spte = (struct spte *) malloc (sizeof (struct spte *));
+      void *kpage = frame_alloc (PAL_USER, spte);
+      if (kpage != NULL)
+      {
+        bool success = install_page (next_bound, kpage, true);
+        if (success)
+        {
+          /* Set spte address */
+          spte->addr = next_bound;
+        }
+        else 
+        {
+          frame_free (kpage);
+          exit (-1);
+        }
+      }
+      return;
+    }
     /* First find spte through fault_addr
      * and then load each segment lazily */
     struct spte *spte = spte_lookup (fault_addr);

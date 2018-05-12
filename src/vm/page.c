@@ -6,31 +6,20 @@
 #include <string.h>
 #include <stdio.h>
 #include "threads/synch.h"
+#include "threads/vaddr.h"
 #include "filesys/file.h"
 #include "userprog/pagedir.h"
+#include "userprog/process.h"
 #include "threads/thread.h"
 /*
  *  2018.05.08
  *  KimYoonseo
  *  EomSungha
  */
-#define BITMASK(SHIFT, CNT) (((1ul << (CNT)) - 1) << (SHIFT))
-
-/* Page offset (bits 0:12). */
-#define PGSHIFT 0                          /* Index of first offset bit. */
-#define PGBITS  12                         /* Number of offset bits. */
-#define PGSIZE  (1 << PGBITS)              /* Bytes in a page. */
-#define PGMASK  BITMASK(PGSHIFT, PGBITS)   /* Page offset bits (0:12). */
-/* Round down to nearest page boundary. */
-static inline void *pg_round_down (const void *va) {
-  return (void *) ((uintptr_t) va & ~PGMASK);
-}
-
 
 static unsigned page_hash (const struct hash_elem *p_, void *aux);
 static bool page_less (const struct hash_elem *a_, const struct hash_elem *b_,
                            void *aux UNUSED);
-static bool install_page (void *upage, void *kpage, bool writable);
 
 static unsigned
 page_hash (const struct hash_elem *p_, void *aux UNUSED)
@@ -129,17 +118,5 @@ sw_load (struct spte* spte)
   /* Set location to physical memory */
   spte->location = LOC_PM;
   return true;
-}
-
-/* Copy from process.c */
-static bool
-install_page (void *upage, void *kpage, bool writable)
-{
-  struct thread *t = thread_current ();
-
-  /* Verify that there's not already a page at that virtual
-     address, then map our page there. */
-  return (pagedir_get_page (t->pagedir, upage) == NULL
-          && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }
 
