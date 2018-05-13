@@ -532,6 +532,8 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       spte->zero_bytes = page_zero_bytes;
       spte->writable = writable;
       spte->location = LOC_FS;
+      spte->ac_bit = 0;
+      spte->dt_bit = 0;
       //printf ("before hash insert\n");
       hash_insert (thread_current()->spt, &spte->hash_elem);
       //printf ("after hash insert \n");

@@ -47,21 +47,20 @@ void *frame_alloc (enum palloc_flags flag, struct spte *spte)
   }
   void *frame = palloc_get_page (flag);
   /* Unused frame exist */
-  if (frame)
+  if (frame != NULL)
   {
     frame_add_to_table (frame, spte);
+    pagedir_set_page (thread_current ()->pagedir, spte->addr, frame, spte->writable);
   }
   /* Frame table is full, need to evict frame with eviction policy */
   else
   {
-    while (!frame)
-    {
-      lock_acquire (&frame_table_lock);
-      frame_evict (flag);
-      lock_release (&frame_table_lock);
-    }
+    lock_acquire (&frame_table_lock);
+    frame_evict (flag);
+    lock_release (&frame_table_lock);
     frame_add_to_table (frame, spte);
   }
+}
   return frame;
 }
 
@@ -71,7 +70,9 @@ void frame_free (void *frame)
   /* First, find frame table entry by frame(physical frame pointer */
   struct frame_table_entry *fte = find_entry_by_frame (frame);
   /* Remove frame table entry in frame table */
+  lock_acquire (&frame_table_lock);
   list_remove (&fte->elem);
+  lock_acquire (&frame_table_lock);
   /* Free frame */
   free (frame);
   /* Free frame table entry */
@@ -90,10 +91,15 @@ void frame_evict (enum palloc_flags flag)
         i = list_next (i))
   {
     struct frame_table_entry *fte = list_entry (i, struct frame_table_entry, elem);
-    if (fte->rbit)
+    if (fte->rbit && pagedir_is_dirty (thread_current ()->pagedir, fte->spte->addr))
     {
       victim = fte;
+      fte->rbit = 0;
       break;
+    }
+    else if (pagedir_is_dirty (thread_current ()->pagedir, fte->spte->addr))
+    {
+      fte->rbit = 1;
     }
   }
   /* Case where all frames have 0 reference bit, FIFO */
@@ -102,8 +108,9 @@ void frame_evict (enum palloc_flags flag)
     victim = list_front (&frame_table);
   }
   /* Swap out */
-  swap_out (victim->frame);
+  victim->spte->swap_index = swap_out (victim->frame);
   /* Free frame */
+  pagedir_clear_page (thread_current ()->pagedir, fte->spte->addr);
   frame_free (victim->frame);
 }
 

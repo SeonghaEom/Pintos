@@ -29,7 +29,8 @@ struct spte
   uint32_t zero_bytes;          /* Load segment's zero bytes */
   bool writable;                /* Writable */
   /* When swapped out */
-  uint32_t swap_index;          /* Swap disk's index */
+  size_t swap_index;          /* Swap disk's index */
+
 };
 
 void spt_init (struct hash *spt);

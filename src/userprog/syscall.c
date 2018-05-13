@@ -21,7 +21,7 @@
 static void syscall_handler (struct intr_frame *);
 static void valid_address (void *, struct intr_frame *);
 static int read_sysnum (void *);
-static void read_arguments (void *esp, void **argv, int argc); 
+static void read_arguments (void *esp, void **argv, int argc, struct intr_frame *); 
 static void halt (void);
 static int write (int, const void *, unsigned);
 //static void exit (int status);
@@ -49,7 +49,7 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  printf ("syscall_hanlder\n");
+  //printf ("syscall_hanlder\n");
   /* Check that given stack pointer address is valid */
   valid_address (f->esp, f);
   /* sysnum and arguments */
@@ -72,13 +72,13 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     /* 1, Terminate this process */
     case SYS_EXIT:
-      read_arguments (f->esp, &argv[0], 1);
+      read_arguments (f->esp, &argv[0], 1, f);
       int status = (int) argv[0]; 
       exit (status);   
       break;
     /* 2, Start another process */
     case SYS_EXEC:
-      read_arguments (f->esp, &argv[0], 1);
+      read_arguments (f->esp, &argv[0], 1, f);
       char * cmd_line = (char *) argv[0];
       /* Invalid address */
       valid_address (cmd_line, f);
@@ -86,13 +86,13 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     /* 3, Wait for a child process to die */
     case SYS_WAIT:
-      read_arguments (f->esp, &argv[0], 1);
+      read_arguments (f->esp, &argv[0], 1, f);
       int pid = (int) argv[0];
       f->eax = wait (pid);
       break;
     /* 4, Create a file */
     case SYS_CREATE:
-      read_arguments (f->esp, &argv[0], 2);
+      read_arguments (f->esp, &argv[0], 2, f);
       file = (const char *) argv[0];
       unsigned initial_size = (unsigned) argv[1];
       valid_address ((void *) file, f);
@@ -100,60 +100,65 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     /* 5, Delete a file */
     case SYS_REMOVE:
-      read_arguments (f->esp, &argv[0], 1);
+      read_arguments (f->esp, &argv[0], 1, f);
       file = (const char *) argv[0];
       valid_address ((void *) file, f);
       f->eax = remove (file);
       break;
     /* 6, Open a file */
     case SYS_OPEN:
-      read_arguments (f->esp, &argv[0], 1);
+      read_arguments (f->esp, &argv[0], 1, f);
       file = (const char *) argv[0];
       valid_address ((void *) file, f);
       f->eax = open (file);
       break;
     /* 7, Obtain a file's size */
     case SYS_FILESIZE:
-      read_arguments (f->esp, &argv[0], 1);
+      read_arguments (f->esp, &argv[0], 1, f);
       fd = (int) argv[0];
       f->eax = filesize (fd);
       break;
     /* 8, Read from a file */
     case SYS_READ:
-      read_arguments (f->esp, &argv[0], 3);
+      read_arguments (f->esp, &argv[0], 3, f);
       fd = (int) argv[0];
       buffer = (void *) argv[1];
       size = (unsigned) argv[2];
       //valid_address (&fd);
       valid_address ((void *) buffer, f);
       f->eax = read (fd, buffer, size);
+      /* Accessed bit set to 1 */
+      pagedir_set_accessed (thread_current ()->pd, f->esp, 1);
       break;
     /* 9, Write to a file */
     case SYS_WRITE:
-      read_arguments (f->esp, &argv[0], 3);
+      read_arguments (f->esp, &argv[0], 3, f);
       fd = (int) argv[0];
       buffer = (void *) argv[1];
       size = (unsigned) argv[2];
       //valid_address (&fd);
       valid_address ((void *) buffer, f);
       f->eax = write (fd, buffer, size);
+      /* Accessed and dirty bit set to 1 */
+      pagedir_set_accessed (thread_current ()->pagedir, f->esp, 1);
+      pagedir_set_dirty (thread_current ()->pagedir, f->esp, 1);
       break;
     /* 10, Change position in a file */
     case SYS_SEEK:
-      read_arguments (f->esp, &argv[0], 2);
+      read_arguments (f->esp, &argv[0], 2, f);
       fd = (int) argv[0];
       unsigned position = (unsigned) argv[1];
       seek (fd, position);
       break;
     /* 11, Report current position in a file */
     case SYS_TELL:
-      read_arguments (f->esp, &argv[0], 1);
+      read_arguments (f->esp, &argv[0], 1, f);
       fd = (int) argv[0];
       f->eax = tell (fd);
       break;
     /* 12, Close a file */
     case SYS_CLOSE:
-      read_arguments (f->esp, &argv[0], 1);
+      read_arguments (f->esp, &argv[0], 1, f);
       fd = (int) argv[0];
       close (fd);
       break;
@@ -189,18 +194,15 @@ valid_address (void *uaddr, struct intr_frame * f)
       uint32_t *pd = thread_current()->pagedir;
       if (pagedir_get_page (pd, uaddr) == NULL)
       {
-        printf("uaddr %x\n", uaddr);
+        //printf("uaddr %x\n", uaddr);
         /* Stack growth */
-        //uint32_t gap = t->stack_climit - fault_addr;
-        int gap = f->esp - uaddr;
-        //printf ("gap : %d\n", gap);
-        if (gap <= 32 && gap >= (f->esp - PHYS_BASE) )
+        if (uaddr >= f->esp -32 && uaddr <= (void *)PHYS_BASE)
         {
           void *next_bound = pg_round_down (uaddr);
           //printf ("next bound %x \n stack limit %x\n", next_bound, STACK_LIMIT);
           if ((uint32_t) next_bound < STACK_LIMIT) 
           {
-            printf ("next bound exceed growth limit\n");
+            //printf ("next bound exceed growth limit\n");
             exit (-1);
           }
 
@@ -235,7 +237,7 @@ valid_address (void *uaddr, struct intr_frame * f)
 
 /* Read argc number of argumments from esp */
 static void
-read_arguments (void *esp, void **argv, int argc)
+read_arguments (void *esp, void **argv, int argc, struct intr_frame * f)
 {
   int count = 0;
   /* To reach first arugments */
@@ -243,7 +245,7 @@ read_arguments (void *esp, void **argv, int argc)
   while (count != argc)
   {
     memcpy (&argv[count], esp, 4);
-    //TODO: valid_address (esp);
+    valid_address (esp, f);
     esp += 4;
     count++;
   }
@@ -400,16 +402,16 @@ static int
 read (int fd, void *buffer, unsigned size)
 {
   thread_yield ();
-  printf("1\n");
+  //printf("1\n");
   if (fd < 0)
   {
-    printf("a\n");
+    //printf("a\n");
     exit (-1);
   }
   /* fd == 0 */
   else if (fd == 0) 
   {
-    printf("b\n");
+    //printf("b\n");
     int i;
     for (i = 0; i < (int) size; i++)
     {
@@ -419,28 +421,28 @@ read (int fd, void *buffer, unsigned size)
   }
   else if (fd == 1)
   {
-    printf("c\n");
+    //printf("c\n");
     struct filedescriptor *filedes = find_file (fd);
     free (filedes);
     exit (-1);
   }
   else
   {
-    printf("d\n");
+    //printf("d\n");
     struct filedescriptor *filedes = find_file (fd);
     if (filedes == NULL)
     { 
-      printf("e\n");
+      //printf("e\n");
       exit (-1);
     }
     else 
     {
-      printf("f\n");
+      //printf("f\n");
       struct file *f = find_file (fd)->file;
       lock_acquire(file_lock);
       int result = (int) file_read (f, buffer, size);
       lock_release (file_lock);
-      printf("g\n");
+      //printf("g\n");
       return result;
     }
   }

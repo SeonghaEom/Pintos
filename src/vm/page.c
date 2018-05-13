@@ -99,7 +99,7 @@ fs_load (struct spte *spte)
 bool
 sw_load (struct spte* spte) 
 {
-  uint32_t swap_index = spte->swap_index;
+  size_t swap_index = spte->swap_index;
   bool writable = spte->writable;
   uint8_t *upage = spte->addr;
   

@@ -19,7 +19,6 @@ static long long page_fault_cnt;
 
 static void kill (struct intr_frame *);
 static void page_fault (struct intr_frame *);
-static bool is_mem_valid (void *);
 
 /* Registers handlers for interrupts that can be caused by user
    programs.
@@ -159,13 +158,13 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
   
   /* For debug */ 
-  
+  /*
   printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
-  
+  */
 #ifdef VM
   /* Check for supplemental page table memory reference validity 
    * and if invalid, terminate the process and free all resources */
@@ -180,16 +179,18 @@ page_fault (struct intr_frame *f)
     {
       exit (-1);
     }
+
+    /* Stack growth */
     //uint32_t gap = t->stack_climit - fault_addr;
-    int gap = f->esp - fault_addr;
     //printf ("gap : %d\n", gap);
-    if (gap <= 32 && gap >= (f->esp - PHYS_BASE) )
+    if ( (uint32_t)f->esp -32 <= (uint32_t)fault_addr &&
+        fault_addr <= (void *)PHYS_BASE )
     {
       void *next_bound = pg_round_down (fault_addr);
       //printf ("next bound %x \n stack limit %x\n", next_bound, STACK_LIMIT);
       if ((uint32_t) next_bound < STACK_LIMIT) 
       {
-        printf ("next bound exceed growth limit\n");
+        //printf ("next bound exceed growth limit\n");
         exit (-1);
       }
 
@@ -230,13 +231,21 @@ page_fault (struct intr_frame *f)
         break;
     }
   }
-  /* Access by kernel */
+  /* Access by kernel
   else 
   {
     exit (-1);
   }
+  */
 #else
-  exit (-1);
+  if (!is_user_vaddr (fault_addr))
+  {
+    exit (-1);
+  }
+  if (!not_present)
+  {
+    exit (-1);
+  }
 #endif
   
   /* To implement virtual memory, delete the rest of the function

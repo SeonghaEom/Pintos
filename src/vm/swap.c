@@ -51,6 +51,7 @@ size_t swap_out (void *frame)
     lock_acquire (&swap_lock);
     block_write (swap_block, swap_index, frame);
     lock_release (&swap_lock);
+    frame->spte->loc_type = LOC_SW;
   }
   else
   {
