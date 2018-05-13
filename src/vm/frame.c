@@ -1,9 +1,12 @@
 #include "threads/palloc.h"
 #include "threads/malloc.h"
+#include "threads/vaddr.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+#include "userprog/pagedir.h"
 #include "vm/page.h"
 #include "vm/frame.h"
+#include "vm/swap.h"
 #include <stdbool.h>
 #include <stdint.h>
 #include <list.h>
@@ -12,7 +15,6 @@
  *  KimYoonseo
  *  EomSungha
  */
-static struct frame_table_entry *find_entry_by_frame (void *frame);
 
 /* Initialize the frame table */
 void frame_table_init (void)
@@ -50,17 +52,17 @@ void *frame_alloc (enum palloc_flags flag, struct spte *spte)
   if (frame != NULL)
   {
     frame_add_to_table (frame, spte);
-    pagedir_set_page (thread_current ()->pagedir, spte->addr, frame, spte->writable);
+    //pagedir_set_page (thread_current ()->pagedir, spte->addr, frame, spte->writable);
   }
   /* Frame table is full, need to evict frame with eviction policy */
   else
   {
     lock_acquire (&frame_table_lock);
-    frame_evict (flag);
+    frame_add_to_table (frame_evict (flag), spte);
     lock_release (&frame_table_lock);
-    frame_add_to_table (frame, spte);
+    
   }
-}
+  //printf("frame table size %d\n", list_size(&frame_table));
   return frame;
 }
 
@@ -70,18 +72,22 @@ void frame_free (void *frame)
   /* First, find frame table entry by frame(physical frame pointer */
   struct frame_table_entry *fte = find_entry_by_frame (frame);
   /* Remove frame table entry in frame table */
-  lock_acquire (&frame_table_lock);
+  //printf("lock holder : %s\n", (&frame_table_lock)->holder->name);
+  //lock_acquire (&frame_table_lock);
   list_remove (&fte->elem);
-  lock_acquire (&frame_table_lock);
+  //lock_release (&frame_table_lock);
   /* Free frame */
+  //printf("frame %x\n", frame);
+  //printf ("frame table entry %x\n", fte);
+  
   free (frame);
   /* Free frame table entry */
   free (fte);
 }
 
 /* Find the victom in frame table by second chance algorithm
- * and swapt out */
-void frame_evict (enum palloc_flags flag)
+ * and swapt out and return the victim's frame pointer to allocate new */
+void *frame_evict (enum palloc_flags flag)
 {
   /* Find the victim in frame table by second chance algorithm */
   struct frame_table_entry *victim;
@@ -91,13 +97,13 @@ void frame_evict (enum palloc_flags flag)
         i = list_next (i))
   {
     struct frame_table_entry *fte = list_entry (i, struct frame_table_entry, elem);
-    if (fte->rbit && pagedir_is_dirty (thread_current ()->pagedir, fte->spte->addr))
+    if (fte->rbit)
     {
       victim = fte;
       fte->rbit = 0;
       break;
     }
-    else if (pagedir_is_dirty (thread_current ()->pagedir, fte->spte->addr))
+    else
     {
       fte->rbit = 1;
     }
@@ -105,17 +111,31 @@ void frame_evict (enum palloc_flags flag)
   /* Case where all frames have 0 reference bit, FIFO */
   if (victim == NULL)
   {
-    victim = list_front (&frame_table);
+    victim = list_entry (list_front (&frame_table), struct frame_table_entry, elem);
+    victim->rbit = 0;
+    
   }
   /* Swap out */
-  victim->spte->swap_index = swap_out (victim->frame);
-  /* Free frame */
-  pagedir_clear_page (thread_current ()->pagedir, fte->spte->addr);
-  frame_free (victim->frame);
+  if (pagedir_is_dirty (thread_current ()->pagedir, victim->frame))
+  {
+    /* Write in SW */
+    victim->spte->swap_index = swap_out (victim->frame);
+    pagedir_clear_page (thread_current ()->pagedir, victim->spte->addr);
+    free (victim->spte);
+  }
+  else
+  {
+    /* Write in FS */
+    file_write_at (victim->spte->file, victim->frame, PGSIZE, victim->spte->ofs);
+    pagedir_clear_page (thread_current ()->pagedir, victim->spte->addr);
+    free (victim->spte);
+  }
+  //frame_free (victim->frame);
+  return victim->frame;
 }
 
 /* Find frame table entry in frame table by frame */
-static struct frame_table_entry *
+struct frame_table_entry *
 find_entry_by_frame (void *frame)
 {
   struct list_elem *e;

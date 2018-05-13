@@ -2,6 +2,8 @@
 #include "devices/block.h"
 #include <bitmap.h>
 #include "vm/swap.h"
+#include "vm/page.h"
+#include "vm/frame.h"
 #include <stdio.h>
 /* 2018.05.10
  * EomSungha
@@ -44,14 +46,16 @@ size_t swap_out (void *frame)
   lock_acquire (&swap_lock);
   swap_index = bitmap_scan_and_flip (swap_bm, 0, 1, false);
   lock_release (&swap_lock);
-
+  printf ("swap index %d\n", (int)swap_index);
   if (swap_index != BITMAP_ERROR)
   {
     /* Write in swap disk */
     lock_acquire (&swap_lock);
     block_write (swap_block, swap_index, frame);
+    printf ("dfd\n");
     lock_release (&swap_lock);
-    frame->spte->loc_type = LOC_SW;
+    find_entry_by_frame (frame)->spte->location = LOC_SW;
+    printf("sibal\n");
   }
   else
   {

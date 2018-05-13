@@ -158,13 +158,12 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
   
   /* For debug */ 
-  /*
+  
   printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
-  */
 #ifdef VM
   /* Check for supplemental page table memory reference validity 
    * and if invalid, terminate the process and free all resources */
@@ -187,13 +186,12 @@ page_fault (struct intr_frame *f)
         fault_addr <= (void *)PHYS_BASE )
     {
       void *next_bound = pg_round_down (fault_addr);
-      //printf ("next bound %x \n stack limit %x\n", next_bound, STACK_LIMIT);
       if ((uint32_t) next_bound < STACK_LIMIT) 
       {
         //printf ("next bound exceed growth limit\n");
         exit (-1);
       }
-
+      printf ("a\n");
       struct spte *spte = (struct spte *) malloc (sizeof (struct spte *));
       void *kpage = frame_alloc (PAL_USER, spte);
       if (kpage != NULL)
@@ -202,6 +200,7 @@ page_fault (struct intr_frame *f)
         if (success)
         {
           /* Set spte address */
+          printf ("page fault stack growth\n");
           spte->addr = next_bound;
         }
         else 
@@ -222,9 +221,11 @@ page_fault (struct intr_frame *f)
     switch (spte->location) 
     {
       case LOC_FS:
+        //printf ("fs\n");
         fs_load (spte);
         break;
       case LOC_SW:
+        //printf ("sw\n");
         sw_load (spte);
         break;
       default:

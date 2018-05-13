@@ -695,6 +695,7 @@ find_file (int fd)
   /* open_files is not empty */
   if (list_size (fds) != 0)
   {
+    //printf ("find_file\n");
     for (e = list_begin (fds); e != list_end (fds);
          e = list_next (e))
     {

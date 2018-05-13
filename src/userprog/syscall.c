@@ -127,8 +127,6 @@ syscall_handler (struct intr_frame *f UNUSED)
       //valid_address (&fd);
       valid_address ((void *) buffer, f);
       f->eax = read (fd, buffer, size);
-      /* Accessed bit set to 1 */
-      pagedir_set_accessed (thread_current ()->pd, f->esp, 1);
       break;
     /* 9, Write to a file */
     case SYS_WRITE:
@@ -139,9 +137,6 @@ syscall_handler (struct intr_frame *f UNUSED)
       //valid_address (&fd);
       valid_address ((void *) buffer, f);
       f->eax = write (fd, buffer, size);
-      /* Accessed and dirty bit set to 1 */
-      pagedir_set_accessed (thread_current ()->pagedir, f->esp, 1);
-      pagedir_set_dirty (thread_current ()->pagedir, f->esp, 1);
       break;
     /* 10, Change position in a file */
     case SYS_SEEK:
@@ -189,6 +184,7 @@ valid_address (void *uaddr, struct intr_frame * f)
   {
     /* Check given pointer is user vaddr, point to user address */
     if (is_user_vaddr (uaddr))  
+    //if (true)
     {
       /* Check given pointer is mapped or unmapped */
       uint32_t *pd = thread_current()->pagedir;
@@ -215,9 +211,12 @@ valid_address (void *uaddr, struct intr_frame * f)
             {
               /* Set spte address */
               spte->addr = next_bound;
+              printf ("%x\n", uaddr);
+              printf (" syscall stack growth\n");
             }
             else 
-            {
+            { 
+              //printf("dfd\n");
               frame_free (kpage);
               exit (-1);
             }
@@ -330,6 +329,7 @@ write (int fd, const void *buffer, unsigned size)
       lock_acquire (file_lock);
       int result = (int) file_write (f, buffer, (off_t) size);
       lock_release (file_lock);
+      printf ("write file pointer %x\n", f);
       return result;
     }
   }
@@ -440,6 +440,7 @@ read (int fd, void *buffer, unsigned size)
       //printf("f\n");
       struct file *f = find_file (fd)->file;
       lock_acquire(file_lock);
+      printf ("read file pointer %x\n", f);
       int result = (int) file_read (f, buffer, size);
       lock_release (file_lock);
       //printf("g\n");

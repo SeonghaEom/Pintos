@@ -31,6 +31,7 @@ void frame_table_init (void);
 void frame_add_to_table (void *frame, struct spte *spte);
 void *frame_alloc (enum palloc_flags flags, struct spte *spte);
 void frame_free (void *frame);
-void frame_evict (enum palloc_flags flags);
+void *frame_evict (enum palloc_flags flags);
+struct frame_table_entry *find_entry_by_frame(void *);
 
 #endif
