@@ -73,11 +73,14 @@ fs_load (struct spte *spte)
   //uint8_t *kpage = palloc_get_page (PAL_USER);
   uint8_t *kpage = frame_alloc (PAL_USER, spte);
   if (kpage == NULL)
+  {  
+    printf ("kpage is NULL\n");
     return false;
-
+  }
   /* Load this page. */
   if (file_read_at (file, kpage, page_read_bytes, ofs) != (int) page_read_bytes)
     {
+      printf ("File load fails\n");
       frame_free (kpage);
       return false; 
     }
@@ -86,12 +89,14 @@ fs_load (struct spte *spte)
   /* Add the page to the process's address space. Add mapping in page table */
   if (!install_page (upage, kpage, writable)) 
     {
+      printf ("install page fails\n");
       frame_free (kpage);
       return false; 
     }
 
   /* Set location to physical memory */
   spte->location = LOC_PM;
+  printf ("successfully loaded %x\n", spte->addr);
   return true;
 }
 
@@ -102,22 +107,29 @@ sw_load (struct spte* spte)
   size_t swap_index = spte->swap_index;
   bool writable = spte->writable;
   uint8_t *upage = spte->addr;
-  
+  printf ("swap index : %d\n", (int)spte->swap_index);
+  printf ("spte addr : %x\n", spte->addr);
   /* Get a page of memory */ 
   uint8_t *kpage = frame_alloc (PAL_USER, spte);
   if (kpage == NULL)
+  {  
+    printf ("kpage is NULL\n");
     return false;
+  }
+  printf ("before swap in\n"); 
   /* Swap in spte */
   swap_in (kpage, swap_index);
-  
+  printf ("after swap in\n"); 
   if (!install_page (upage, kpage, writable))
   {
-    lock_acquire (
+
+    printf ("install page failed\n");
     frame_free (kpage);
     return false;
   }
   /* Set location to physical memory */
   spte->location = LOC_PM;
+  printf ("successfully loaded %x\n", spte->addr);
   return true;
 }
 

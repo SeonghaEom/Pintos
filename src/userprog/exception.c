@@ -164,6 +164,7 @@ page_fault (struct intr_frame *f)
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
+  
 #ifdef VM
   /* Check for supplemental page table memory reference validity 
    * and if invalid, terminate the process and free all resources */
@@ -180,18 +181,18 @@ page_fault (struct intr_frame *f)
     }
 
     /* Stack growth */
-    //uint32_t gap = t->stack_climit - fault_addr;
-    //printf ("gap : %d\n", gap);
-    if ( (uint32_t)f->esp -32 <= (uint32_t)fault_addr &&
+    //printf ("esp-32 : %x\n", f->esp-32);
+    //printf ("fault_addr : %x\n", fault_addr);
+    if ((uint32_t)f->esp -32 <= (uint32_t)fault_addr &&
         fault_addr <= (void *)PHYS_BASE )
     {
       void *next_bound = pg_round_down (fault_addr);
       if ((uint32_t) next_bound < STACK_LIMIT) 
       {
         //printf ("next bound exceed growth limit\n");
+        printf ("AA\n");
         exit (-1);
       }
-      printf ("a\n");
       struct spte *spte = (struct spte *) malloc (sizeof (struct spte *));
       void *kpage = frame_alloc (PAL_USER, spte);
       if (kpage != NULL)
@@ -200,12 +201,13 @@ page_fault (struct intr_frame *f)
         if (success)
         {
           /* Set spte address */
-          printf ("page fault stack growth\n");
+          //printf ("page fault stack growth\n");
           spte->addr = next_bound;
         }
         else 
         {
           frame_free (kpage);
+          //printf ("BB\n");
           exit (-1);
         }
       }
@@ -216,16 +218,17 @@ page_fault (struct intr_frame *f)
     struct spte *spte = spte_lookup (fault_addr);
     if (spte == NULL)
     {
+      printf ("spte is NULL\n");
       exit (-1);
     }
     switch (spte->location) 
     {
       case LOC_FS:
-        //printf ("fs\n");
+        printf ("fs\n");
         fs_load (spte);
         break;
       case LOC_SW:
-        //printf ("sw\n");
+        printf ("sw\n");
         sw_load (spte);
         break;
       default:

@@ -120,22 +120,30 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     /* 8, Read from a file */
     case SYS_READ:
+      //printf ("SYS_READ\n");
       read_arguments (f->esp, &argv[0], 3, f);
       fd = (int) argv[0];
       buffer = (void *) argv[1];
       size = (unsigned) argv[2];
       //valid_address (&fd);
+      //printf ("buffer : %x\n", buffer);
+      //printf ("size : %d\n", size);
+ 
       valid_address ((void *) buffer, f);
       f->eax = read (fd, buffer, size);
       break;
     /* 9, Write to a file */
     case SYS_WRITE:
+      //printf ("SYS_WRITE\n");
       read_arguments (f->esp, &argv[0], 3, f);
       fd = (int) argv[0];
       buffer = (void *) argv[1];
       size = (unsigned) argv[2];
       //valid_address (&fd);
+      //printf ("buffer : %x\n", buffer);
+      //printf ("size : %d\n", size);
       valid_address ((void *) buffer, f);
+      valid_address ((void *) buffer + size, f);
       f->eax = write (fd, buffer, size);
       break;
     /* 10, Change position in a file */
@@ -188,7 +196,7 @@ valid_address (void *uaddr, struct intr_frame * f)
     {
       /* Check given pointer is mapped or unmapped */
       uint32_t *pd = thread_current()->pagedir;
-      if (pagedir_get_page (pd, uaddr) == NULL)
+      while (pagedir_get_page (pd, uaddr) == NULL)
       {
         //printf("uaddr %x\n", uaddr);
         /* Stack growth */
@@ -211,8 +219,10 @@ valid_address (void *uaddr, struct intr_frame * f)
             {
               /* Set spte address */
               spte->addr = next_bound;
-              printf ("%x\n", uaddr);
-              printf (" syscall stack growth\n");
+              //printf ("thread : %s\n", thread_current ()->name);
+              //printf ("uaddr : %x\n", uaddr);
+              //printf ("addr : %x\n", next_bound);
+              //printf ("syscall stack growth\n");
             }
             else 
             { 
@@ -222,7 +232,8 @@ valid_address (void *uaddr, struct intr_frame * f)
             }
           }
         }
-        return;
+        uaddr = uaddr + PGSIZE;
+        //return;
       }
       return;
     }
@@ -329,7 +340,6 @@ write (int fd, const void *buffer, unsigned size)
       lock_acquire (file_lock);
       int result = (int) file_write (f, buffer, (off_t) size);
       lock_release (file_lock);
-      printf ("write file pointer %x\n", f);
       return result;
     }
   }
@@ -440,7 +450,6 @@ read (int fd, void *buffer, unsigned size)
       //printf("f\n");
       struct file *f = find_file (fd)->file;
       lock_acquire(file_lock);
-      printf ("read file pointer %x\n", f);
       int result = (int) file_read (f, buffer, size);
       lock_release (file_lock);
       //printf("g\n");

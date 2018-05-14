@@ -177,7 +177,7 @@ process_exit (void)
     // File lock
     if (file_lock->holder != NULL )
     {
-      printf("lock holder %s\n", file_lock->holder->name);
+      //printf("lock holder %s\n", file_lock->holder->name);
       lock_release (file_lock);
     }
     lock_acquire (file_lock);

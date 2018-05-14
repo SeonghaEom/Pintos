@@ -34,9 +34,9 @@ void frame_add_to_table (void *frame, struct spte *spte)
   fte->rbit = 0;
   
   /* Push it in frame table */
-  lock_acquire (&frame_table_lock);
+  //lock_acquire (&frame_table_lock);
   list_push_back (&frame_table, &fte->elem);
-  lock_release (&frame_table_lock);
+  //lock_release (&frame_table_lock);
 }
 
 /* Allocate each frame by palloc_get_page */
@@ -51,19 +51,30 @@ void *frame_alloc (enum palloc_flags flag, struct spte *spte)
   /* Unused frame exist */
   if (frame != NULL)
   {
+    printf ("unused frame exist....\n");
     frame_add_to_table (frame, spte);
     //pagedir_set_page (thread_current ()->pagedir, spte->addr, frame, spte->writable);
+    printf("frame table size %d\n", list_size(&frame_table));
+    return frame;
   }
   /* Frame table is full, need to evict frame with eviction policy */
   else
   {
+    printf ("unused frame doesn't exist, need eviction.... \n");
     lock_acquire (&frame_table_lock);
-    frame_add_to_table (frame_evict (flag), spte);
+    void *evicted_frame = frame_evict (flag);
+    //printf ("eviction success\n");
+    // New spte is mapped with evited frame
+    struct frame_table_entry *fte = find_entry_by_frame (evicted_frame);
+    printf ("evicted fte's spte addr : %x\n", fte->spte->addr); 
+    fte->spte = spte;
+    fte->thread = thread_current ();
+    fte->rbit = 0;
+    //frame_add_to_table (evicted_frame, spte);
     lock_release (&frame_table_lock);
-    
+    //printf("frame table size %d\n", list_size(&frame_table));
+    return evicted_frame;
   }
-  //printf("frame table size %d\n", list_size(&frame_table));
-  return frame;
 }
 
 /* Free frame and remove corresponding frame table entry in frame table */
@@ -89,11 +100,12 @@ void frame_free (void *frame)
  * and swapt out and return the victim's frame pointer to allocate new */
 void *frame_evict (enum palloc_flags flag)
 {
+  printf ("frame evict!\n");
   /* Find the victim in frame table by second chance algorithm */
   struct frame_table_entry *victim;
   struct list_elem *i;
 
-  for ( i = list_begin (&frame_table); i != list_end (&frame_table);
+  for (i = list_begin (&frame_table); i != list_end (&frame_table);
         i = list_next (i))
   {
     struct frame_table_entry *fte = list_entry (i, struct frame_table_entry, elem);
@@ -111,26 +123,33 @@ void *frame_evict (enum palloc_flags flag)
   /* Case where all frames have 0 reference bit, FIFO */
   if (victim == NULL)
   {
+    printf ("victim is NULL, should use FIFO now\n");
     victim = list_entry (list_front (&frame_table), struct frame_table_entry, elem);
     victim->rbit = 0;
-    
   }
-  /* Swap out */
+  /* Should we need swap out? */
   if (pagedir_is_dirty (thread_current ()->pagedir, victim->frame))
   {
     /* Write in SW */
+    printf ("Evicted frame changed, should save in swap disk\n");
     victim->spte->swap_index = swap_out (victim->frame);
     pagedir_clear_page (thread_current ()->pagedir, victim->spte->addr);
-    free (victim->spte);
+    victim->spte->location = LOC_SW;
+    //free (victim->spte);
   }
   else
   {
+    printf ("Evicted frame does not changed\n");
+    victim->spte->location = LOC_FS;
     /* Write in FS */
+    /*
     file_write_at (victim->spte->file, victim->frame, PGSIZE, victim->spte->ofs);
     pagedir_clear_page (thread_current ()->pagedir, victim->spte->addr);
     free (victim->spte);
+    */
   }
   //frame_free (victim->frame);
+  printf ("frame evict fin\n");
   return victim->frame;
 }
 
