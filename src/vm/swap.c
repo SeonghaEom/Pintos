@@ -51,15 +51,21 @@ size_t swap_out (void *frame)
   {
     /* Write in swap disk */
     lock_acquire (&swap_lock);
-    block_write (swap_block, swap_index, frame);
-    printf ("dfd\n");
+    int i;
+    void *buffer = frame;
+    for (i = 0; i < 8; i ++)
+    {
+      block_write (swap_block, swap_index * 8 + i, buffer);
+      buffer += BLOCK_SECTOR_SIZE;
+    }
     lock_release (&swap_lock);
     find_entry_by_frame (frame)->spte->location = LOC_SW;
-    printf("sibal\n");
   }
   else
   {
+    /* No swap slot left */
     printf ("No swap slot left!\n");
+    exit (-1);
   }
   return swap_index;
 }
@@ -73,11 +79,17 @@ void swap_in (void *frame, size_t swap_index)
   {
     /* Read from swap disk */
     lock_acquire (&swap_lock);
-    block_read (swap_block, swap_index, frame);
-    lock_release (&swap_lock);
+    int i;
+    void *buffer = frame;
+    for (i = 0; i < 8; i++)
+    {
+      block_read (swap_block, swap_index * 8 + i , buffer);
+      buffer += BLOCK_SECTOR_SIZE; 
+    }
+    //lock_release (&swap_lock);
     /* Update swap bitmap */
-    lock_acquire (&swap_lock);
-    bitmap_set (swap_bm, swap_index, true); 
+    //lock_acquire (&swap_lock);
+    bitmap_set (swap_bm, swap_index, false); 
     lock_release (&swap_lock);
   }
 }
