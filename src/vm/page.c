@@ -112,6 +112,7 @@ sw_load (struct spte* spte)
   
   if (!install_page (upage, kpage, writable))
   {
+    lock_acquire (
     frame_free (kpage);
     return false;
   }
