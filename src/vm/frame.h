@@ -14,15 +14,15 @@
  * EomSungha
  */
 /* Frame table lock */
-struct lock frame_table_lock;
+struct lock frame_lock;
 /* Global frame table */
-struct list frame_table;
+struct list ft;
 /* Frame table entry */
-struct frame_table_entry
+struct fte
 {
-  void *frame;              /* Physical frame pointer */
-  struct spte *spte;        /* Supplement page entry */
-  struct thread *thread;    /* Thread who uses this frame */
+  void *frame;              /* Pointer to Physical frame(kernel vaddr) */
+  struct spte *spte;        /* Supplemental page table entry */
+  struct thread *thread;    /* Thread who owns this frame */
   struct list_elem elem;    /* List element */
 };
 
@@ -31,6 +31,6 @@ void frame_add_to_table (void *frame, struct spte *spte);
 void *frame_alloc (enum palloc_flags flags, struct spte *spte);
 void frame_free (void *frame);
 void *frame_evict (enum palloc_flags flags);
-struct frame_table_entry *find_entry_by_frame(void *);
+struct fte *find_entry_by_frame(void *);
 
 #endif
