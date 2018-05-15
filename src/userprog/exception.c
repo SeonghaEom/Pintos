@@ -180,11 +180,53 @@ page_fault (struct intr_frame *f)
       exit (-1);
     }
 
+    /* First find spte through fault_addr
+     * and then load each segment lazily */
+    struct spte *spte = spte_lookup (fault_addr);
+    if(fault_addr < 0x8049000 && spte->location == LOC_SW){
+      PANIC("Code segment %p from %d\n", fault_addr, spte->swap_index);
+    }
+    if(fault_addr > 0xb0000000) {
+      //PANIC("HI\n");
+    }
+    if (spte != NULL)
+    {
+      if(spte->addr > 0xb0000000) {
+        //PANIC("Stack segment PF %p, %d, %s\n", spte->addr, spte->swap_index, spte->location == LOC_SW ? "swap" : "others");
+      
+
+
+      }
+    switch (spte->location) 
+    {
+      case LOC_FS:
+        printf ("fs\n");
+        if (!fs_load (spte))
+        {
+          PANIC("HIHI");
+          printf ("fs_load failed\n");
+          exit (-1);
+        }
+        break;
+      case LOC_SW:
+        printf ("sw\n");
+        if (!sw_load (spte))
+        { 
+          printf ("sw_load failed\n");
+          exit (-1);
+        }
+        break;
+      default:
+        break;
+    }
+    }
+    else
+    {
     /* Stack growth */
     //printf ("esp-32 : %x\n", f->esp-32);
     //printf ("fault_addr : %x\n", fault_addr);
     if ((uint32_t)f->esp -32 <= (uint32_t)fault_addr &&
-        fault_addr <= (void *)PHYS_BASE )
+        fault_addr <= (uint32_t) f->esp)
     {
       void *next_bound = pg_round_down (fault_addr);
       if ((uint32_t) next_bound < STACK_LIMIT) 
@@ -192,6 +234,8 @@ page_fault (struct intr_frame *f)
         printf ("next bound exceed growth limit\n");
         exit (-1);
       }
+
+
       struct spte *spte = (struct spte *) malloc (sizeof (struct spte *));
       void *kpage = frame_alloc (PAL_USER, spte);
       if (kpage != NULL)
@@ -215,38 +259,16 @@ page_fault (struct intr_frame *f)
       else
       {
         printf("kpage == null\n");
+        PANIC ("kpage null\n");
         //exit (-1);
       }
       return;
     }
-    /* First find spte through fault_addr
-     * and then load each segment lazily */
-    struct spte *spte = spte_lookup (fault_addr);
-    if (spte == NULL)
+    else
     {
-      printf ("spte is NULL\n");
+      printf ("spt null without stack growth\n");
       exit (-1);
     }
-    switch (spte->location) 
-    {
-      case LOC_FS:
-        printf ("fs\n");
-        if (!fs_load (spte))
-        {
-          printf ("fs_load failed\n");
-          exit (-1);
-        }
-        break;
-      case LOC_SW:
-        printf ("sw\n");
-        if (!sw_load (spte))
-        { 
-          printf ("sw_load failed\n");
-          exit (-1);
-        }
-        break;
-      default:
-        break;
     }
   }
   /* Access by kernel

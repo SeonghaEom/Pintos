@@ -6,6 +6,7 @@
 #include <bitmap.h>
 #include "devices/block.h"
 #include "threads/synch.h"
+#include "vm/frame.h"
 #include <stdio.h>
 /* 2018.05.10
  * EomSungha
@@ -20,7 +21,7 @@ struct lock swap_lock;
 struct block *swap_block;
 
 void swap_table_init (void);
-size_t swap_out (void *frame);
+size_t swap_out (struct fte *fte);
 void swap_in (void *frame, size_t swap_index);
 
 #endif

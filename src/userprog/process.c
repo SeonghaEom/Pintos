@@ -588,8 +588,11 @@ setup_stack (void **esp, char **argv, int *argc)
   
   /* Frame allocation for this current's stack */
 #ifdef VM
-  struct spte *spte = (struct spte *) malloc (sizeof (struct spte *));
+  struct spte *spte = (struct spte *) malloc (sizeof (struct spte));
   kpage = frame_alloc (PAL_USER, spte);
+  spte->location = LOC_PM;
+
+
 #else
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
 #endif
@@ -603,6 +606,7 @@ setup_stack (void **esp, char **argv, int *argc)
 #ifdef VM
         /* Spte addr assignment */
         spte->addr = *esp - PGSIZE;
+        hash_insert(thread_current()->spt, &spte->hash_elem);
 #endif
         /* pushing arguments reversely to esp by length of each arguments */
         while (i >0)
@@ -649,6 +653,7 @@ setup_stack (void **esp, char **argv, int *argc)
       {
 #ifdef VM
         frame_free (kpage);
+        PANIC("HAHSDHASHDAHSD\n");
 #else
         palloc_free_page (kpage);
 #endif
