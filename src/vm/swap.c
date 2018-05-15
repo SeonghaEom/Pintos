@@ -47,7 +47,7 @@ size_t swap_out (struct fte *fte)
   //lock_acquire (&swap_lock);
   swap_index = bitmap_scan_and_flip (swap_bm, 0, 8, false);
   //lock_release (&swap_lock);
-  //printf ("swap index %d\n", (int)swap_index);
+  //printf ("swap outed index %d\n", (int)swap_index);
   if (swap_index != BITMAP_ERROR)
   {
     /* Write in swap disk */

@@ -124,7 +124,7 @@ void *frame_evict (enum palloc_flags flag)
     i = saved_victim;
   }
   
-  /* Search for referenced file to evict */
+  /* Search for referenced file to evict 
   while (true) 
   {
     struct fte *fte = list_entry (i, struct fte, elem);
@@ -139,17 +139,22 @@ void *frame_evict (enum palloc_flags flag)
     {
       pagedir_set_accessed (fte->thread->pagedir, fte->spte->addr, false);
     }
-    /* Iteration */
+    /* Iteration 
     i = list_next (i);
     if (i == list_end (&ft))
     {
-      //printf ("circular search 하는중, evited frame 찾다가 처음으로 넘어감\n");
+      printf ("circular search 하는중, evited frame 찾다가 처음으로 넘어감\n");
       i = list_begin (&ft);
     }
-  }
-  i = list_begin(&ft);
+  }*/
   victim = list_entry(i, struct fte, elem);
-  
+  i = list_next(i);
+  if (i == list_end (&ft))
+  {
+    //printf ("reach end in frame circular\n");
+    i = list_begin (&ft);
+  }
+  saved_victim = i;
   /*
   if (victim->spte->addr > 0xb0000000) {
     lock_acquire(&swap_lock);
@@ -173,7 +178,7 @@ void *frame_evict (enum palloc_flags flag)
   {
     /* Write in SW */
     //printf ("Evicted frame changed, should save in swap disk\n");
-    printf ("Evicted frame spte addr : %x\n", victim->spte->addr);
+    //printf ("Evicted frame spte addr : %x\n", victim->spte->addr);
     lock_acquire (&swap_lock);
     victim->spte->swap_index = swap_out (victim);
     lock_release (&swap_lock);

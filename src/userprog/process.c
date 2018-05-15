@@ -526,7 +526,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Populate spt */
       struct spte *spte = (struct spte *) malloc (sizeof (struct spte));
       spte->addr = upage;
-      printf ("addr : %p\n", upage);
+      //printf ("addr : %p\n", upage);
       spte->file = file;
       spte->ofs = offset;
       spte->read_bytes = page_read_bytes;
@@ -591,8 +591,7 @@ setup_stack (void **esp, char **argv, int *argc)
   struct spte *spte = (struct spte *) malloc (sizeof (struct spte));
   kpage = frame_alloc (PAL_USER, spte);
   spte->location = LOC_PM;
-
-
+  spte->writable = true;
 #else
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
 #endif
