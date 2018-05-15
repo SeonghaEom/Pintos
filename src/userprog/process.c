@@ -589,7 +589,9 @@ setup_stack (void **esp, char **argv, int *argc)
   /* Frame allocation for this current's stack */
 #ifdef VM
   struct spte *spte = (struct spte *) malloc (sizeof (struct spte));
+  lock_acquire (&frame_lock);
   kpage = frame_alloc (PAL_USER, spte);
+  lock_release (&frame_lock);
   spte->location = LOC_PM;
   spte->writable = true;
 #else

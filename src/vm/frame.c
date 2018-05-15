@@ -17,6 +17,9 @@
  */
 /* Saved victim for second change algorithm */
 static struct list_elem *saved_victim;
+static void frame_add_to_table (void *frame, struct spte *spte);
+static void *frame_evict (enum palloc_flags flag);
+
 /* Initialize the frame table */
 void frame_table_init (void)
 {
@@ -25,7 +28,7 @@ void frame_table_init (void)
 }
 
 /* Add one frame to the frame table */
-void frame_add_to_table (void *frame, struct spte *spte)
+static void frame_add_to_table (void *frame, struct spte *spte)
 {
   /* Initialize frame table entry */
   struct fte *fte = malloc (sizeof (struct fte));
@@ -54,10 +57,10 @@ void *frame_alloc (enum palloc_flags flag, struct spte *spte)
   if (frame != NULL)
   {
     //printf ("unused frame exist....\n");
-    lock_acquire (&frame_lock);
+    //lock_acquire (&frame_lock);
     frame_add_to_table (frame, spte);
     //pagedir_set_page(thread_current()->pagedir, spte->addr, frame, spte->writable);
-    lock_release (&frame_lock);
+    //lock_release (&frame_lock);
     spte->location = LOC_PM;
     
     //printf("frame table size %d\n", list_size (&ft));
@@ -67,7 +70,7 @@ void *frame_alloc (enum palloc_flags flag, struct spte *spte)
   else
   {
     //printf ("unused frame doesn't exist, need eviction.... \n");
-    lock_acquire (&frame_lock);
+    //lock_acquire (&frame_lock);
     void *evicted_frame = frame_evict (flag);
     //printf ("eviction success\n");
     // New spte is mapped with evited frame
@@ -78,7 +81,7 @@ void *frame_alloc (enum palloc_flags flag, struct spte *spte)
     //frame_add_to_table (evicted_frame, spte);
     /* Add mapping to current thread's page table */
     //pagedir_set_page (thread_current ()->pagedir, spte->addr, frame, spte->writable);
-    lock_release (&frame_lock);
+    //lock_release (&frame_lock);
     spte->location = LOC_PM;
     //pagedir_set_page(thread_current()->pagedir, spte->addr, frame, spte->writable);
     //printf("frame table size %d\n", list_size(&ft));
@@ -107,7 +110,7 @@ void frame_free (void *frame)
 
 /* Find the victom in frame table by second chance algorithm
  * and swapt out and return the victim's frame pointer to allocate new */
-void *frame_evict (enum palloc_flags flag)
+static void *frame_evict (enum palloc_flags flag)
 {
   //printf ("frame evict!\n");
   /* Find the victim in frame table by second chance algorithm */

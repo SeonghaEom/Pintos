@@ -75,7 +75,9 @@ fs_load (struct spte *spte)
   
   /* Get a page of memory. */
   //uint8_t *kpage = palloc_get_page (PAL_USER);
+  lock_acquire (&frame_lock);
   uint8_t *kpage = frame_alloc (PAL_USER, spte);
+  lock_release (&frame_lock);
   if (kpage == NULL)
   { 
     PANIC ("HI");
@@ -140,7 +142,9 @@ sw_load (struct spte* spte)
   //printf ("swap index : %d\n", (int)spte->swap_index);
   //printf ("spte addr : %x\n", spte->addr);
   /* Get a page of memory */ 
+  lock_acquire (&frame_lock);
   uint8_t *kpage = frame_alloc (PAL_USER, spte);
+  lock_release (&frame_lock);
   if(spte->addr < 0x8060000) {
     //PANIC("Code segment %p from %d\n", spte->addr, swap_index);
   }
