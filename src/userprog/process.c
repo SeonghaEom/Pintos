@@ -526,7 +526,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Populate spt */
       struct spte *spte = (struct spte *) malloc (sizeof (struct spte));
       spte->addr = upage;
-      printf ("addr : %p\n", upage);
+      //printf ("addr : %p\n", upage);
       spte->file = file;
       spte->ofs = offset;
       spte->read_bytes = page_read_bytes;

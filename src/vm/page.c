@@ -59,6 +59,10 @@ spte_lookup (const void *address)
   if ( e == NULL) {
     printf("Spte lookup failed %p\n", address);
   }
+  else
+  {
+    printf ("SPte lookup success %p\n", address);
+  }
   return e != NULL? hash_entry (e, struct spte, hash_elem) : NULL;
 }
 
