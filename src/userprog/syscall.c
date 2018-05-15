@@ -219,6 +219,7 @@ valid_address (void *uaddr, struct intr_frame * f)
             {
               /* Set spte address */
               spte->addr = next_bound;
+              hash_insert (thread_current ()->spt, &spte->hash_elem);
               //printf ("thread : %s\n", thread_current ()->name);
               //printf ("uaddr : %x\n", uaddr);
               //printf ("addr : %x\n", next_bound);

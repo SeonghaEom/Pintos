@@ -78,21 +78,39 @@ fs_load (struct spte *spte)
     return false;
   }
   /* Load this page. */
-  if (file_read_at (file, kpage, page_read_bytes, ofs) != (int) page_read_bytes)
+  /* 1. page zero bytes = PGSIZE */
+  if (page_zero_bytes == PGSIZE) 
+  {
+    memset (kpage, 0, PGSIZE);
+  }
+  /* 2. page zero byte is 0 */
+  else if (page_zero_bytes == 0)
+  {
+    if (file_read_at (file, kpage, page_read_bytes, ofs) != PGSIZE)
+    {
+      printf ("File load failed\n");
+      frame_free (kpage);
+      return false;
+    }
+  }
+  /* 3. page zero byte is beween 0 and PGSIZE  */
+  else
+  {
+    if (file_read_at (file, kpage, page_read_bytes, ofs) != (int) page_read_bytes)
     {
       printf ("File load fails\n");
       frame_free (kpage);
       return false; 
     }
-  memset (kpage + page_read_bytes, 0, page_zero_bytes);
-
+    memset (kpage + page_read_bytes, 0, page_zero_bytes);
+  }
   /* Add the page to the process's address space. Add mapping in page table */
   if (!install_page (upage, kpage, writable)) 
-    {
-      printf ("install page fails\n");
-      frame_free (kpage);
-      return false; 
-    }
+  {
+    printf ("install page fails\n");
+    frame_free (kpage);
+    return false; 
+  }
 
   /* Set location to physical memory */
   spte->location = LOC_PM;
@@ -119,7 +137,9 @@ sw_load (struct spte* spte)
   }
   printf ("before swap in\n"); 
   /* Swap in spte */
+  lock_acquire (&swap_lock);
   swap_in (kpage, swap_index);
+  lock_release (&swap_lock);
   printf ("after swap in\n"); 
   if (!install_page (upage, kpage, writable))
   {
@@ -128,6 +148,7 @@ sw_load (struct spte* spte)
     frame_free (kpage);
     return false;
   }
+  
   /* Set location to physical memory */
   spte->location = LOC_PM;
   printf ("successfully loaded %x\n", spte->addr);

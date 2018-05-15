@@ -189,8 +189,7 @@ page_fault (struct intr_frame *f)
       void *next_bound = pg_round_down (fault_addr);
       if ((uint32_t) next_bound < STACK_LIMIT) 
       {
-        //printf ("next bound exceed growth limit\n");
-        printf ("AA\n");
+        printf ("next bound exceed growth limit\n");
         exit (-1);
       }
       struct spte *spte = (struct spte *) malloc (sizeof (struct spte *));
@@ -204,6 +203,7 @@ page_fault (struct intr_frame *f)
           printf ("page fault stack growth\n");
           spte->addr = next_bound;
           spte->location = LOC_PM;
+          hash_insert (thread_current ()->spt, &spte->hash_elem);
         }
         else 
         {
@@ -211,6 +211,11 @@ page_fault (struct intr_frame *f)
           //printf ("BB\n");
           exit (-1);
         }
+      } 
+      else
+      {
+        printf("kpage == null\n");
+        //exit (-1);
       }
       return;
     }

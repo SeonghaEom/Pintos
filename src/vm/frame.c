@@ -20,7 +20,7 @@ static struct list_elem *saved_victim;
 /* Initialize the frame table */
 void frame_table_init (void)
 {
-  lock_init (&ft_lock);
+  lock_init (&frame_lock);
   list_init (&ft);
 }
 
@@ -52,9 +52,9 @@ void *frame_alloc (enum palloc_flags flag, struct spte *spte)
   if (frame != NULL)
   {
     printf ("unused frame exist....\n");
-    lock_acquire (&ft_lock);
+    lock_acquire (&frame_lock);
     frame_add_to_table (frame, spte);
-    lock_release (&ft_lock);
+    lock_release (&frame_lock);
     
     printf("frame table size %d\n", list_size (&ft));
     return frame;
@@ -63,7 +63,7 @@ void *frame_alloc (enum palloc_flags flag, struct spte *spte)
   else
   {
     printf ("unused frame doesn't exist, need eviction.... \n");
-    lock_acquire (&ft_lock);
+    lock_acquire (&frame_lock);
     void *evicted_frame = frame_evict (flag);
     //printf ("eviction success\n");
     // New spte is mapped with evited frame
@@ -74,8 +74,8 @@ void *frame_alloc (enum palloc_flags flag, struct spte *spte)
     //frame_add_to_table (evicted_frame, spte);
     /* Add mapping to current thread's page table */
     //pagedir_set_page (thread_current ()->pagedir, spte->addr, frame, spte->writable);
-    lock_release (&ft_lock);
-    printf("frame table size %d\n", list_size(&frame_table));
+    lock_release (&frame_lock);
+    printf("frame table size %d\n", list_size(&ft));
     return evicted_frame;
   }
 }
@@ -84,7 +84,7 @@ void *frame_alloc (enum palloc_flags flag, struct spte *spte)
 void frame_free (void *frame)
 {
   /* First, find frame table entry by frame(physical frame pointer */
-  struct frame_table_entry *fte = find_entry_by_frame (frame);
+  struct fte *fte = find_entry_by_frame (frame);
   /* Remove frame table entry in frame table */
   //printf("lock holder : %s\n", (&frame_table_lock)->holder->name);
   //lock_acquire (&frame_table_lock);
@@ -155,9 +155,12 @@ void *frame_evict (enum palloc_flags flag)
   {
     /* Write in SW */
     printf ("Evicted frame changed, should save in swap disk\n");
+    printf ("Evicted frame spte addr : %x\n", victim->spte->addr);
+    lock_acquire (&swap_lock);
     victim->spte->swap_index = swap_out (victim->frame);
+    lock_release (&swap_lock);
     pagedir_clear_page (thread_current ()->pagedir, victim->spte->addr);
-    pagedir_set_dirty (thread_current ()->pagedir, victim->spte->addr, false);
+    //pagedir_set_dirty (thread_current ()->pagedir, victim->spte->addr, false);
     victim->spte->location = LOC_SW;
     //free (victim->spte);
   }
@@ -180,15 +183,15 @@ void *frame_evict (enum palloc_flags flag)
 }
 
 /* Find frame table entry in frame table by frame */
-struct frame_table_entry *
+struct fte *
 find_entry_by_frame (void *frame)
 {
   struct list_elem *e;
 
-  for (e = list_begin (&frame_table); e != list_end (&frame_table);
+  for (e = list_begin (&ft); e != list_end (&ft);
        e = list_next (e))
   {
-    struct frame_table_entry *fte = list_entry (e, struct frame_table_entry, elem);
+    struct fte *fte = list_entry (e, struct fte, elem);
     if (fte->frame == frame)
     {
       return fte;
