@@ -591,8 +591,7 @@ setup_stack (void **esp, char **argv, int *argc)
   struct spte *spte = (struct spte *) malloc (sizeof (struct spte));
   kpage = frame_alloc (PAL_USER, spte);
   spte->location = LOC_PM;
-
-
+  spte->writable = true;
 #else
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
 #endif

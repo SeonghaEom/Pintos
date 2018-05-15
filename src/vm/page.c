@@ -51,13 +51,13 @@ spte_lookup (const void *address)
 {
   struct spte spte;
   struct hash_elem *e;
-  printf("spte_lookup %p\n", address);
+  //printf("spte_lookup %p\n", address);
   /* Page round down to find corresponding page for address */
   spte.addr = pg_round_down (address);
   spte.location = LOC_PM;
   e = hash_find (thread_current ()->spt, &spte.hash_elem);
   if ( e == NULL) {
-    printf("Spte lookup failed %p\n", address);
+    //printf("Spte lookup failed %p\n", address);
   }
   else
   {
@@ -128,7 +128,7 @@ fs_load (struct spte *spte)
 
   /* Set location to physical memory */
   spte->location = LOC_PM;
-  pagedir_set_page(thread_current()->pagedir, spte->addr, kpage, true);//spte->writable);
+  pagedir_set_page(thread_current()->pagedir, spte->addr, kpage, spte->writable);
   //printf ("successfully loaded %x\n", spte->addr);
   return true;
 }
@@ -146,7 +146,7 @@ sw_load (struct spte* spte)
   /* Get a page of memory */ 
   uint8_t *kpage = frame_alloc (PAL_USER, spte);
   if(spte->addr < 0x8060000) {
-    PANIC("Code segment %p from %d\n", spte->addr, swap_index);
+    //PANIC("Code segment %p from %d\n", spte->addr, swap_index);
   }
   if (kpage == NULL)
   {  
@@ -169,7 +169,7 @@ sw_load (struct spte* spte)
   
   /* Set location to physical memory */
   spte->location = LOC_PM;
-  pagedir_set_page(thread_current()->pagedir, spte->addr, kpage, true);//spte->writable);
+  pagedir_set_page(thread_current()->pagedir, spte->addr, kpage, spte->writable);
   //printf ("successfully loaded %x\n", spte->addr);
   return true;
 }

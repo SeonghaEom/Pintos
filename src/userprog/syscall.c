@@ -200,8 +200,8 @@ valid_address (void *uaddr, struct intr_frame * f)
       {
         //printf("uaddr %x\n", uaddr);
         /* Stack growth */
-        printf ("valid check address is %x\n, esp is %x\n", uaddr, f->esp);
-        if (uaddr >= (void *)f->esp - 32 && uaddr <= (void *) f->esp)
+
+        if (uaddr >= f->esp -32 && uaddr <= (int) PHYS_BASE)
         {
           void *next_bound = pg_round_down (uaddr);
           //printf ("next bound %x \n stack limit %x\n", next_bound, STACK_LIMIT);
@@ -210,15 +210,19 @@ valid_address (void *uaddr, struct intr_frame * f)
             //printf ("next bound exceed growth limit\n");
             exit (-1);
           }
-          
 
           struct spte *spte = spte_lookup (uaddr);
-          if (spte == NULL)
+          /* Spte exist */
+          if (spte != NULL) 
           {
-            struct spte *spte = (struct spte *) malloc (sizeof (struct spte));
-            void *kpage = frame_alloc (PAL_USER, spte);
-            if (kpage != NULL)
-            {
+            continue;
+          }
+
+          spte = (struct spte *) malloc (sizeof (struct spte));
+          spte->location = LOC_PM;
+          void *kpage = frame_alloc (PAL_USER, spte);
+          if (kpage != NULL)
+          {
               bool success = install_page (next_bound, kpage, true);
               if (success)
               {
@@ -231,7 +235,14 @@ valid_address (void *uaddr, struct intr_frame * f)
                 //printf ("syscall stack growth\n");
               }
 
+            /*
+            else 
+            { 
+              printf("dfd\n");
+              frame_free (kpage);
+              exit (-1);
             }
+            */
           }
         }
         uaddr = uaddr + PGSIZE;
