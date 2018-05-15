@@ -15,7 +15,8 @@
  *  KimYoonseo
  *  EomSungha
  */
-
+/* Saved victim for second change algorith */
+struct list_elem *saved_victim;
 /* Initialize the frame table */
 void frame_table_init (void)
 {
@@ -31,7 +32,6 @@ void frame_add_to_table (void *frame, struct spte *spte)
   fte->frame = frame;
   fte->spte = spte;
   fte->thread = thread_current();
-  fte->rbit = 0;
   
   /* Push it in frame table */
   //lock_acquire (&frame_table_lock);
@@ -69,7 +69,6 @@ void *frame_alloc (enum palloc_flags flag, struct spte *spte)
     printf ("evicted fte's spte addr : %x\n", fte->spte->addr); 
     fte->spte = spte;
     fte->thread = thread_current ();
-    fte->rbit = 0;
     //frame_add_to_table (evicted_frame, spte);
     lock_release (&frame_table_lock);
     //printf("frame table size %d\n", list_size(&frame_table));
@@ -102,22 +101,28 @@ void *frame_evict (enum palloc_flags flag)
 {
   printf ("frame evict!\n");
   /* Find the victim in frame table by second chance algorithm */
-  struct frame_table_entry *victim;
   struct list_elem *i;
+  struct frame_table_entry *victim;
 
-  for (i = list_begin (&frame_table); i != list_end (&frame_table);
-        i = list_next (i))
+  /* Resume saved victim to i */
+  if (saved_victim == NULL)
+  {
+    i = list_begin ( &frame_table);
+  }
+  else
+  {
+    i = saved_victim;
+  }
+  
+  /* Search for referenced file to evict */
+  for (i; i != list_end (&frame_table); i = list_next (i))
   {
     struct frame_table_entry *fte = list_entry (i, struct frame_table_entry, elem);
-    if (fte->rbit)
+    if (pagedir_is_accessed (fte->thread->pagedir, fte->spte->addr))
     {
       victim = fte;
-      fte->rbit = 0;
+      saved_victim = list_next (i);
       break;
-    }
-    else
-    {
-      fte->rbit = 1;
     }
   }
   /* Case where all frames have 0 reference bit, FIFO */
@@ -125,7 +130,7 @@ void *frame_evict (enum palloc_flags flag)
   {
     printf ("victim is NULL, should use FIFO now\n");
     victim = list_entry (list_front (&frame_table), struct frame_table_entry, elem);
-    victim->rbit = 0;
+    saved_victim = list_next (i);
   }
   
   /* Should we need swap out? */
@@ -139,6 +144,7 @@ void *frame_evict (enum palloc_flags flag)
     victim->spte->location = LOC_SW;
     //free (victim->spte);
   }
+  
   else
   {
     printf ("Evicted frame does not changed\n");

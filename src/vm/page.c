@@ -123,6 +123,7 @@ sw_load (struct spte* spte)
   printf ("after swap in\n"); 
   if (!install_page (upage, kpage, writable))
   {
+
     printf ("install page failed\n");
     frame_free (kpage);
     return false;
