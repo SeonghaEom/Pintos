@@ -127,19 +127,22 @@ void *frame_evict (enum palloc_flags flag)
     victim = list_entry (list_front (&frame_table), struct frame_table_entry, elem);
     victim->rbit = 0;
   }
+  
   /* Should we need swap out? */
-  if (pagedir_is_dirty (thread_current ()->pagedir, victim->frame))
+  if (pagedir_is_dirty (thread_current ()->pagedir, victim->spte->addr))
   {
     /* Write in SW */
     printf ("Evicted frame changed, should save in swap disk\n");
     victim->spte->swap_index = swap_out (victim->frame);
     pagedir_clear_page (thread_current ()->pagedir, victim->spte->addr);
+    pagedir_set_dirty (thread_current ()->pagedir, victim->spte->addr, false);
     victim->spte->location = LOC_SW;
     //free (victim->spte);
   }
   else
   {
     printf ("Evicted frame does not changed\n");
+    pagedir_clear_page (thread_current ()->pagedir, victim->spte->addr);
     victim->spte->location = LOC_FS;
     /* Write in FS */
     /*

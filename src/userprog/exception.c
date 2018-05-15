@@ -201,8 +201,9 @@ page_fault (struct intr_frame *f)
         if (success)
         {
           /* Set spte address */
-          //printf ("page fault stack growth\n");
+          printf ("page fault stack growth\n");
           spte->addr = next_bound;
+          spte->location = LOC_PM;
         }
         else 
         {
@@ -225,11 +226,19 @@ page_fault (struct intr_frame *f)
     {
       case LOC_FS:
         printf ("fs\n");
-        fs_load (spte);
+        if (!fs_load (spte))
+        {
+          printf ("fs_load failed\n");
+          exit (-1);
+        }
         break;
       case LOC_SW:
         printf ("sw\n");
-        sw_load (spte);
+        if (!sw_load (spte))
+        { 
+          printf ("sw_load failed\n");
+          exit (-1);
+        }
         break;
       default:
         break;

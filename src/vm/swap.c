@@ -71,7 +71,8 @@ size_t swap_out (void *frame)
 }
 
 /* Swap in 
- * Swap the page of index SWAP_INDEX and map FRAME
+ * Swap the page of index SWAP_INDEX with given FRAME
+ * and do mapping
  */
 void swap_in (void *frame, size_t swap_index)
 {
