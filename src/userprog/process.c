@@ -174,17 +174,20 @@ process_exit (void)
     {
       file_allow_write (cur->my_file);
     }
+    /*
     // File lock
-    if (file_lock->holder != NULL )
+    if ((&file_lock)->holder->tid == thread_current ()->tid)
     {
-      //printf("lock holder %s\n", file_lock->holder->name);
-      lock_release (file_lock);
+      printf ("thread current %d\n", thread_current ()->tid);
+      printf ("lock holder %d\n", (&file_lock)->holder->tid);
+      lock_release (&file_lock);
     }
-    lock_acquire (file_lock);
+    */
+    lock_acquire (&file_lock);
     // close files 
     file_close (cur->my_file);
     close_all_files ();
-    lock_release (file_lock);
+    lock_release (&file_lock);
   }
   uint32_t *pd;
   
@@ -203,9 +206,11 @@ process_exit (void)
          directory before destroying the process's page
          directory, or our active page directory will be one
          that's been freed (and cleared). */
+      lock_acquire (&frame_lock);
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
+      lock_release (&frame_lock);
     }
 }
 
@@ -332,9 +337,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  lock_acquire (file_lock);
+  lock_acquire (&file_lock);
   file = filesys_open (argv[0]);
-  lock_release (file_lock);
+  lock_release (&file_lock);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -605,7 +610,7 @@ setup_stack (void **esp, char **argv, int *argc)
 #ifdef VM
         /* Spte addr assignment */
         spte->addr = *esp - PGSIZE;
-        hash_insert(thread_current()->spt, &spte->hash_elem);
+        hash_insert(thread_current ()->spt, &spte->hash_elem);
 #endif
         /* pushing arguments reversely to esp by length of each arguments */
         while (i >0)
@@ -652,7 +657,6 @@ setup_stack (void **esp, char **argv, int *argc)
       {
 #ifdef VM
         frame_free (kpage);
-        PANIC("HAHSDHASHDAHSD\n");
 #else
         palloc_free_page (kpage);
 #endif

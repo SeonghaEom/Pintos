@@ -40,8 +40,8 @@ static void close (int fd);
 void
 syscall_init (void) 
 {
-  file_lock = (struct lock *) malloc (sizeof (struct lock));
-  lock_init (file_lock);
+  //file_lock = (struct lock *) malloc (sizeof (struct lock));
+  lock_init (&file_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -286,6 +286,7 @@ exit (int status)
 {
   /* exit_sema exists */
   thread_current ()->exit_status = status;
+  printf("thread %d, %s: exit(%d)\n", thread_current ()->tid, thread_current ()->argv_name, status);
   printf("%s: exit(%d)\n", thread_current ()->argv_name, status);
   thread_exit ();
 }
@@ -308,9 +309,9 @@ exec (const char *cmd_line)
 static bool
 create (const char *file, unsigned initial_size)
 {
-  lock_acquire (file_lock);
+  lock_acquire (&file_lock);
   bool result =  filesys_create (file, (int32_t) initial_size);
-  lock_release (file_lock);
+  lock_release (&file_lock);
   return result;
 }
 
@@ -349,9 +350,9 @@ write (int fd, const void *buffer, unsigned size)
     {
       thread_yield();
       struct file *f = find_file (fd)->file;
-      lock_acquire (file_lock);
+      lock_acquire (&file_lock);
       int result = (int) file_write (f, buffer, (off_t) size);
-      lock_release (file_lock);
+      lock_release (&file_lock);
       return result;
     }
   }
@@ -361,9 +362,9 @@ write (int fd, const void *buffer, unsigned size)
 static bool
 remove (const char *file)
 { 
-  lock_acquire (file_lock);
-  bool result =  filesys_remove (file);
-  lock_release (file_lock);
+  lock_acquire (&file_lock);
+  bool result = filesys_remove (file);
+  lock_release (&file_lock);
 
   return result;
 }
@@ -372,9 +373,9 @@ remove (const char *file)
 static int
 open (const char *file)
 {    
-  lock_acquire(file_lock);
+  lock_acquire (&file_lock);
   struct file *open_file = filesys_open(file);
-  lock_release(file_lock);
+  lock_release (&file_lock);
  
   /* file open fail */
   if (open_file == NULL)
@@ -461,9 +462,9 @@ read (int fd, void *buffer, unsigned size)
     {
       //printf("f\n");
       struct file *f = find_file (fd)->file;
-      lock_acquire(file_lock);
+      lock_acquire (&file_lock);
       int result = (int) file_read (f, buffer, size);
-      lock_release (file_lock);
+      lock_release (&file_lock);
       //printf("g\n");
       return result;
     }
@@ -480,9 +481,9 @@ seek (int fd , unsigned position)
   else 
   {
     struct file *f = filedes->file;
-    lock_acquire (file_lock);
+    lock_acquire (&file_lock);
     file_seek (f, (off_t) position);
-    lock_release (file_lock);
+    lock_release (&file_lock);
   }
 }
 
@@ -496,9 +497,9 @@ tell (int fd)
   else 
   {
     struct file *f = find_file (fd)->file;
-    lock_acquire (file_lock);
+    lock_acquire (&file_lock);
     unsigned result = (unsigned) file_tell (f);
-    lock_release (file_lock);
+    lock_release (&file_lock);
 
     return result;
   }
@@ -523,9 +524,9 @@ close (int fd)
   { 
     struct file *f = find_file(fd)->file;
     list_remove (&filedes->elem);
-    lock_acquire (file_lock);
+    lock_acquire (&file_lock);
     file_close (f);
-    lock_release (file_lock);
+    lock_release (&file_lock);
     free (filedes);
   }
 }

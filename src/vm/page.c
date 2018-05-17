@@ -10,7 +10,9 @@
 #include "filesys/file.h"
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
+#include "userprog/syscall.h"
 #include "threads/thread.h"
+
 /*
  *  2018.05.08
  *  KimYoonseo
@@ -54,9 +56,8 @@ spte_lookup (const void *address)
   //printf("spte_lookup %p\n", address);
   /* Page round down to find corresponding page for address */
   spte.addr = pg_round_down (address);
-  spte.location = LOC_PM;
   e = hash_find (thread_current ()->spt, &spte.hash_elem);
-  if ( e == NULL) {
+  if (e == NULL) {
     //printf("Spte lookup failed %p\n", address);
   }
   else
@@ -95,25 +96,28 @@ fs_load (struct spte *spte)
   /* 2. page zero byte is 0 */
   else if (page_zero_bytes == 0)
   {
+    lock_acquire (&file_lock);
     if (file_read_at (file, kpage, page_read_bytes, ofs) != PGSIZE)
     {
-      PANIC("HI");
+      lock_release (&file_lock);
       printf ("File load failed\n");
       frame_free (kpage);
       return false;
     }
+    lock_release (&file_lock);
   }
   /* 3. page zero byte is beween 0 and PGSIZE  */
   else
   {
+    lock_acquire (&file_lock);
     if (file_read_at (file, kpage, page_read_bytes, ofs) != (int) page_read_bytes)
     {
-      PANIC("HI");
+      lock_release (&file_lock);
       printf ("File load fails\n");
       frame_free (kpage);
       return false; 
     }
-    //printf("File load incomplete, %p\n", kpage);
+    lock_release (&file_lock);
 
     memset (kpage + page_read_bytes, 0, page_zero_bytes);
   }
@@ -145,9 +149,7 @@ sw_load (struct spte* spte)
   //printf ("spte addr : %x\n", spte->addr);
   /* Get a page of memory */ 
   uint8_t *kpage = frame_alloc (PAL_USER, spte);
-  if(spte->addr < 0x8060000) {
-    //PANIC("Code segment %p from %d\n", spte->addr, swap_index);
-  }
+  
   if (kpage == NULL)
   {  
     PANIC ("kpage is NULL\n");
@@ -155,9 +157,7 @@ sw_load (struct spte* spte)
   }
   //printf ("before swap in\n"); 
   /* Swap in spte */
-  lock_acquire (&swap_lock);
   swap_in (kpage, swap_index);
-  lock_release (&swap_lock);
   //printf ("after swap in\n"); 
   /*if (!install_page (upage, kpage, writable))
   {
