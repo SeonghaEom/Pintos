@@ -16,6 +16,7 @@
  *  EomSungha
  */
 /* Saved victim for second change algorithm */
+////
 static struct list_elem *saved_victim;
 static void frame_add_to_table (void *frame, struct spte *spte);
 static void *frame_evict (enum palloc_flags flag);
