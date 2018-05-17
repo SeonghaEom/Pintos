@@ -174,15 +174,16 @@ process_exit (void)
     {
       file_allow_write (cur->my_file);
     }
-    /*
+    
     // File lock
-    if ((&file_lock)->holder->tid == thread_current ()->tid)
+    //if ((&file_lock)->holder->tid == thread_current ()->tid)
+    if ((&file_lock)->holder != NULL)
     {
-      printf ("thread current %d\n", thread_current ()->tid);
-      printf ("lock holder %d\n", (&file_lock)->holder->tid);
+      //printf ("thread current %d\n", thread_current ()->tid);
+      //printf ("lock holder %d\n", (&file_lock)->holder->tid);
       lock_release (&file_lock);
     }
-    */
+    
     lock_acquire (&file_lock);
     // close files 
     file_close (cur->my_file);
