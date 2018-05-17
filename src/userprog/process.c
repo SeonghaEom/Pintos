@@ -174,20 +174,32 @@ process_exit (void)
     {
       file_allow_write (cur->my_file);
     }
-    
     // File lock
     //if ((&file_lock)->holder->tid == thread_current ()->tid)
+    tid_t curr = thread_current ()->tid;
     if ((&file_lock)->holder != NULL)
     {
-      //printf ("thread current %d\n", thread_current ()->tid);
-      //printf ("lock holder %d\n", (&file_lock)->holder->tid);
-      lock_release (&file_lock);
-    }
+      tid_t hold = (&file_lock)->holder->tid;
+      //printf ("thread current : %d\n", curr);
+      //printf ("lock holder : %d\n", hold);
     
+      if (curr == hold)
+      {
+        /* page-parallel에서 여기 프린트가 있으면 되고 없으면 안됨 ..
+         * 마찬가지로 page_fault에서도 프린트 있으면 잘되고 없으면 안됨
+        * 이부분이 되게 이상함 */
+        //printf ("thread current %d\n", thread_current ()->tid);
+        //printf ("lock holder %d\n", (&file_lock)->holder->tid);
+        //printf ("process_exit : thread%d r file lock\n", thread_current ()->tid);
+        lock_release (&file_lock);
+      }
+    }
     lock_acquire (&file_lock);
+    //printf ("process exit : thread%d a file lock\n", thread_current ()->tid);
     // close files 
     file_close (cur->my_file);
     close_all_files ();
+    //printf ("process exit : thread%d r file lock\n", thread_current ()->tid);
     lock_release (&file_lock);
   }
   uint32_t *pd;
@@ -208,9 +220,11 @@ process_exit (void)
          directory, or our active page directory will be one
          that's been freed (and cleared). */
       lock_acquire (&frame_lock);
+      //printf ("process exit : thread%d a file lock \n", thread_current ()->tid);
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
+      //printf ("process exit : thread%d r file lock \n", thread_current ()->tid);
       lock_release (&frame_lock);
     }
 }
@@ -339,7 +353,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Open executable file. */
   lock_acquire (&file_lock);
+  //printf ("load : thread%d a file lock\n", thread_current ()->tid);
   file = filesys_open (argv[0]);
+  //printf ("load : thread%d r file lock\n", thread_current ()->tid);
   lock_release (&file_lock);
   if (file == NULL) 
     {
