@@ -286,7 +286,7 @@ exit (int status)
 {
   /* exit_sema exists */
   thread_current ()->exit_status = status;
-  printf("thread %d, %s: exit(%d)\n", thread_current ()->tid, thread_current ()->argv_name, status);
+  //printf("thread %d, %s: exit(%d)\n", thread_current ()->tid, thread_current ()->argv_name, status);
   printf("%s: exit(%d)\n", thread_current ()->argv_name, status);
   thread_exit ();
 }
