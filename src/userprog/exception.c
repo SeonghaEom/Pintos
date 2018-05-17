@@ -159,13 +159,13 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
   
   /* For debug */ 
-  /*
+  
   printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
- */
+ 
 #ifdef VM
   /* Check for supplemental page table memory reference validity 
    * and if invalid, terminate the process and free all resources */
@@ -174,12 +174,10 @@ page_fault (struct intr_frame *f)
   {
     if (!is_user_vaddr (fault_addr))
     {
-      PANIC ("Is not user vaddr");
       exit (-1);
     }
     if (!not_present && write)
     {
-      PANIC ("Try to write on readonly");
       exit (-1);
     }
 
@@ -238,9 +236,7 @@ page_fault (struct intr_frame *f)
         }
 
         struct spte *spte = (struct spte *) malloc (sizeof (struct spte));
-        lock_acquire (&frame_lock);
         void *kpage = frame_alloc (PAL_USER, spte);
-        lock_release (&frame_lock);
         if (kpage != NULL)
         {
           bool success = install_page (next_bound, kpage, true);
@@ -272,15 +268,6 @@ page_fault (struct intr_frame *f)
       else
       {
         //printf ("spt null without stack growth\n");
-        printf ("esp : %x\n", f->esp);
-        printf ("fault addr : %x\n", fault_addr);      
-        printf ("thread : %s\n", thread_current ()->name);
-        printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-        PANIC ("SPT null without stack growth");
         exit (-1);
       }
     }

@@ -17,6 +17,11 @@
 #include "userprog/process.h"
 #include "vm/page.h"
 #endif
+#ifdef VM
+#include "threads/vaddr.h"
+#include "vm/page.h"
+#include "vm/frame.h"
+#endif
 
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
@@ -314,6 +319,10 @@ thread_exit (void)
 {
   //printf ("thread_exit\n");
   ASSERT (!intr_context ());
+#ifdef VM
+  /* destroy current process's supplemental page table */
+  hash_destroy (thread_current ()->spt, NULL);
+#endif
 
 #ifdef USERPROG
   process_exit ();

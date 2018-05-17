@@ -4,7 +4,10 @@
 #include "vm/swap.h"
 #include "vm/page.h"
 #include "vm/frame.h"
+#include "userprog/syscall.h"
+#include "threads/thread.h"
 #include <stdio.h>
+
 /* 2018.05.10
  * EomSungha
  * KimYoonseo
@@ -44,7 +47,7 @@ size_t swap_out (struct fte *fte)
   void *frame = fte->frame;
   
   /* Find empty slot */
-  //lock_acquire (&swap_lock);
+  lock_acquire (&swap_lock);
   swap_index = bitmap_scan_and_flip (swap_bm, 0, 8, false);
   //lock_release (&swap_lock);
   //printf ("swap outed index %d\n", (int)swap_index);
@@ -61,11 +64,13 @@ size_t swap_out (struct fte *fte)
     }
     //lock_release (&swap_lock);
     fte->spte->location = LOC_SW;
+    lock_release (&swap_lock);
   }
   else
   {
     /* No swap slot left */
     //printf ("No swap slot left!\n");
+    lock_release (&swap_lock);
     exit (-1);
   }
   return swap_index;
@@ -80,7 +85,7 @@ void swap_in (void *frame, size_t swap_index)
   if (swap_index != BITMAP_ERROR)
   {
     /* Read from swap disk */
-    //lock_acquire (&swap_lock);
+    lock_acquire (&swap_lock);
     int i;
     void *buffer = frame;
     for (i = 0; i < 8; i++)
@@ -88,11 +93,9 @@ void swap_in (void *frame, size_t swap_index)
       block_read (swap_block, swap_index + i, buffer);
       buffer += BLOCK_SECTOR_SIZE; 
     }
-    //lock_release (&swap_lock);
     /* Update swap bitmap */
-    //lock_acquire (&swap_lock);
     bitmap_set_multiple (swap_bm, swap_index, 8, false); 
-    //lock_release (&swap_lock);
+    lock_release (&swap_lock);
     //printf ("current swap slot num : %d\n", bitmap_count (swap_bm, 0,
     //      bitmap_size (swap_bm), true));
   }
