@@ -320,10 +320,6 @@ thread_exit (void)
 {
   //printf ("thread_exit\n");
   ASSERT (!intr_context ());
-#ifdef VM
-  /* destroy current process's supplemental page table */
-  hash_destroy (thread_current ()->spt, NULL);
-#endif
 
 #ifdef USERPROG
   process_exit ();
@@ -338,6 +334,7 @@ thread_exit (void)
   free (thread_current ()->load_sema);
   free (thread_current ()->error_sema);
 #ifdef VM
+  hash_destroy (thread_current ()->spt, NULL);
   free (thread_current ()->spt);
 #endif
   /* Remove thread from all threads list, set our status to dying,

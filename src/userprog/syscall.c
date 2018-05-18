@@ -186,7 +186,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       read_arguments (f->esp, &argv[0], 2, f);
       fd = (int) argv[0];
       void *addr = (void *) argv[1];
-      valid_address (addr, f);
+      //valid_address (addr, f);
       f->eax = mmap (fd, addr);
       break;
     case SYS_MUNMAP:
@@ -339,6 +339,7 @@ exec (const char *cmd_line)
 static bool
 create (const char *file, unsigned initial_size)
 {
+  //printf ("create : thread%d try file lock\n", thread_current ()->tid);
   lock_acquire (&file_lock);
   //printf ("create : thread%d a file lock\n", thread_current ()->tid);
   bool result =  filesys_create (file, (int32_t) initial_size);
@@ -382,6 +383,7 @@ write (int fd, const void *buffer, unsigned size)
     {
       thread_yield();
       struct file *f = find_file (fd)->file;
+      //printf ("write : thread%d try file lock\n", thread_current ()->tid);
       lock_acquire (&file_lock);
       //printf ("write : thread%d a file lock\n", thread_current ()->tid);
       int result = (int) file_write (f, buffer, (off_t) size);
@@ -396,6 +398,7 @@ write (int fd, const void *buffer, unsigned size)
 static bool
 remove (const char *file)
 { 
+  //printf ("remove : thread%d a file lock\n", thread_current ()->tid);
   lock_acquire (&file_lock);
   //printf ("remove : thread%d a file lock\n", thread_current ()->tid);
   bool result = filesys_remove (file);
@@ -409,6 +412,7 @@ remove (const char *file)
 static int
 open (const char *file)
 {    
+  //printf ("open : thread%d try fil lock\n", thread_current ()->tid);
   lock_acquire (&file_lock);
   //printf ("open : thread%d a file lock\n", thread_current ()->tid);
   struct file *open_file = filesys_open(file);
@@ -462,7 +466,7 @@ filesize (int fd)
 static int
 read (int fd, void *buffer, unsigned size)
 {
-  thread_yield ();
+  //thread_yield ();
   //printf("1\n");
   if (fd < 0)
   {
@@ -500,6 +504,7 @@ read (int fd, void *buffer, unsigned size)
     {
       //printf("f\n");
       struct file *f = find_file (fd)->file;
+      //printf ("read : thread%d try file lock\n", thread_current ()->tid);
       lock_acquire (&file_lock);
       //printf ("read : thread%d a file lock\n", thread_current ()->tid);
       int result = (int) file_read (f, buffer, size);
@@ -521,6 +526,7 @@ seek (int fd , unsigned position)
   else 
   {
     struct file *f = filedes->file;
+    //printf ("seek : thread%d try file lock\n", thread_current ()->tid);
     lock_acquire (&file_lock);
     //printf ("seek : thread%d a file lock\n", thread_current ()->tid);
     file_seek (f, (off_t) position);
@@ -539,6 +545,7 @@ tell (int fd)
   else 
   {
     struct file *f = find_file (fd)->file;
+    //printf ("tell : thread%d try file lock\n", thread_current ()->tid);
     lock_acquire (&file_lock);
     //printf ("tell : thread%d a file lock\n", thread_current ()->tid);
     unsigned result = (unsigned) file_tell (f);
@@ -568,6 +575,7 @@ close (int fd)
   { 
     struct file *f = find_file(fd)->file;
     list_remove (&filedes->elem);
+    //printf ("close : thread%d try file lock\n", thread_current ()->tid);
     lock_acquire (&file_lock);
     //printf ("close : thread%d a file lock\n", thread_current ()->tid);
     file_close (f);
@@ -583,7 +591,6 @@ close_all_files (void)
 {
   struct list *open_files = &thread_current ()->open_files;
   struct list_elem *e; 
-  int i = 0;
   while (!list_empty (open_files))
   {
     e = list_pop_front (open_files);
@@ -593,16 +600,36 @@ close_all_files (void)
     list_remove (&filedes->elem);
     file_close (f);
     free (filedes);
-    i++;
   }
 }
 
 #ifdef VM
 
+void 
+remove_all_mfs (void)
+{
+  printf ("remove_all_mfs : thread%d remove all mfs\n", thread_current ()->tid);
+  printf ("remove_all_mfs : thread%d mmap file size : %d\n", thread_current ()->tid, list_size (&thread_current ()->mmap_files));
+ 
+  struct list *mmap_files = &thread_current ()->mmap_files;
+  struct list_elem *e;
+  while (!list_empty (mmap_files))
+  {
+    //printf ("remove all mfs entering while loop\n");
+    e = list_front (mmap_files);
+    struct mmap_file *mf =
+      list_entry (e, struct mmap_file, elem);
+    printf ("mapid : %d\n", mf->mapid);
+    munmap (mf->mapid);
+    //list_remove (&mf->elem);
+    //free (mf);
+  }
+}
 /* Mmap with fd and user virtual address */
 static mapid_t
 mmap (int fd, void *addr)
 {
+  //printf ("mmap thread%d \n", thread_current ()->tid);
   /* Fd is invalid, std_in, std_out is also invalid */
   if (fd <= 1)
   { 
@@ -611,9 +638,8 @@ mmap (int fd, void *addr)
   }
 
   /* Check for validity of addr such as
-   * is it page-aligned?, overlapped with other mapping?, 
-   * or is it in stack or code segment ? */
-  if (!is_user_vaddr(addr))
+   * is it page-aligned?, null? is in user address space? */
+  if (!is_user_vaddr(addr) || addr == NULL || (int) addr % (int) PGSIZE != 0)
   {
     //printf ("addr not user\n");
     return -1;
@@ -629,6 +655,8 @@ mmap (int fd, void *addr)
   int i = 0;
   for (; i<cnt; i++)
   {
+    /* Check for validity of addr, is it overlapped with other mapping?,
+     * or is it in code or stack segment? */
     struct spte *spte = spte_lookup (addr + PGSIZE * i);
     if (spte != NULL)
     {
@@ -637,13 +665,16 @@ mmap (int fd, void *addr)
     }
   }
    
-  
+  //printf ("mmap : thread%d try file lock\n");  
   lock_acquire (&file_lock);
+  //printf ("mmap : thread%d a file lock\n");
+
   //After checking failures, successful mapping
   struct file *newfile = file_reopen (file);
   //printf ("file reopen success\n");
+  //printf ("mmap :thread%d r file lock\n");
   lock_release (&file_lock);
-  
+   
 
   /* Allocating new spte for each page while memory mapping */
   for (i=0; i<cnt; i++)
@@ -676,6 +707,7 @@ mmap (int fd, void *addr)
   
   /* Adding mmap file to current thread's mmap file list */
   list_push_back (&thread_current ()->mmap_files, &mf->elem);
+ 
   //printf ("mapid : %d\n", mapid);
 
   return mapid;
@@ -698,14 +730,15 @@ allocate_mapid (void)
 static void
 munmap (mapid_t mapid)
 {
+  //printf ("munmap!!\n");
   struct mmap_file *mf = find_mf_by_mapid (mapid);
-
-  int i=0;
+  //printf ("mf cnt : %d\n", mf->cnt);
+  int i = 0;
   for (; i<mf->cnt; i++)
   {
     struct spte *spte = spte_lookup (mf->addr + PGSIZE * i);
-
     /* Page is loaded in physical memory */
+    //printf ("spte location : %d\n", spte->location);
     if (spte->location == LOC_PM)
     {
       /* If the given page is dirty, then write it to filesys */
@@ -749,7 +782,11 @@ munmap (mapid_t mapid)
       }
     }
     /* Remove spte from spt and free its resource for every page */
+    
+    lock_acquire (&file_lock);
     file_close (spte->file);
+    lock_release (&file_lock);
+    
     hash_delete (thread_current ()->spt, &spte->hash_elem);
     free (spte);
   }
@@ -765,6 +802,7 @@ find_mf_by_mapid (mapid_t mapid)
   struct list_elem *e;
   struct list* mmap_files = &thread_current ()->mmap_files;
   struct mmap_file *mmap_file;
+  
   /* Mmap_files is not empty */
   if (list_size (mmap_files) != 0)
   {
@@ -779,6 +817,7 @@ find_mf_by_mapid (mapid_t mapid)
       }
     }
   }
+  printf ("d\n");
   /* There is no such mmap file with mapid MAPID */
   return NULL;
 }

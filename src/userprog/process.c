@@ -167,6 +167,7 @@ process_wait (tid_t child_tid)
 void
 process_exit (void)
 {
+  //printf ("process_exit : thread%d\n", thread_current ()->tid);
   struct thread *cur = thread_current ();
   if (cur->parent != NULL)
   {
@@ -174,31 +175,35 @@ process_exit (void)
     {
       file_allow_write (cur->my_file);
     }
-    // File lock
-    //if ((&file_lock)->holder->tid == thread_current ()->tid)
-    tid_t curr = thread_current ()->tid;
-    if ((&file_lock)->holder != NULL)
+    //printf ("a\n");
+    if (&file_lock != NULL)
     {
-      tid_t hold = (&file_lock)->holder->tid;
-      //printf ("thread current : %d\n", curr);
-      //printf ("lock holder : %d\n", hold);
-    
-      if (curr == hold)
+      //printf ("b\n");
+      if ((&file_lock)->holder != NULL)
       {
-        /* page-parallel에서 여기 프린트가 있으면 되고 없으면 안됨 ..
-         * 마찬가지로 page_fault에서도 프린트 있으면 잘되고 없으면 안됨
-        * 이부분이 되게 이상함 */
-        //printf ("thread current %d\n", thread_current ()->tid);
-        //printf ("lock holder %d\n", (&file_lock)->holder->tid);
-        //printf ("process_exit : thread%d r file lock\n", thread_current ()->tid);
-        lock_release (&file_lock);
+        //printf ("c\n");
+        if ((&file_lock)->holder->tid == thread_current ()->tid)
+        {
+          //printf ("d\n"); 
+          //printf ("pcoess_exit : thread%d r file lock\n", thread_current ()->tid);
+          lock_release (&file_lock);
+        }
       }
     }
+#ifdef VM
+    // remove mmap files
+    //printf ("process_exit : thread%d mmap file size : %d\n", thread_current ()->tid,list_size (&thread_current ()->mmap_files)); 
+    //printf ("process_exit : thread%d before remove all mfs\n", thread_current ()->tid);
+    remove_all_mfs ();
+    //printf ("process_exit : thread%d after remove all mfs\n", thread_current ()->tid);
+#endif
+    //printf ("process_exit : thread%d try to acquire file lock\n", thread_current ()->tid);
     lock_acquire (&file_lock);
-    //printf ("process exit : thread%d a file lock\n", thread_current ()->tid);
     // close files 
     file_close (cur->my_file);
+    //printf ("process_exit : thread%d before file close\n", thread_current ()->tid);
     close_all_files ();
+    //printf ("process_exit : thread%d after file close\n", thread_current ()->tid);
     //printf ("process exit : thread%d r file lock\n", thread_current ()->tid);
     lock_release (&file_lock);
   }

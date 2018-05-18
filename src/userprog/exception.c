@@ -168,130 +168,127 @@ page_fault (struct intr_frame *f)
           thread_current ()->tid);
   */
 #ifdef VM
-  /* Check for supplemental page table memory reference validity 
-   * and if invalid, terminate the process and free all resources */
-  //if (user)
-  if (true)
+  
+  /* Check is fault address is user vaddr */
+  if (!is_user_vaddr (fault_addr))
   {
-    if (!is_user_vaddr (fault_addr))
+    exit (-1);
+  }
+  /* If present and try to write on read only page */
+  if (!not_present && write)
+  {
+    exit (-1);
+  }
+  
+  /* First, find spte for fault addr */
+  struct spte *spte = spte_lookup (fault_addr);
+  /* If spte exists, load it */
+  if (spte != NULL)
+  {
+    /* Load depends on spte's location */
+    switch (spte->location) 
     {
-      exit (-1);
+      /* When the location is FS or MMAP, just load from file */ 
+      case LOC_FS:
+        //printf ("FS LOAD\n");
+        if (!fs_load (spte))
+        {
+          PANIC("HIHI");
+          printf ("fs_load failed\n");
+          exit (-1);
+        }
+        break;
+      case LOC_MMAP:
+        //printf ("MMAP LOAD\n");
+        if (!fs_load (spte))
+        {
+          PANIC("HIHI");
+          printf ("fs_load failed\n");
+          exit (-1);
+        }
+        break;
+      /* When the location is SW, load from swap disk */
+      case LOC_SW:
+        //printf ("SW LOAD\n");
+        if (!sw_load (spte))
+        {    
+          printf ("sw_load failed\n");
+          exit (-1);
+        }
+        break;
+      default:
+        break;
     }
-    if (!not_present && write)
-    {
-      exit (-1);
-    }
-
-    /* First find spte through fault_addr
-     * and then load each segment lazily */
-    struct spte *spte = spte_lookup (fault_addr);
-    if(fault_addr < 0x8049000 && spte->location == LOC_SW){
-      //PANIC("Code segment %p from %d\n", fault_addr, spte->swap_index);
-    }
-    if(fault_addr > 0xb0000000) {
-      //PANIC("HI\n");
-    }
-
-    if (spte != NULL)
-    {
-      switch (spte->location) 
-      {
-        case LOC_FS:
-          //printf ("FS LOAD\n");
-          if (!fs_load (spte))
-          {
-            PANIC("HIHI");
-            printf ("fs_load failed\n");
-            exit (-1);
-          }
-          break;
-        case LOC_SW:
-          //printf ("SW LOAD\n");
-          if (!sw_load (spte))
-          {    
-            printf ("sw_load failed\n");
-            exit (-1);
-          }
-          break;
-        default:
-          break;
-      }
-    }
-    else
-    { 
-      /* Stack growth */
-      //printf ("esp-32 : %x\n", f->esp-32);
-      //printf ("fault_addr : %x\n", fault_addr);
-      printf ("Thread%d should check stack growth\n", thread_current ()->tid);
-      printf ("Page fault at %p: %s error %s page in %s context. Thread %d\n",
+  }
+  /* If spte doesn't exist, check the stack growth */
+  else
+  { 
+    /* Check stack growth */
+    /*
+    printf ("Page fault at %p: %s error %s page in %s context. Thread %d\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel",
           thread_current ()->tid);
- 
-      if ((uint32_t)f->esp -32 <= (uint32_t)fault_addr &&
-          fault_addr <= PHYS_BASE)//(uint32_t) f->esp)
+    */
+    if ((uint32_t)f->esp -32 <= (uint32_t)fault_addr &&
+        fault_addr <= PHYS_BASE)
+    {
+      /* When stack growth happens, new page address would be this */
+      void *next_bound = pg_round_down (fault_addr);
+      /* Stack limit */
+      if ((uint32_t) next_bound < STACK_LIMIT) 
       {
-        void *next_bound = pg_round_down (fault_addr);
-        if ((uint32_t) next_bound < STACK_LIMIT) 
-        {
-          printf ("next bound exceed growth limit\n");
-          exit (-1);
-        }
-
-        struct spte *spte = (struct spte *) malloc (sizeof (struct spte));
-        void *kpage = frame_alloc (PAL_USER, spte);
-        if (kpage != NULL)
-        {
-          bool success = install_page (next_bound, kpage, true);
-          if (success)
-          {
-            /* Set spte address */
-            printf ("page fault stack growth, thread%d, f->esp : %x, next_bound : %x \n", thread_current ()->tid, f->esp,  next_bound);
-            spte->addr = next_bound;
-            spte->location = LOC_PM;
-            spte->writable = true;
-            hash_insert (thread_current ()->spt, &spte->hash_elem);
-          }
-          else 
-          {
-            frame_free (kpage);
-            //printf ("BB\n");
-            PANIC ("AA");
-            exit (-1);
-          }
-        } 
-        else
-        {
-          printf("kpage == null\n");
-          PANIC ("kpage nulln");
-          exit (-1);
-        }
-        return;
+        printf ("next bound exceed growth limit\n");
+        exit (-1);
       }
-      else
+      /* Allocate new spte */
+      struct spte *spte = (struct spte *) malloc (sizeof (struct spte));
+      void *kpage = frame_alloc (PAL_USER, spte);
+      if (kpage != NULL)
       {
-        if (user)
+        bool success = install_page (next_bound, kpage, true);
+        if (success)
         {
-          //PANIC ("a");
-          exit (-1);
+          /* Set spte address */
+          //printf ("page fault stack growth, thread%d, f->esp : %x, next_bound : %x \n", thread_current ()->tid, f->esp,  next_bound);
+          spte->addr = next_bound;
+          spte->location = LOC_PM;
+          spte->writable = true;
+          hash_insert (thread_current ()->spt, &spte->hash_elem);
         }
         else 
         {
-          //PANIC ("B");
+          frame_free (kpage);
+          //printf ("BB\n");
+          PANIC ("AA");
           exit (-1);
         }
-        printf ("aa\n");
+      } 
+      else
+      {
+        printf("kpage == null\n");
+        PANIC ("kpage nulln");
+        exit (-1);
       }
+      return;
+    }
+    else
+    {
+      if (user)
+      {
+        //PANIC ("a");
+        exit (-1);
+      }
+      else 
+      {
+        //PANIC ("B");
+        exit (-1);
+      }
+      printf ("aa\n");
     }
   }
-  /* Access by kernel
-  else 
-  {
-    exit (-1);
-  }
-  */
 #else
   if (!is_user_vaddr (fault_addr))
   {
