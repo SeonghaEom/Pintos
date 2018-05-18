@@ -16,6 +16,13 @@
 #ifdef VM
 #include "threads/palloc.h"
 #include "vm/frame.h"
+#include "vm/page.h"
+#include "vm/swap.h"
+#include "filesys/off_t.h"
+#include <round.h>
+#include "devices/block.h"
+#include <bitmap.h>
+#include "threads/synch.h"
 #endif
 
 static void syscall_handler (struct intr_frame *);
@@ -24,7 +31,6 @@ static int read_sysnum (void *);
 static void read_arguments (void *esp, void **argv, int argc, struct intr_frame *); 
 static void halt (void);
 static int write (int, const void *, unsigned);
-//static void exit (int status);
 static tid_t exec (const char *cmd_line);
 static int wait (tid_t pid);
 static bool create (const char *file, unsigned initial_size);
@@ -35,7 +41,15 @@ static int read (int fd, void *buffer, unsigned size);
 static void seek (int fd, unsigned position);
 static unsigned tell (int fd);
 static void close (int fd);
-//static void close_all_files (void);
+#ifdef VM
+static mapid_t mmap (int fd, void *addr);
+static void munmap (mapid_t mapid);
+/* Lock used by allocate_mapid(). */
+static mapid_t allocate_mapid (void);
+static struct mmap_file* find_mf_by_mapid (mapid_t mapid);
+static struct lock mapid_lock;
+#endif
+
 
 void
 syscall_init (void) 
@@ -43,6 +57,7 @@ syscall_init (void)
   //file_lock = (struct lock *) malloc (sizeof (struct lock));
   lock_init (&file_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+  lock_init (&mapid_lock);
 }
 
 /* Handles syscall */
@@ -165,6 +180,21 @@ syscall_handler (struct intr_frame *f UNUSED)
       fd = (int) argv[0];
       close (fd);
       break;
+#ifdef VM
+    /* 13, Mmap */
+    case SYS_MMAP:
+      read_arguments (f->esp, &argv[0], 2, f);
+      fd = (int) argv[0];
+      void *addr = (void *) argv[1];
+      valid_address (addr, f);
+      f->eax = mmap (fd, addr);
+      break;
+    case SYS_MUNMAP:
+      read_arguments (f->esp, &argv[0], 1, f);
+      mapid_t mapid = (mapid_t) argv[0];
+      munmap (mapid);
+      break;
+#endif
     default:
       printf ("sysnum : default\n");
       break;
@@ -201,7 +231,7 @@ valid_address (void *uaddr, struct intr_frame * f)
         //printf("uaddr %x\n", uaddr);
         /* Stack growth */
 
-        if (uaddr >= f->esp -32 && uaddr <= (int) PHYS_BASE)
+        if (uaddr >= f->esp -32 && uaddr <= (void *) PHYS_BASE)
         {
           void *next_bound = pg_round_down (uaddr);
           //printf ("next bound %x \n stack limit %x\n", next_bound, STACK_LIMIT);
@@ -567,3 +597,190 @@ close_all_files (void)
   }
 }
 
+#ifdef VM
+
+/* Mmap with fd and user virtual address */
+static mapid_t
+mmap (int fd, void *addr)
+{
+  /* Fd is invalid, std_in, std_out is also invalid */
+  if (fd <= 1)
+  { 
+    //printf ("fd is below 1\n");
+    return -1;
+  }
+
+  /* Check for validity of addr such as
+   * is it page-aligned?, overlapped with other mapping?, 
+   * or is it in stack or code segment ? */
+  if (!is_user_vaddr(addr))
+  {
+    //printf ("addr not user\n");
+    return -1;
+  }
+
+  struct file *file = find_file (fd)->file;
+  
+  /* Check if the file length is availabe to map */
+  off_t len = file_length (file);
+  int cnt = DIV_ROUND_UP (len, PGSIZE);
+  //printf ("len: %x, cnt: %d\n", len, cnt);
+
+  int i = 0;
+  for (; i<cnt; i++)
+  {
+    struct spte *spte = spte_lookup (addr + PGSIZE * i);
+    if (spte != NULL)
+    {
+      //printf ("address space is not available for mapping\n");
+      return -1;
+    }
+  }
+   
+  
+  lock_acquire (&file_lock);
+  //After checking failures, successful mapping
+  struct file *newfile = file_reopen (file);
+  //printf ("file reopen success\n");
+  lock_release (&file_lock);
+  
+
+  /* Allocating new spte for each page while memory mapping */
+  for (i=0; i<cnt; i++)
+  {
+    struct spte *spte = (struct spte *) malloc (sizeof (struct spte));
+    spte->addr = addr + PGSIZE * i;
+    spte->location = LOC_MMAP;
+    spte->file = newfile;
+    spte->ofs = PGSIZE * i;
+    spte->writable = true;
+    if (i<cnt-1)
+    {
+      spte->read_bytes = PGSIZE;
+      spte->zero_bytes = 0;
+    }
+    else if (i == cnt-1)
+    {
+      spte->read_bytes = len - PGSIZE * i;
+      spte->zero_bytes = PGSIZE - spte->read_bytes;
+    }
+    hash_insert (thread_current ()->spt, &spte->hash_elem);
+    //printf ("i:%d, addr:%x, ofs:%x, read_byte:%d\n", i, spte->addr, spte->ofs, spte->read_bytes);
+  }
+  /* Allocating new mmap file for memory mapping */
+  struct mmap_file *mf = (struct mmap_file *) malloc (sizeof (struct mmap_file));
+  mapid_t mapid = allocate_mapid ();
+  mf->mapid = mapid;
+  mf->addr = addr;
+  mf->cnt = cnt;
+  
+  /* Adding mmap file to current thread's mmap file list */
+  list_push_back (&thread_current ()->mmap_files, &mf->elem);
+  //printf ("mapid : %d\n", mapid);
+
+  return mapid;
+}
+
+static mapid_t
+allocate_mapid (void)
+{
+  static mapid_t next_id = 1;
+  mapid_t mapid;
+
+  lock_acquire (&mapid_lock);
+  mapid = next_id++;
+  lock_release (&mapid_lock);
+  
+  return mapid;
+}
+
+/* Munmap after loaded into physical memory or swapped into swap disk */
+static void
+munmap (mapid_t mapid)
+{
+  struct mmap_file *mf = find_mf_by_mapid (mapid);
+
+  int i=0;
+  for (; i<mf->cnt; i++)
+  {
+    struct spte *spte = spte_lookup (mf->addr + PGSIZE * i);
+
+    /* Page is loaded in physical memory */
+    if (spte->location == LOC_PM)
+    {
+      /* If the given page is dirty, then write it to filesys */
+      if (pagedir_is_dirty (thread_current ()->pagedir, spte->addr))
+      {
+        lock_acquire (&frame_lock);
+        struct file *file = spte->file;
+        void *addr = spte->addr;
+        off_t size = spte->read_bytes;
+        off_t ofs = spte->ofs;
+        file_write_at (file, addr, size, ofs);
+        lock_release (&frame_lock);
+      }
+      /* Remove mapping from user virtual to kernel virtual (physical) */
+      pagedir_clear_page (thread_current ()->pagedir, spte->addr);
+    }
+    /* Page is already evicted into swap disk */
+    else if (spte->location == LOC_SW)
+    {
+      /* Write to block only if the page is dirty */
+      if (pagedir_is_dirty (thread_current ()->pagedir, spte->addr))
+      {
+        size_t swap_index = spte->swap_index;
+        off_t ofs = spte->ofs;
+        if (swap_index != BITMAP_ERROR)
+        {
+          lock_acquire (&swap_lock);
+          struct file *file = spte->file;
+          void *buffer = (void *) malloc (BLOCK_SECTOR_SIZE);
+          int i=0;
+          for (; i<8; i++)
+          {
+            block_read (swap_block, swap_index + i, buffer);
+            file_write_at (file, buffer, BLOCK_SECTOR_SIZE, ofs + BLOCK_SECTOR_SIZE * i);
+            buffer += BLOCK_SECTOR_SIZE;
+          }
+          /* Update swap sector bitmap */
+          bitmap_set_multiple (swap_bm, swap_index, 8, false);
+          lock_release (&swap_lock);
+        }
+      }
+    }
+    /* Remove spte from spt and free its resource for every page */
+    file_close (spte->file);
+    hash_delete (thread_current ()->spt, &spte->hash_elem);
+    free (spte);
+  }
+  /* Remove mmap file from mmap list and free its resource */
+  list_remove (&mf->elem);
+  free (mf);
+}
+
+/* Find mmap file pointer by mapid */
+static struct mmap_file*
+find_mf_by_mapid (mapid_t mapid)
+{
+  struct list_elem *e;
+  struct list* mmap_files = &thread_current ()->mmap_files;
+  struct mmap_file *mmap_file;
+  /* Mmap_files is not empty */
+  if (list_size (mmap_files) != 0)
+  {
+    /* Find mmap file by mapid */
+    for (e = list_begin (mmap_files); e != list_end (mmap_files);
+        e = list_next (e))
+    {
+      mmap_file = list_entry (e, struct mmap_file, elem);
+      if (mmap_file->mapid == mapid)
+      {
+        return mmap_file;
+      }
+    }
+  }
+  /* There is no such mmap file with mapid MAPID */
+  return NULL;
+}
+
+#endif
