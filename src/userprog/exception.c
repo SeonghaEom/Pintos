@@ -159,13 +159,14 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
   
   /* For debug */ 
-   
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
+  /* 
+  printf ("Page fault at %p: %s error %s page in %s context. Thread %d\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
-          user ? "user" : "kernel");
-  
+          user ? "user" : "kernel",
+          thread_current ()->tid);
+  */
 #ifdef VM
   /* Check for supplemental page table memory reference validity 
    * and if invalid, terminate the process and free all resources */
@@ -193,10 +194,6 @@ page_fault (struct intr_frame *f)
 
     if (spte != NULL)
     {
-      if(spte->addr > 0xb0000000) {
-        //PANIC("Stack segment PF %p, %d, %s\n", spte->addr, spte->swap_index, spte->location == LOC_SW ? "swap" : "others");
-
-      }
       switch (spte->location) 
       {
         case LOC_FS:
@@ -225,6 +222,14 @@ page_fault (struct intr_frame *f)
       /* Stack growth */
       //printf ("esp-32 : %x\n", f->esp-32);
       //printf ("fault_addr : %x\n", fault_addr);
+      printf ("Thread%d should check stack growth\n", thread_current ()->tid);
+      printf ("Page fault at %p: %s error %s page in %s context. Thread %d\n",
+          fault_addr,
+          not_present ? "not present" : "rights violation",
+          write ? "writing" : "reading",
+          user ? "user" : "kernel",
+          thread_current ()->tid);
+ 
       if ((uint32_t)f->esp -32 <= (uint32_t)fault_addr &&
           fault_addr <= PHYS_BASE)//(uint32_t) f->esp)
       {
@@ -243,7 +248,7 @@ page_fault (struct intr_frame *f)
           if (success)
           {
             /* Set spte address */
-            //printf ("page fault stack growth\n");
+            printf ("page fault stack growth, thread%d, f->esp : %x, next_bound : %x \n", thread_current ()->tid, f->esp,  next_bound);
             spte->addr = next_bound;
             spte->location = LOC_PM;
             spte->writable = true;
