@@ -5,7 +5,7 @@
 #include <list.h>
 #include <stdint.h>
 #include "synch.h"
-#include "vm/page.h"
+
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -122,6 +122,7 @@ struct thread
 
 #ifdef VM
     struct hash *spt;                   /* Supplemental page table */ 
+    struct list mmap_files;             /* Mmap files list */
 #endif
 
     /* Owned by thread.c. */
@@ -136,6 +137,8 @@ struct filedescriptor
     struct list_elem elem;
     struct file *file;
   };
+
+
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
