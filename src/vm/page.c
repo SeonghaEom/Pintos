@@ -97,26 +97,32 @@ fs_load (struct spte *spte)
   else if (page_zero_bytes == 0)
   {
     lock_acquire (&file_lock);
+    //printf ("fs_load : thread%d a file lock\n", thread_current ()->tid);
     if (file_read_at (file, kpage, page_read_bytes, ofs) != PGSIZE)
     {
+      //printf ("fs_load : thread%d r file lock\n", thread_current ()->tid);
       lock_release (&file_lock);
       printf ("File load failed\n");
       frame_free (kpage);
       return false;
     }
+    //printf ("fs_load : thread%d r file lock\n", thread_current ()->tid);
     lock_release (&file_lock);
   }
   /* 3. page zero byte is beween 0 and PGSIZE  */
   else
   {
     lock_acquire (&file_lock);
+    //printf ("fs_load : thread%d a file lock\n", thread_current ()->tid);
     if (file_read_at (file, kpage, page_read_bytes, ofs) != (int) page_read_bytes)
     {
+      //printf ("fs_load : thread%d r file lock\n", thread_current ()->tid);
       lock_release (&file_lock);
       printf ("File load fails\n");
       frame_free (kpage);
       return false; 
     }
+    //printf ("fs_load : thread%d r file lock\n", thread_current ()->tid);
     lock_release (&file_lock);
 
     memset (kpage + page_read_bytes, 0, page_zero_bytes);

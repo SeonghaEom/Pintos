@@ -310,7 +310,9 @@ static bool
 create (const char *file, unsigned initial_size)
 {
   lock_acquire (&file_lock);
+  //printf ("create : thread%d a file lock\n", thread_current ()->tid);
   bool result =  filesys_create (file, (int32_t) initial_size);
+  //printf ("create : thread%d r file lock\n", thread_current ()->tid);
   lock_release (&file_lock);
   return result;
 }
@@ -351,7 +353,9 @@ write (int fd, const void *buffer, unsigned size)
       thread_yield();
       struct file *f = find_file (fd)->file;
       lock_acquire (&file_lock);
+      //printf ("write : thread%d a file lock\n", thread_current ()->tid);
       int result = (int) file_write (f, buffer, (off_t) size);
+      //printf ("write : thread%d r file lock\n", thread_current ()->tid);
       lock_release (&file_lock);
       return result;
     }
@@ -363,7 +367,9 @@ static bool
 remove (const char *file)
 { 
   lock_acquire (&file_lock);
+  //printf ("remove : thread%d a file lock\n", thread_current ()->tid);
   bool result = filesys_remove (file);
+  //printf ("remove : thread%d r file lock\n", thread_current ()->tid);
   lock_release (&file_lock);
 
   return result;
@@ -374,7 +380,9 @@ static int
 open (const char *file)
 {    
   lock_acquire (&file_lock);
+  //printf ("open : thread%d a file lock\n", thread_current ()->tid);
   struct file *open_file = filesys_open(file);
+  //printf ("open : thread%d r file lock\n", thread_current ()->tid);
   lock_release (&file_lock);
  
   /* file open fail */
@@ -463,7 +471,9 @@ read (int fd, void *buffer, unsigned size)
       //printf("f\n");
       struct file *f = find_file (fd)->file;
       lock_acquire (&file_lock);
+      //printf ("read : thread%d a file lock\n", thread_current ()->tid);
       int result = (int) file_read (f, buffer, size);
+      //printf ("read : thread%d r file lock\n", thread_current ()->tid);
       lock_release (&file_lock);
       //printf("g\n");
       return result;
@@ -482,7 +492,9 @@ seek (int fd , unsigned position)
   {
     struct file *f = filedes->file;
     lock_acquire (&file_lock);
+    //printf ("seek : thread%d a file lock\n", thread_current ()->tid);
     file_seek (f, (off_t) position);
+    //printf ("seek : thread%d r file lock\n", thread_current ()->tid);
     lock_release (&file_lock);
   }
 }
@@ -498,7 +510,9 @@ tell (int fd)
   {
     struct file *f = find_file (fd)->file;
     lock_acquire (&file_lock);
+    //printf ("tell : thread%d a file lock\n", thread_current ()->tid);
     unsigned result = (unsigned) file_tell (f);
+    //printf ("tell : thread%d r file lock\n", thread_current ()->tid);
     lock_release (&file_lock);
 
     return result;
@@ -525,7 +539,9 @@ close (int fd)
     struct file *f = find_file(fd)->file;
     list_remove (&filedes->elem);
     lock_acquire (&file_lock);
+    //printf ("close : thread%d a file lock\n", thread_current ()->tid);
     file_close (f);
+    //printf ("close : thread%d r file lock\n", thread_current ()->tid);
     lock_release (&file_lock);
     free (filedes);
   }
