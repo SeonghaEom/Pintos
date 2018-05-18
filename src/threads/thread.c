@@ -333,6 +333,7 @@ thread_exit (void)
   free (thread_current ()->exit_status_sema);
   free (thread_current ()->load_sema);
   free (thread_current ()->error_sema);
+
 #ifdef VM
   hash_destroy (thread_current ()->spt, NULL);
   free (thread_current ()->spt);

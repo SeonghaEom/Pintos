@@ -286,7 +286,7 @@ page_fault (struct intr_frame *f)
         //PANIC ("B");
         exit (-1);
       }
-      printf ("aa\n");
+      printf ("a\n");
     }
   }
 #else

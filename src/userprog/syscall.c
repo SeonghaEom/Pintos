@@ -608,8 +608,8 @@ close_all_files (void)
 void 
 remove_all_mfs (void)
 {
-  printf ("remove_all_mfs : thread%d remove all mfs\n", thread_current ()->tid);
-  printf ("remove_all_mfs : thread%d mmap file size : %d\n", thread_current ()->tid, list_size (&thread_current ()->mmap_files));
+  //printf ("remove_all_mfs : thread%d remove all mfs\n", thread_current ()->tid);
+  //printf ("remove_all_mfs : thread%d mmap file size : %d\n", thread_current ()->tid, list_size (&thread_current ()->mmap_files));
  
   struct list *mmap_files = &thread_current ()->mmap_files;
   struct list_elem *e;
@@ -619,7 +619,7 @@ remove_all_mfs (void)
     e = list_front (mmap_files);
     struct mmap_file *mf =
       list_entry (e, struct mmap_file, elem);
-    printf ("mapid : %d\n", mf->mapid);
+    //printf ("mapid : %d\n", mf->mapid);
     munmap (mf->mapid);
     //list_remove (&mf->elem);
     //free (mf);
@@ -671,13 +671,18 @@ mmap (int fd, void *addr)
 
   //After checking failures, successful mapping
   struct file *newfile = file_reopen (file);
+  /* Push the new file as new filedescriptor in open files and close it later by close_all_files */
+  struct filedescriptor *filedes = (struct filedescriptor *) malloc (sizeof (struct filedescriptor));
+  filedes->fd = fd;
+  filedes->file = newfile;
+  list_push_back (&thread_current ()->open_files, &filedes->elem);
   //printf ("file reopen success\n");
   //printf ("mmap :thread%d r file lock\n");
   lock_release (&file_lock);
    
 
   /* Allocating new spte for each page while memory mapping */
-  for (i=0; i<cnt; i++)
+  for (i = 0; i < cnt; i++)
   {
     struct spte *spte = (struct spte *) malloc (sizeof (struct spte));
     spte->addr = addr + PGSIZE * i;
@@ -733,9 +738,10 @@ munmap (mapid_t mapid)
   //printf ("munmap!!\n");
   struct mmap_file *mf = find_mf_by_mapid (mapid);
   //printf ("mf cnt : %d\n", mf->cnt);
-  int i = 0;
-  for (; i<mf->cnt; i++)
+  int i;
+  for (i = 0; i < mf->cnt; i++)
   {
+    //printf ("addr : %x\n", (mf->addr + PGSIZE * i));
     struct spte *spte = spte_lookup (mf->addr + PGSIZE * i);
     /* Page is loaded in physical memory */
     //printf ("spte location : %d\n", spte->location);
@@ -780,13 +786,12 @@ munmap (mapid_t mapid)
           lock_release (&swap_lock);
         }
       }
+    } 
+    else if (spte->location == LOC_MMAP)
+    {
+      //printf ("LOC_MMAP!\n");
     }
     /* Remove spte from spt and free its resource for every page */
-    
-    lock_acquire (&file_lock);
-    file_close (spte->file);
-    lock_release (&file_lock);
-    
     hash_delete (thread_current ()->spt, &spte->hash_elem);
     free (spte);
   }
