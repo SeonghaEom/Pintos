@@ -2,6 +2,7 @@
 #include <debug.h>
 #include "filesys/inode.h"
 #include "threads/malloc.h"
+#include "threads/thread.h"
 
 /* An open file. */
 struct file 
@@ -68,7 +69,9 @@ file_get_inode (struct file *file)
 off_t
 file_read (struct file *file, void *buffer, off_t size) 
 {
+  printf ("file_read : thread%d before file_read\n", thread_current ()->tid);
   off_t bytes_read = inode_read_at (file->inode, buffer, size, file->pos);
+  printf ("file_read : thread%d after file_read\n", thread_current ()->tid);
   file->pos += bytes_read;
   return bytes_read;
 }

@@ -43,11 +43,12 @@ void swap_table_init (void)
  */
 size_t swap_out (struct fte *fte)
 {
+  printf ("swap out : thread%d\n", thread_current ()->tid);
   size_t swap_index;
   void *frame = fte->frame;
   
   /* Find empty slot */
-  lock_acquire (&swap_lock);
+  //lock_acquire (&swap_lock);
   swap_index = bitmap_scan_and_flip (swap_bm, 0, 8, false);
   //lock_release (&swap_lock);
   //printf ("swap outed index %d\n", (int)swap_index);
@@ -59,18 +60,21 @@ size_t swap_out (struct fte *fte)
     void *buffer = frame;
     for (i = 0; i < 8; i ++)
     {
+      lock_acquire (&swap_lock);
+      
       block_write (swap_block, swap_index + i, buffer);
+      lock_release (&swap_lock);
       buffer += BLOCK_SECTOR_SIZE;
     }
     //lock_release (&swap_lock);
     fte->spte->location = LOC_SW;
-    lock_release (&swap_lock);
+    //lock_release (&swap_lock);
   }
   else
   {
     /* No swap slot left */
     //printf ("No swap slot left!\n");
-    lock_release (&swap_lock);
+    //lock_release (&swap_lock);
     exit (-1);
   }
   return swap_index;

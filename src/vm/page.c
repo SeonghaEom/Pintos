@@ -71,6 +71,7 @@ spte_lookup (const void *address)
 bool 
 fs_load (struct spte *spte)
 {
+  printf ("fs_load : thread%d\n", thread_current ()->tid);
   struct file *file = spte->file;
   off_t ofs = spte->ofs;
   //uint8_t *upage = spte->addr;

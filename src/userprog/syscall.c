@@ -316,8 +316,8 @@ exit (int status)
 {
   /* exit_sema exists */
   thread_current ()->exit_status = status;
-  //printf("thread %d, %s: exit(%d)\n", thread_current ()->tid, thread_current ()->argv_name, status);
-  printf("%s: exit(%d)\n", thread_current ()->argv_name, status);
+  printf("thread %d, %s: exit(%d)\n", thread_current ()->tid, thread_current ()->argv_name, status);
+  //printf("%s: exit(%d)\n", thread_current ()->argv_name, status);
   thread_exit ();
 }
 
@@ -466,6 +466,7 @@ filesize (int fd)
 static int
 read (int fd, void *buffer, unsigned size)
 {
+  printf ("read : thread%d, size : %d, buffer : %x\n", thread_current ()->tid, size, buffer);
   //thread_yield ();
   //printf("1\n");
   if (fd < 0)
@@ -505,9 +506,42 @@ read (int fd, void *buffer, unsigned size)
       //printf("f\n");
       struct file *f = find_file (fd)->file;
       //printf ("read : thread%d try file lock\n", thread_current ()->tid);
+      //lock_acquire (&file_lock);
+
+#ifdef VM
+      
+      int alloc_num = DIV_ROUND_UP (size, PGSIZE);
+      printf ("read : thread%d, buffer : %x\n", thread_current ()->tid, buffer);
+      printf ("read : thread%d, DIV_ROUND_UP (size, PGSIZE) : %d\n", thread_current ()->tid, alloc_num);
+      if ((int)buffer % (int)PGSIZE != 0)
+      {
+        alloc_num = alloc_num + 1;
+      }
+      printf ("read : thread%d, alloc_num : %d\n", thread_current ()->tid, alloc_num);
+      int i;
+      for (i = 0; i < alloc_num; i++)
+      {
+        void *addr = buffer + PGSIZE * i;
+        printf ("read : thread%d, read addr : %x\n", thread_current ()->tid, addr);
+        struct spte *spte = spte_lookup (addr);
+        if (spte == NULL)
+        {
+          printf ("read : thread%d, spte is null, need to create\n");
+          spte = (struct spte*) malloc (sizeof (struct spte));
+          spte->addr = addr;
+          hash_insert (thread_current ()->spt, &spte->hash_elem);
+        }
+
+        void *kpage = frame_alloc (PAL_USER, spte);
+        pagedir_set_page(thread_current()->pagedir, spte->addr, kpage, true);
+      }
+
+#endif
       lock_acquire (&file_lock);
       //printf ("read : thread%d a file lock\n", thread_current ()->tid);
+      printf ("read : thread%d before file read\n", thread_current ()->tid);
       int result = (int) file_read (f, buffer, size);
+      printf ("read : thread%d after file read\n", thread_current()->tid);
       //printf ("read : thread%d r file lock\n", thread_current ()->tid);
       lock_release (&file_lock);
       //printf("g\n");

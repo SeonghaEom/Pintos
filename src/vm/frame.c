@@ -56,14 +56,15 @@ void *frame_alloc (enum palloc_flags flag, struct spte *spte)
   /* Unused frame exist */
   if (frame != NULL)
   {
+    printf ("unused frame exists\n");
     frame_add_to_table (frame, spte);
-    //printf("frame table size %d\n", list_size (&ft));
+    printf("frame table size %d\n", list_size (&ft));
     return frame;
   }
   /* Frame table is full, need to evict frame with eviction policy */
   else
   {
-    //printf ("unused frame doesn't exist, need eviction.... \n");
+    printf ("unused frame doesn't exist, need eviction.... \n");
     lock_acquire (&frame_lock);
     void *evicted_frame = frame_evict (flag);
     // New spte is mapped with evited frame
@@ -101,7 +102,7 @@ void frame_free (void *frame)
  * and swapt out and return the victim's frame pointer to allocate new */
 static void *frame_evict (enum palloc_flags flag)
 {
-  //printf ("frame evict!\n");
+  printf ("frame evict : thread%d\n", thread_current ()->tid);
   /* Find the victim in frame table by second chance algorithm */
   struct list_elem *i;
   struct fte *victim;

@@ -9,6 +9,7 @@
 #include "threads/io.h"
 #include "threads/interrupt.h"
 #include "threads/synch.h"
+#include "threads/thread.h"
 
 /* The code in this file is an interface to an ATA (IDE)
    controller.  It attempts to comply to [ATA-3]. */
@@ -346,6 +347,7 @@ ide_read (void *d_, block_sector_t sec_no, void *buffer)
 {
   struct ata_disk *d = d_;
   struct channel *c = d->channel;
+
   lock_acquire (&c->lock);
   select_sector (d, sec_no);
   issue_pio_command (c, CMD_READ_SECTOR_RETRY);
@@ -366,6 +368,7 @@ ide_write (void *d_, block_sector_t sec_no, const void *buffer)
 {
   struct ata_disk *d = d_;
   struct channel *c = d->channel;
+  
   lock_acquire (&c->lock);
   select_sector (d, sec_no);
   issue_pio_command (c, CMD_WRITE_SECTOR_RETRY);
