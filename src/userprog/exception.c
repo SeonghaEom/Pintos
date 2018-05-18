@@ -6,11 +6,11 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "userprog/syscall.h"
-#ifdef VM
 #include "threads/palloc.h"
 #include "threads/malloc.h"
 #include "userprog/process.h"
 #include "threads/synch.h"
+#ifdef VM
 #include "vm/frame.h"
 #include "vm/page.h"
 #include "vm/swap.h"
@@ -159,13 +159,13 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
   
   /* For debug */ 
-  /* 
+  /*
   printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
- */
+  */
 #ifdef VM
   /* Check for supplemental page table memory reference validity 
    * and if invalid, terminate the process and free all resources */
@@ -184,16 +184,16 @@ page_fault (struct intr_frame *f)
     /* First find spte through fault_addr
      * and then load each segment lazily */
     struct spte *spte = spte_lookup (fault_addr);
-    if(fault_addr < 0x8049000 && spte->location == LOC_SW){
+    if(fault_addr < (void *)0x8049000 && spte->location == LOC_SW){
       //PANIC("Code segment %p from %d\n", fault_addr, spte->swap_index);
     }
-    if(fault_addr > 0xb0000000) {
+    if(fault_addr > (void *)0xb0000000) {
       //PANIC("HI\n");
     }
 
     if (spte != NULL)
     {
-      if(spte->addr > 0xb0000000) {
+      if(spte->addr > (void *)0xb0000000) {
         //PANIC("Stack segment PF %p, %d, %s\n", spte->addr, spte->swap_index, spte->location == LOC_SW ? "swap" : "others");
 
       }
@@ -201,6 +201,15 @@ page_fault (struct intr_frame *f)
       {
         case LOC_FS:
           //printf ("FS LOAD\n");
+          if (!fs_load (spte))
+          {
+            PANIC("HIHI");
+            printf ("fs_load failed\n");
+            exit (-1);
+          }
+          break;
+        case LOC_MMAP:
+          //printf ("MMAP LOAD\n");
           if (!fs_load (spte))
           {
             PANIC("HIHI");

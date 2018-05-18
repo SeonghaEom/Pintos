@@ -2,18 +2,27 @@
 #define VM_PAGE_H
 
 #include <hash.h>
+#include <list.h>
 #include <debug.h>
 #include <stdio.h>
+#include <stdint.h>
+//#include <syscall.h>
 #include "filesys/off_t.h"
 /* 2018.05.08
  * KimYoonseo
  * EomSungha
  */
+
+/* Map region identifier. */
+typedef int mapid_t;
+#define MAP_FAILED ((mapid_t) -1)
+
 enum loc_type
 {
   LOC_FS,   /* File system */
   LOC_SW,   /* Swap table */
   LOC_PM,   /* Page table */
+  LOC_MMAP, /* MMAP */
 };
 
 /* Supplement page table entry */
@@ -31,6 +40,15 @@ struct spte
   /* When swapped out */
   size_t swap_index;          /* Swap disk's index */
 
+};
+
+/* Mmap file */
+struct mmap_file
+{
+  struct list_elem elem;        /* List elem */
+  mapid_t mapid;                /* Mapping id */
+  void *addr;                   /* Start address of mapping */
+  int cnt;                      /* Number of pages allocated */
 };
 
 void spt_init (struct hash *spt);

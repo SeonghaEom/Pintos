@@ -62,7 +62,7 @@ spte_lookup (const void *address)
   }
   else
   {
-    printf ("SPte lookup success %p\n", address);
+    //printf ("SPte lookup success %p\n", address);
   }
   return e != NULL? hash_entry (e, struct spte, hash_elem) : NULL;
 }
@@ -73,10 +73,10 @@ fs_load (struct spte *spte)
 {
   struct file *file = spte->file;
   off_t ofs = spte->ofs;
-  uint8_t *upage = spte->addr;
+  //uint8_t *upage = spte->addr;
   uint32_t page_read_bytes = spte->read_bytes;
   uint32_t page_zero_bytes = spte->zero_bytes;
-  bool writable = spte->writable;
+  //bool writable = spte->writable;
   
   /* Get a page of memory. */
   //uint8_t *kpage = palloc_get_page (PAL_USER);
@@ -144,7 +144,7 @@ sw_load (struct spte* spte)
   //printf("swap load!!!!\n");
   size_t swap_index = spte->swap_index;
   bool writable = spte->writable;
-  uint8_t *upage = spte->addr;
+  //uint8_t *upage = spte->addr;
   //printf ("swap index : %d\n", (int)spte->swap_index);
   //printf ("spte addr : %x\n", spte->addr);
   /* Get a page of memory */ 

@@ -212,6 +212,7 @@ thread_create (const char *name, int priority,
   struct hash *spt = (struct hash *) malloc (sizeof (struct hash));
   t->spt = spt;
   spt_init (spt);
+
 #endif
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
@@ -530,6 +531,10 @@ init_thread (struct thread *t, const char *name, int priority)
   //sema_init (&t->load_sema, 0);
   //sema_init (&t->error_sema, 0);
   
+#endif
+
+#ifdef VM
+  list_init (&t->mmap_files);
 #endif
 }
 
