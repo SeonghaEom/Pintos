@@ -38,8 +38,9 @@ struct spte
   uint32_t zero_bytes;          /* Load segment's zero bytes */
   bool writable;                /* Writable */
   /* When swapped out */
-  size_t swap_index;          /* Swap disk's index */
-
+  size_t swap_index;            /* Swap disk's index */
+  /* Synchronization */
+  bool touchable;               /* Is touchable */
 };
 
 /* Mmap file */

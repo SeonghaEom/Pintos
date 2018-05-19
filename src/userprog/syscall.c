@@ -37,7 +37,7 @@ static bool create (const char *file, unsigned initial_size);
 static bool remove (const char *file);
 static int open (const char *file);
 static int filesize (int fd);
-static int read (int fd, void *buffer, unsigned size);
+static int read (int fd, void *buffer, unsigned size, struct intr_frame * f);
 static void seek (int fd, unsigned position);
 static unsigned tell (int fd);
 static void close (int fd);
@@ -143,9 +143,9 @@ syscall_handler (struct intr_frame *f UNUSED)
       //valid_address (&fd);
       //printf ("buffer : %x\n", buffer);
       //printf ("size : %d\n", size);
- 
+      
       valid_address ((void *) buffer, f);
-      f->eax = read (fd, buffer, size);
+      f->eax = read (fd, buffer, size, f);
       break;
     /* 9, Write to a file */
     case SYS_WRITE:
@@ -316,8 +316,8 @@ exit (int status)
 {
   /* exit_sema exists */
   thread_current ()->exit_status = status;
-  printf("thread %d, %s: exit(%d)\n", thread_current ()->tid, thread_current ()->argv_name, status);
-  //printf("%s: exit(%d)\n", thread_current ()->argv_name, status);
+  //printf("thread %d, %s: exit(%d)\n", thread_current ()->tid, thread_current ()->argv_name, status);
+  printf("%s: exit(%d)\n", thread_current ()->argv_name, status);
   thread_exit ();
 }
 
@@ -464,9 +464,9 @@ filesize (int fd)
 
 /* Read */
 static int
-read (int fd, void *buffer, unsigned size)
+read (int fd, void *buffer, unsigned size, struct intr_frame * i_f)
 {
-  printf ("read : thread%d, size : %d, buffer : %x\n", thread_current ()->tid, size, buffer);
+  //printf ("read : thread%d, size : %d, buffer : %x\n", thread_current ()->tid, size, buffer);
   //thread_yield ();
   //printf("1\n");
   if (fd < 0)
@@ -509,42 +509,136 @@ read (int fd, void *buffer, unsigned size)
       //lock_acquire (&file_lock);
 
 #ifdef VM
-      
-      int alloc_num = DIV_ROUND_UP (size, PGSIZE);
-      printf ("read : thread%d, buffer : %x\n", thread_current ()->tid, buffer);
-      printf ("read : thread%d, DIV_ROUND_UP (size, PGSIZE) : %d\n", thread_current ()->tid, alloc_num);
+      //int alloc_num = DIV_ROUND_UP (size, PGSIZE);
+      //printf ("read : thread%d, buffer : %x\n", thread_current ()->tid, buffer);
+      //printf ("read : thread%d, DIV_ROUND_UP (size, PGSIZE) : %d\n", thread_current ()->tid, alloc_num);
+      int down = (int) buffer / PGSIZE;
+      int up = ((int) buffer + (int) size) / PGSIZE;
+      int alloc_num = up - down + 1;
+      //printf ("down : %d, up : %d, alloc_num : %d\n", down, up, alloc_num);
+      /*
       if ((int)buffer % (int)PGSIZE != 0)
       {
         alloc_num = alloc_num + 1;
-      }
-      printf ("read : thread%d, alloc_num : %d\n", thread_current ()->tid, alloc_num);
+      }*/
+      //printf ("read : thread%d, alloc_num : %d\n", thread_current ()->tid, alloc_num);
       int i;
       for (i = 0; i < alloc_num; i++)
       {
         void *addr = buffer + PGSIZE * i;
-        printf ("read : thread%d, read addr : %x\n", thread_current ()->tid, addr);
-        struct spte *spte = spte_lookup (addr);
-        if (spte == NULL)
+        //printf ("read : thread%d, read addr : %x\n", thread_current ()->tid, addr);
+        struct spte *spte = spte_lookup (addr); 
+        if (spte != NULL)
         {
-          printf ("read : thread%d, spte is null, need to create\n");
-          spte = (struct spte*) malloc (sizeof (struct spte));
-          spte->addr = addr;
-          hash_insert (thread_current ()->spt, &spte->hash_elem);
+          //printf ("spte is not null\n");
+          //printf ("read : thread%d, location : %d\n", thread_current ()->tid, spte->location);
+          spte->touchable = false;
+
+          switch (spte->location)
+          {
+            case LOC_FS:
+              if (!fs_load (spte))
+              {
+                printf ("fs load failed\n");
+                exit (-1);
+              }
+              break;
+            case LOC_MMAP:
+              if (!fs_load (spte))
+              {
+                printf ("fs load failed\n");
+                exit (-1);
+              }
+              break;
+            case LOC_SW:
+              if (!sw_load (spte))
+              {
+                printf ("sw load failed\n");
+                exit (-1);
+              }
+              break;
+            default:
+              break;
+          }
         }
-
-        void *kpage = frame_alloc (PAL_USER, spte);
-        pagedir_set_page(thread_current()->pagedir, spte->addr, kpage, true);
-      }
-
+        else 
+        {
+          //printf ("spte is null\n");
+          if ((uint32_t)i_f->esp -32 <= (uint32_t)addr &&
+            addr <= PHYS_BASE)
+          {
+            //printf ("stack growth\n");
+            /* When stack growth happens, new page address would be this */
+            void *next_bound = pg_round_down (addr);
+            /* Stack limit */
+            if ((uint32_t) next_bound < STACK_LIMIT) 
+            {
+              printf ("next bound exceed growth limit\n");
+              exit (-1);
+            }
+            /* Allocate new spte */
+            struct spte *spte = (struct spte *) malloc (sizeof (struct spte));
+            void *kpage = frame_alloc (PAL_USER, spte);
+            if (kpage != NULL)
+            {
+              bool success = install_page (next_bound, kpage, true);
+              if (success)
+              {
+                /* Set spte address */
+                //printf ("page fault stack growth, thread%d, f->esp : %x, next_bound : %x \n", thread_current ()->tid, f->esp,  next_bound);
+                spte->addr = next_bound;
+                spte->location = LOC_PM;
+                spte->writable = true;
+                spte->touchable = false;
+                hash_insert (thread_current ()->spt, &spte->hash_elem);
+              }
+              else 
+              {
+                frame_free (kpage);
+                //printf ("BB\n");
+                PANIC ("AA");
+                exit (-1);
+              }
+            } 
+            else
+            {
+              printf("kpage == null\n");
+              PANIC ("kpage nulln");
+              exit (-1);
+            }
+            return;
+          }
+          
+          else
+          {
+            
+            //printf ("bbbbbb\n");
+            exit (-1);
+            printf ("a\n");
+          }
+        }
+      } 
+      
 #endif
       lock_acquire (&file_lock);
       //printf ("read : thread%d a file lock\n", thread_current ()->tid);
-      printf ("read : thread%d before file read\n", thread_current ()->tid);
+      //printf ("read : thread%d before file read\n", thread_current ()->tid);
       int result = (int) file_read (f, buffer, size);
-      printf ("read : thread%d after file read\n", thread_current()->tid);
+      //printf ("read : thread%d after file read\n", thread_current()->tid);
       //printf ("read : thread%d r file lock\n", thread_current ()->tid);
       lock_release (&file_lock);
       //printf("g\n");
+#ifdef VM
+      /* Make all spte touchable here */
+      for (i = 0; i < alloc_num; i++)
+      {
+        void *addr = buffer + PGSIZE * i;
+        //printf ("read : thread%d, read addr : %x\n", thread_current ()->tid, addr);
+        struct spte *spte = spte_lookup (addr);
+        spte->touchable = true;
+      }
+#endif
+      
       return result;
     }
   }

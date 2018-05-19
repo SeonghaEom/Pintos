@@ -71,16 +71,15 @@ spte_lookup (const void *address)
 bool 
 fs_load (struct spte *spte)
 {
-  printf ("fs_load : thread%d\n", thread_current ()->tid);
+  //printf ("fs_load : thread%d\n", thread_current ()->tid);
   struct file *file = spte->file;
   off_t ofs = spte->ofs;
-  //uint8_t *upage = spte->addr;
+  uint8_t *upage = spte->addr;
   uint32_t page_read_bytes = spte->read_bytes;
   uint32_t page_zero_bytes = spte->zero_bytes;
-  //bool writable = spte->writable;
+  bool writable = spte->writable;
   
   /* Get a page of memory. */
-  //uint8_t *kpage = palloc_get_page (PAL_USER);
   uint8_t *kpage = frame_alloc (PAL_USER, spte);
   if (kpage == NULL)
   { 
@@ -133,16 +132,14 @@ fs_load (struct spte *spte)
   /* Add the page to the process's address space. Add mapping in page table */
   /*if (!install_page (upage, kpage, writable)) 
   {
-    PANIC("AAA\n");
-    printf ("install page fails\n");
     frame_free (kpage);
     return false; 
   }*/
 
   /* Set location to physical memory */
   spte->location = LOC_PM;
-  pagedir_set_page(thread_current()->pagedir, spte->addr, kpage, spte->writable);
-  //printf ("successfully loaded %x\n", spte->addr);
+  pagedir_set_page(thread_current()->pagedir, upage, kpage, writable);
+  
   return true;
 }
 
@@ -153,7 +150,7 @@ sw_load (struct spte* spte)
   //printf("swap load!!!!\n");
   size_t swap_index = spte->swap_index;
   bool writable = spte->writable;
-  //uint8_t *upage = spte->addr;
+  uint8_t *upage = spte->addr;
   //printf ("swap index : %d\n", (int)spte->swap_index);
   //printf ("spte addr : %x\n", spte->addr);
   /* Get a page of memory */ 
@@ -164,10 +161,12 @@ sw_load (struct spte* spte)
     PANIC ("kpage is NULL\n");
     return false;
   }
-  //printf ("before swap in\n"); 
+  
   /* Swap in spte */
+  //printf ("before swap in\n"); 
   swap_in (kpage, swap_index);
   //printf ("after swap in\n"); 
+  
   /*if (!install_page (upage, kpage, writable))
   {
     printf ("install page failed\n");
@@ -178,8 +177,7 @@ sw_load (struct spte* spte)
   
   /* Set location to physical memory */
   spte->location = LOC_PM;
-  pagedir_set_page(thread_current()->pagedir, spte->addr, kpage, spte->writable);
+  pagedir_set_page(thread_current()->pagedir, upage, kpage, writable);
   //printf ("successfully loaded %x\n", spte->addr);
   return true;
 }
-

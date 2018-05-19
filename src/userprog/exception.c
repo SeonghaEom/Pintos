@@ -159,14 +159,14 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
   
   /* For debug */ 
-   
+  /* 
   printf ("Page fault at %p: %s error %s page in %s context. Thread %d\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel",
           thread_current ()->tid);
-  
+  */
 #ifdef VM
   
   /* Check is fault address is user vaddr */
@@ -191,30 +191,36 @@ page_fault (struct intr_frame *f)
       /* When the location is FS or MMAP, just load from file */ 
       case LOC_FS:
         //printf ("FS LOAD\n");
+        spte->touchable = false;
         if (!fs_load (spte))
         {
           PANIC("HIHI");
           printf ("fs_load failed\n");
           exit (-1);
         }
+        spte->touchable = true;
         break;
       case LOC_MMAP:
         //printf ("MMAP LOAD\n");
+        spte->touchable = false;
         if (!fs_load (spte))
         {
           PANIC("HIHI");
           printf ("fs_load failed\n");
           exit (-1);
         }
+        spte->touchable = true;
         break;
       /* When the location is SW, load from swap disk */
       case LOC_SW:
         //printf ("SW LOAD\n");
+        spte->touchable = false;
         if (!sw_load (spte))
         {    
           printf ("sw_load failed\n");
           exit (-1);
         }
+        spte->touchable = true;
         break;
       default:
         break;
