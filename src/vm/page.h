@@ -34,8 +34,8 @@ struct spte
   /* In file system */
   struct file *file;            /* File*/
   off_t ofs;                    /* Offset */
-  uint32_t read_bytes;          /* Load segment's read bytes */
-  uint32_t zero_bytes;          /* Load segment's zero bytes */
+  uint32_t read_bytes;          /* Page's read bytes */
+  uint32_t zero_bytes;          /* Page's zero bytes */
   bool writable;                /* Writable */
   /* When swapped out */
   size_t swap_index;            /* Swap disk's index */

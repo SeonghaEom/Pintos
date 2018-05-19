@@ -521,15 +521,15 @@ read (int fd, void *buffer, unsigned size, struct intr_frame * i_f)
       {
         void *addr = buffer + PGSIZE * i;
         //printf ("read : thread%d, read addr : %x\n", thread_current ()->tid, addr);
-        if ( i == 0)
-          printf ("addr1: %x\n", addr);
+        //if ( i == 0)
+        //  printf ("addr1: %x\n", addr);
 
 
         struct spte *spte = spte_lookup (addr); 
         if (spte != NULL)
         {
-          printf ("spte is not null\n");
-          printf ("read : thread %s, location : %d\n", thread_current ()->argv_name, spte->location);
+          //printf ("spte is not null\n");
+          //printf ("read : thread %s, location : %d\n", thread_current ()->argv_name, spte->location);
           spte->touchable = false;
 
           switch (spte->location)
@@ -597,6 +597,7 @@ read (int fd, void *buffer, unsigned size, struct intr_frame * i_f)
                 lock_release (&file_lock);
 
                 /* Set spte information */
+ 
                 if (i<alloc_num-1)
                 {
                   spte->read_bytes = PGSIZE;

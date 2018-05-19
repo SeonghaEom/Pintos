@@ -229,7 +229,7 @@ process_exit (void)
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
-      printf ("before remove_all_fte\n");
+      //printf ("before remove_all_fte\n");
       remove_all_fte ();
       //printf ("process exit : thread%d r file lock \n", thread_current ()->tid);
       //lock_release (&frame_lock);
