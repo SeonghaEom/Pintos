@@ -511,27 +511,25 @@ read (int fd, void *buffer, unsigned size, struct intr_frame * i_f)
 #ifdef VM
       //int alloc_num = DIV_ROUND_UP (size, PGSIZE);
       //printf ("read : thread%d, buffer : %x\n", thread_current ()->tid, buffer);
-      //printf ("read : thread%d, DIV_ROUND_UP (size, PGSIZE) : %d\n", thread_current ()->tid, alloc_num);
       int down = (int) buffer / PGSIZE;
       int up = ((int) buffer + (int) size) / PGSIZE;
       int alloc_num = up - down + 1;
       //printf ("down : %d, up : %d, alloc_num : %d\n", down, up, alloc_num);
-      /*
-      if ((int)buffer % (int)PGSIZE != 0)
-      {
-        alloc_num = alloc_num + 1;
-      }*/
       //printf ("read : thread%d, alloc_num : %d\n", thread_current ()->tid, alloc_num);
       int i;
       for (i = 0; i < alloc_num; i++)
       {
         void *addr = buffer + PGSIZE * i;
         //printf ("read : thread%d, read addr : %x\n", thread_current ()->tid, addr);
+        if ( i == 0)
+          printf ("addr1: %x\n", addr);
+
+
         struct spte *spte = spte_lookup (addr); 
         if (spte != NULL)
         {
-          //printf ("spte is not null\n");
-          //printf ("read : thread%d, location : %d\n", thread_current ()->tid, spte->location);
+          printf ("spte is not null\n");
+          printf ("read : thread %s, location : %d\n", thread_current ()->argv_name, spte->location);
           spte->touchable = false;
 
           switch (spte->location)
@@ -564,6 +562,7 @@ read (int fd, void *buffer, unsigned size, struct intr_frame * i_f)
         else 
         {
           //printf ("spte is null\n");
+          //printf ("addr2: %x\n", addr);
           if ((uint32_t)i_f->esp -32 <= (uint32_t)addr &&
             addr <= PHYS_BASE)
           {
@@ -584,10 +583,35 @@ read (int fd, void *buffer, unsigned size, struct intr_frame * i_f)
               bool success = install_page (next_bound, kpage, true);
               if (success)
               {
-                /* Set spte address */
-                //printf ("page fault stack growth, thread%d, f->esp : %x, next_bound : %x \n", thread_current ()->tid, f->esp,  next_bound);
+                /* Find file and its read bytes and zero bytes */
+                off_t len = file_length (f);
+    
+                lock_acquire (&file_lock);
+
+                struct file *newfile = file_reopen (f);
+                /* Push the new file as new filedescriptor in open files and close it later by close_all_files */
+                struct filedescriptor *filedes = (struct filedescriptor *) malloc (sizeof (struct filedescriptor));
+                filedes->fd = fd;
+                filedes->file = newfile;
+                list_push_back (&thread_current ()->open_files, &filedes->elem);
+                lock_release (&file_lock);
+
+                /* Set spte information */
+                if (i<alloc_num-1)
+                {
+                  spte->read_bytes = PGSIZE;
+                  spte->zero_bytes = 0;
+                }
+                else if (i == alloc_num-1)
+                {
+                  spte->read_bytes = len - PGSIZE * i;
+                  spte->zero_bytes = PGSIZE - spte->read_bytes;
+                }
+                spte->file = newfile;
+                spte->ofs = PGSIZE * i;
+                //printf ("page fault stack growth, thread%d, next_bound : %x\n", thread_current ()->tid, next_bound);
                 spte->addr = next_bound;
-                spte->location = LOC_PM;
+                spte->location = LOC_FS;
                 spte->writable = true;
                 spte->touchable = false;
                 hash_insert (thread_current ()->spt, &spte->hash_elem);
@@ -733,6 +757,7 @@ close_all_files (void)
 
 #ifdef VM
 
+/* Remove all mmap files from memory */
 void 
 remove_all_mfs (void)
 {
@@ -886,6 +911,9 @@ munmap (mapid_t mapid)
         file_write_at (file, addr, size, ofs);
         lock_release (&frame_lock);
       }
+      /* Remove it from frame table */
+      struct fte *fte = find_fte_by_spte (spte);
+      list_remove (&fte->elem);
       /* Remove mapping from user virtual to kernel virtual (physical) */
       pagedir_clear_page (thread_current ()->pagedir, spte->addr);
     }

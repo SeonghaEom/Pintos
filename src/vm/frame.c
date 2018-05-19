@@ -68,7 +68,7 @@ void *frame_alloc (enum palloc_flags flag, struct spte *spte)
     void *evicted_frame = frame_evict (flag);
     // New spte is mapped with evited frame
     struct fte *fte = find_entry_by_frame (evicted_frame);
-    //printf ("evicted fte's spte addr : %x\n", fte->spte->addr); 
+    //printf ("evicted fte's, thread%d addr : %x\n", fte->thread->tid, fte->spte->addr); 
     fte->spte = spte;
     fte->thread = thread_current ();
     //frame_add_to_table (evicted_frame, spte);
@@ -115,6 +115,8 @@ static void *frame_evict (enum palloc_flags flag)
   }
   
   victim = list_entry(i, struct fte, elem);
+  //printf ("victim's addr: %x\n", victim->spte->addr);
+
   /* Can we swap out? */
   while (!victim->spte->touchable)
   {
@@ -125,7 +127,7 @@ static void *frame_evict (enum palloc_flags flag)
     }
     victim = list_entry (i, struct fte, elem);
   }
-  /* Saving for next victim */
+  /* Saving for finding next victim */
   i = list_next(i);
   if (i == list_end (&ft))
   {
@@ -172,4 +174,40 @@ find_entry_by_frame (void *frame)
     }
   }
   return NULL;
+}
+
+struct fte *
+find_fte_by_spte (struct spte *spte)
+{
+  struct list_elem *e;
+  struct fte *fte;
+
+  for (e = list_begin (&ft); e != list_end (&ft);
+      e = list_next (e))
+  {
+    fte = list_entry (e, struct fte, elem);
+    if (fte->spte == spte)
+    {
+      return fte;
+    }
+  }
+  return NULL;
+}
+
+/* Remove current thread's all fte in frame when it is exiting */
+void
+remove_all_fte (void)
+{
+  struct fte *fte;
+  struct list_elem *e;
+
+  for (e = list_begin (&ft); e != list_end (&ft);
+      e = list_next (e))
+  {
+    fte = list_entry (e, struct fte, elem);
+    if (fte->thread == thread_current ())
+    {
+      list_remove (e);
+    }
+  }
 }

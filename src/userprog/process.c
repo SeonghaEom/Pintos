@@ -224,13 +224,15 @@ process_exit (void)
          directory before destroying the process's page
          directory, or our active page directory will be one
          that's been freed (and cleared). */
-      lock_acquire (&frame_lock);
+      //lock_acquire (&frame_lock);
       //printf ("process exit : thread%d a file lock \n", thread_current ()->tid);
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
+      printf ("before remove_all_fte\n");
+      remove_all_fte ();
       //printf ("process exit : thread%d r file lock \n", thread_current ()->tid);
-      lock_release (&frame_lock);
+      //lock_release (&frame_lock);
     }
 }
 

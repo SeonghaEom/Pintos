@@ -71,7 +71,8 @@ spte_lookup (const void *address)
 bool 
 fs_load (struct spte *spte)
 {
-  //printf ("fs_load : thread%d\n", thread_current ()->tid);
+  printf ("fs_load : thread %s at %x\n", thread_current ()->argv_name, spte->addr);
+  printf ("read_byte: %d, zero_byte: %d\n", spte->read_bytes, spte->zero_bytes);
   struct file *file = spte->file;
   off_t ofs = spte->ofs;
   uint8_t *upage = spte->addr;
@@ -147,7 +148,9 @@ fs_load (struct spte *spte)
 bool
 sw_load (struct spte* spte) 
 {
-  //printf("swap load!!!!\n");
+  printf ("sw_load : thread %s at %x\n", thread_current ()->argv_name, spte->addr);
+  printf ("read_byte: %d, zero_byte: %d\n", spte->read_bytes, spte->zero_bytes);
+ 
   size_t swap_index = spte->swap_index;
   bool writable = spte->writable;
   uint8_t *upage = spte->addr;
