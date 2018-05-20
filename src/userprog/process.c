@@ -194,7 +194,9 @@ process_exit (void)
     // remove mmap files
     //printf ("process_exit : thread%d mmap file size : %d\n", thread_current ()->tid,list_size (&thread_current ()->mmap_files)); 
     //printf ("process_exit : thread%d before remove all mfs\n", thread_current ()->tid);
+    lock_acquire (&file_lock);
     remove_all_mfs ();
+    lock_release (&file_lock);
     //printf ("process_exit : thread%d after remove all mfs\n", thread_current ()->tid);
 #endif
     //printf ("process_exit : thread%d try to acquire file lock\n", thread_current ()->tid);
@@ -224,15 +226,15 @@ process_exit (void)
          directory before destroying the process's page
          directory, or our active page directory will be one
          that's been freed (and cleared). */
-      //lock_acquire (&frame_lock);
+     
       //printf ("process exit : thread%d a file lock \n", thread_current ()->tid);
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
-      printf ("before remove_all_fte\n");
+      //printf ("before remove_all_fte\n");
       remove_all_fte ();
       //printf ("process exit : thread%d r file lock \n", thread_current ()->tid);
-      //lock_release (&frame_lock);
+      
     }
 }
 

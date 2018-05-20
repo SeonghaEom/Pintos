@@ -521,15 +521,15 @@ read (int fd, void *buffer, unsigned size, struct intr_frame * i_f)
       {
         void *addr = buffer + PGSIZE * i;
         //printf ("read : thread%d, read addr : %x\n", thread_current ()->tid, addr);
-        if ( i == 0)
-          printf ("addr1: %x\n", addr);
+        //if ( i == 0)
+          //printf ("addr1: %x\n", addr);
 
 
         struct spte *spte = spte_lookup (addr); 
         if (spte != NULL)
         {
-          printf ("spte is not null\n");
-          printf ("read : thread %s, location : %d\n", thread_current ()->argv_name, spte->location);
+          //printf ("spte is not null\n");
+          //printf ("read : thread %d, i : %d, addr : %x, location : %d\n", thread_current ()->tid, i, addr,  spte->location);
           spte->touchable = false;
 
           switch (spte->location)
@@ -562,7 +562,7 @@ read (int fd, void *buffer, unsigned size, struct intr_frame * i_f)
         else 
         {
           //printf ("spte is null\n");
-          //printf ("addr2: %x\n", addr);
+          //printf ("read : thread %d, i : %d, addr : %x\n", thread_current ()->tid, i, addr);
           if ((uint32_t)i_f->esp -32 <= (uint32_t)addr &&
             addr <= PHYS_BASE)
           {
@@ -584,19 +584,20 @@ read (int fd, void *buffer, unsigned size, struct intr_frame * i_f)
               if (success)
               {
                 /* Find file and its read bytes and zero bytes */
+                /*
                 off_t len = file_length (f);
     
                 lock_acquire (&file_lock);
 
                 struct file *newfile = file_reopen (f);
-                /* Push the new file as new filedescriptor in open files and close it later by close_all_files */
+                /* Push the new file as new filedescriptor in open files and close it later by close_all_files 
                 struct filedescriptor *filedes = (struct filedescriptor *) malloc (sizeof (struct filedescriptor));
                 filedes->fd = fd;
                 filedes->file = newfile;
                 list_push_back (&thread_current ()->open_files, &filedes->elem);
                 lock_release (&file_lock);
 
-                /* Set spte information */
+                /* Set spte information 
                 if (i<alloc_num-1)
                 {
                   spte->read_bytes = PGSIZE;
@@ -608,10 +609,10 @@ read (int fd, void *buffer, unsigned size, struct intr_frame * i_f)
                   spte->zero_bytes = PGSIZE - spte->read_bytes;
                 }
                 spte->file = newfile;
-                spte->ofs = PGSIZE * i;
+                spte->ofs = PGSIZE * i;*/
                 //printf ("page fault stack growth, thread%d, next_bound : %x\n", thread_current ()->tid, next_bound);
                 spte->addr = next_bound;
-                spte->location = LOC_FS;
+                spte->location = LOC_PM;
                 spte->writable = true;
                 spte->touchable = false;
                 hash_insert (thread_current ()->spt, &spte->hash_elem);
@@ -630,7 +631,7 @@ read (int fd, void *buffer, unsigned size, struct intr_frame * i_f)
               PANIC ("kpage nulln");
               exit (-1);
             }
-            return;
+            //return;
           }
           
           else
