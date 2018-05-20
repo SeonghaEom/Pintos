@@ -25,7 +25,6 @@ void swap_table_init (void)
     return;
   } 
   size_t slot_max = block_size(swap_block);
-  printf ("slot_max: %d\n", slot_max);
   /* Initialize swap bitmap */  
   swap_bm = bitmap_create (slot_max);
   if (swap_bm == NULL)
@@ -34,7 +33,6 @@ void swap_table_init (void)
     return;
   }
   lock_init (&swap_lock);
-  printf ("Swap table successfully initialized\n");
   return;
 }
 
@@ -50,20 +48,15 @@ size_t swap_out (struct fte *fte)
   /* Find empty slot */
   lock_acquire (&swap_lock);
   swap_index = bitmap_scan_and_flip (swap_bm, 0, 8, false);
-  //lock_release (&swap_lock);
   
-  //printf ("swap outed index %d\n", (int)swap_index);
   if (swap_index != BITMAP_ERROR)
   {
     /* Write in swap disk */
-    //lock_acquire (&swap_lock);
     int i;
     void *buffer = frame;
     for (i = 0; i < 8; i ++)
     {
-      //lock_acquire (&swap_lock);
       block_write (swap_block, swap_index + i, buffer);
-      //lock_release (&swap_lock);
       buffer += BLOCK_SECTOR_SIZE;
     }
     lock_release (&swap_lock);
@@ -72,8 +65,6 @@ size_t swap_out (struct fte *fte)
   else
   {
     /* No swap slot left */
-    //printf ("No swap slot left!\n");
-    //lock_release (&swap_lock);
     exit (-1);
   }
   return swap_index;
@@ -99,8 +90,6 @@ void swap_in (void *frame, size_t swap_index)
     /* Update swap bitmap */
     bitmap_set_multiple (swap_bm, swap_index, 8, false); 
     lock_release (&swap_lock);
-    //printf ("current swap slot num : %d\n", bitmap_count (swap_bm, 0,
-    //      bitmap_size (swap_bm), true));
   }
 }
 

@@ -55,27 +55,21 @@ void *frame_alloc (enum palloc_flags flag, struct spte *spte)
   /* Unused frame exist */
   if (frame != NULL)
   {
-    //printf ("unused frame exists\n");
     frame_add_to_table (frame, spte);
-    //printf("frame table size %d\n", list_size (&ft));
     return frame;
   }
   /* Frame table is full, need to evict frame with eviction policy */
   else
   {
-    //printf ("unused frame doesn't exist, need eviction.... \n");
     lock_acquire (&frame_lock);
     void *evicted_frame = frame_evict (flag);
-    // New spte is mapped with evited frame
+    /*  New spte is mapped with evited frame */
     struct fte *fte = find_entry_by_frame (evicted_frame);
-    //printf ("evicted fte's, thread%d addr : %x\n", fte->thread->tid, fte->spte->addr); 
     fte->spte = spte;
     fte->thread = thread_current ();
-    //frame_add_to_table (evicted_frame, spte);
     /* Add mapping to current thread's page table */
     spte->location = LOC_PM;
     lock_release (&frame_lock);
-    //printf("frame table size %d\n", list_size(&ft));
     return evicted_frame;
   }
 }
@@ -99,7 +93,6 @@ void frame_free (void *frame)
  * and swapt out and return the victim's frame pointer to allocate new */
 static void *frame_evict (enum palloc_flags flag)
 {
-  //printf ("frame evict : thread%d\n", thread_current ()->tid);
   /* Find the victim in frame table by second chance algorithm */
   struct list_elem *i;
   struct fte *victim;
@@ -115,7 +108,6 @@ static void *frame_evict (enum palloc_flags flag)
   }
   
   victim = list_entry(i, struct fte, elem);
-  //printf ("victim's addr: %x\n", victim->spte->addr);
 
   /* Can we swap out? */
   while (!victim->spte->touchable)
@@ -136,26 +128,10 @@ static void *frame_evict (enum palloc_flags flag)
   saved_victim = i;
   
   /* Write in SW */
-  //printf ("evict victim thread %d, addr: %x\n", thread_current ()->tid, victim->spte->addr);
   victim->spte->swap_index = swap_out (victim);
-  //victim->spte->location = LOC_SW;
   pagedir_clear_page (victim->thread->pagedir, victim->spte->addr);
   
-  /*else
-  {
-    //PANIC("Frame evict to FS %p, %p\n", victim->spte->addr, victim->frame);
-    printf ("Evicted frame does not changed\n");
-    pagedir_clear_page (thread_current ()->pagedir, victim->spte->addr);
-    victim->spte->location = LOC_FS;
-    /* Write in FS 
-    file_write_at (victim->spte->file, victim->frame, PGSIZE, victim->spte->ofs);
-    pagedir_clear_page (thread_current ()->pagedir, victim->spte->addr);
-    free (victim->spte);
-    
-  }
-  frame_free (victim->frame);
-  printf ("frame evict fin\n");*/
-  
+
   return victim->frame;
 }
 

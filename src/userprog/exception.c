@@ -190,7 +190,6 @@ page_fault (struct intr_frame *f)
     {
       /* When the location is FS or MMAP, just load from file */ 
       case LOC_FS:
-        //printf ("FS LOAD\n");
         spte->touchable = false;
         if (!fs_load (spte))
         {
@@ -201,7 +200,6 @@ page_fault (struct intr_frame *f)
         spte->touchable = true;
         break;
       case LOC_MMAP:
-        //printf ("MMAP LOAD\n");
         spte->touchable = false;
         if (!fs_load (spte))
         {
@@ -213,7 +211,6 @@ page_fault (struct intr_frame *f)
         break;
       /* When the location is SW, load from swap disk */
       case LOC_SW:
-        //printf ("SW LOAD\n");
         spte->touchable = false;
         if (!sw_load (spte))
         {    
@@ -229,15 +226,6 @@ page_fault (struct intr_frame *f)
   /* If spte doesn't exist, check the stack growth */
   else
   { 
-    /* Check stack growth */
-    /*
-    printf ("Page fault at %p: %s error %s page in %s context. Thread %d\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel",
-          thread_current ()->tid);
-    */
     if ((uint32_t)f->esp -32 <= (uint32_t)fault_addr &&
         fault_addr <= PHYS_BASE)
     {
@@ -258,7 +246,6 @@ page_fault (struct intr_frame *f)
         if (success)
         {
           /* Set spte address */
-          //printf ("page fault stack growth, thread%d, f->esp : %x, next_bound : %x \n", thread_current ()->tid, f->esp,  next_bound);
           spte->addr = next_bound;
           spte->location = LOC_PM;
           spte->writable = true;
@@ -267,7 +254,6 @@ page_fault (struct intr_frame *f)
         else 
         {
           frame_free (kpage);
-          //printf ("BB\n");
           PANIC ("AA");
           exit (-1);
         }
@@ -284,12 +270,10 @@ page_fault (struct intr_frame *f)
     {
       if (user)
       {
-        //PANIC ("a");
         exit (-1);
       }
       else 
       {
-        //PANIC ("B");
         exit (-1);
       }
       printf ("a\n");
@@ -305,16 +289,6 @@ page_fault (struct intr_frame *f)
     exit (-1);
   }
 #endif
-  
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. 
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-  kill (f);
-  */
+
 }
 
