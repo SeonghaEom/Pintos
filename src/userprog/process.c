@@ -190,16 +190,20 @@ process_exit (void)
         }
       }
     }
+
+    lock_acquire (&file_lock);
 #ifdef VM
     // remove mmap files
     //printf ("process_exit : thread%d mmap file size : %d\n", thread_current ()->tid,list_size (&thread_current ()->mmap_files)); 
     //printf ("process_exit : thread%d before remove all mfs\n", thread_current ()->tid);
     remove_all_mfs ();
     //printf ("process_exit : thread%d after remove all mfs\n", thread_current ()->tid);
+    lock_release (&file_lock);
 #endif
     //printf ("process_exit : thread%d try to acquire file lock\n", thread_current ()->tid);
-    lock_acquire (&file_lock);
+
     // close files 
+    lock_acquire (&file_lock);
     file_close (cur->my_file);
     //printf ("process_exit : thread%d before file close\n", thread_current ()->tid);
     close_all_files ();
@@ -224,15 +228,17 @@ process_exit (void)
          directory before destroying the process's page
          directory, or our active page directory will be one
          that's been freed (and cleared). */
+
+
       //lock_acquire (&frame_lock);
       //printf ("process exit : thread%d a file lock \n", thread_current ()->tid);
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
-      //printf ("before remove_all_fte\n");
       remove_all_fte ();
-      //printf ("process exit : thread%d r file lock \n", thread_current ()->tid);
       //lock_release (&frame_lock);
+      //printf ("before remove_all_fte\n");
+      //printf ("process exit : thread%d r file lock \n", thread_current ()->tid);
     }
 }
 

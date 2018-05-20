@@ -136,6 +136,7 @@ static void *frame_evict (enum palloc_flags flag)
   saved_victim = i;
   
   /* Write in SW */
+  //printf ("evict victim thread %d, addr: %x\n", thread_current ()->tid, victim->spte->addr);
   victim->spte->swap_index = swap_out (victim);
   //victim->spte->location = LOC_SW;
   pagedir_clear_page (victim->thread->pagedir, victim->spte->addr);
