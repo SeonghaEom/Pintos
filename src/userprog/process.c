@@ -191,24 +191,16 @@ process_exit (void)
       }
     }
 
-    lock_acquire (&file_lock);
 #ifdef VM
     // remove mmap files
-    //printf ("process_exit : thread%d mmap file size : %d\n", thread_current ()->tid,list_size (&thread_current ()->mmap_files)); 
-    //printf ("process_exit : thread%d before remove all mfs\n", thread_current ()->tid);
+    lock_acquire (&file_lock);
     remove_all_mfs ();
-    //printf ("process_exit : thread%d after remove all mfs\n", thread_current ()->tid);
     lock_release (&file_lock);
 #endif
-    //printf ("process_exit : thread%d try to acquire file lock\n", thread_current ()->tid);
-
-    // close files 
     lock_acquire (&file_lock);
+    // close files 
     file_close (cur->my_file);
-    //printf ("process_exit : thread%d before file close\n", thread_current ()->tid);
     close_all_files ();
-    //printf ("process_exit : thread%d after file close\n", thread_current ()->tid);
-    //printf ("process exit : thread%d r file lock\n", thread_current ()->tid);
     lock_release (&file_lock);
   }
   uint32_t *pd;
@@ -218,7 +210,6 @@ process_exit (void)
   pd = cur->pagedir;
   sema_up(cur->exit_sema);
   sema_down(cur->exit_status_sema);
-
   if (pd != NULL) 
     {
       /* Correct ordering here is crucial.  We must set
@@ -228,15 +219,26 @@ process_exit (void)
          directory before destroying the process's page
          directory, or our active page directory will be one
          that's been freed (and cleared). */
-
-
-      //lock_acquire (&frame_lock);
+     
+      if (&frame_lock != NULL)
+      {
+        if ((&frame_lock)->holder != NULL)
+        {
+          if ((&frame_lock)->holder->tid == thread_current ()->tid)
+          {
+            lock_release (&frame_lock);
+          }
+        }
+      }
+      
+      lock_acquire (&frame_lock);
       //printf ("process exit : thread%d a file lock \n", thread_current ()->tid);
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
+      lock_release (&frame_lock);
+      
       remove_all_fte ();
-      //lock_release (&frame_lock);
       //printf ("before remove_all_fte\n");
       //printf ("process exit : thread%d r file lock \n", thread_current ()->tid);
     }

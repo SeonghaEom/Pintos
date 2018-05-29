@@ -288,6 +288,7 @@ exit (int status)
 {
   /* exit_sema exists */
   thread_current ()->exit_status = status;
+  //printf("thread%d, %s: exit(%d)\n", thread_current ()->tid, thread_current ()->argv_name, status);
   printf("%s: exit(%d)\n", thread_current ()->argv_name, status);
   thread_exit ();
 }
@@ -674,6 +675,7 @@ remove_all_mfs (void)
     munmap (mf->mapid);
   }
 }
+
 /* Mmap with fd and user virtual address */
 static mapid_t
 mmap (int fd, void *addr)
@@ -783,16 +785,19 @@ munmap (mapid_t mapid)
       /* If the given page is dirty, then write it to filesys */
       if (pagedir_is_dirty (thread_current ()->pagedir, spte->addr))
       {
-        lock_acquire (&frame_lock);
+        //lock_acquire (&frame_lock);
+        //lock_acquire (&file_lock);
         struct file *file = spte->file;
         void *addr = spte->addr;
         off_t size = spte->read_bytes;
         off_t ofs = spte->ofs;
         file_write_at (file, addr, size, ofs);
-        lock_release (&frame_lock);
+        //lock_release (&file_lock);
+        //lock_release (&frame_lock);
       }
       /* Remove it from frame table */
       struct fte *fte = find_fte_by_spte (spte);
+      //frame_free (fte->frame); 
       list_remove (&fte->elem);
       /* Remove mapping from user virtual to kernel virtual (physical) */
       pagedir_clear_page (thread_current ()->pagedir, spte->addr);
