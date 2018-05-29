@@ -360,7 +360,7 @@ bitmap_write (const struct bitmap *b, struct file *file)
   return file_write_at (file, b->bits, size, 0) == size;
 }
 #endif /* FILESYS */
-
+
 /* Debugging. */
 
 /* Dumps the contents of B to the console as hexadecimal. */

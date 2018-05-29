@@ -107,7 +107,7 @@ static void *frame_evict (enum palloc_flags flag)
     i = saved_victim;
   }
   
-  victim = list_entry(i, struct fte, elem);
+  victim = list_entry (i, struct fte, elem);
 
   /* Can we swap out? */
   while (!victim->spte->touchable)
@@ -120,7 +120,7 @@ static void *frame_evict (enum palloc_flags flag)
     victim = list_entry (i, struct fte, elem);
   }
   /* Saving for finding next victim */
-  i = list_next(i);
+  i = list_next (i);
   if (i == list_end (&ft))
   {
     i = list_begin (&ft);
