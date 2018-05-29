@@ -177,13 +177,15 @@ remove_all_fte (void)
 {
   struct fte *fte;
   struct list_elem *e;
-
+  //printf ("remove all fte thread%d, frame table size%d\n", thread_current ()->tid, list_size (&ft));
   for (e = list_begin (&ft); e != list_end (&ft);
       e = list_next (e))
   {
     fte = list_entry (e, struct fte, elem);
+    //printf ("fte->thread%d\n", fte->thread->tid);
     if (fte->thread == thread_current ())
     {
+      //printf ("remove one fte : \n");
       list_remove (e);
     }
   }
