@@ -95,7 +95,8 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
-
+    bool is_alarm_clock_on;             /* Does wait for timer */
+    uint64_t wake_me_time;              /* Wake me at this time */
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
@@ -155,6 +156,7 @@ typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
 void thread_block (void);
 void thread_unblock (struct thread *);
+void thread_sleep (struct thread *t);
 
 struct thread *thread_current (void);
 tid_t thread_tid (void);
@@ -174,6 +176,8 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+void thread_wake (uint64_t time);
 
 struct thread *find_child (tid_t pid);
 struct thread *find_thread (tid_t tid);
