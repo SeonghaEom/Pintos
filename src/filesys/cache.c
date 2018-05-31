@@ -99,6 +99,19 @@ void *cache_read (block_sector_t sector)
 }
 
 
+/* Set dirty with sector number SECTOR */
+bool cache_set_dirty (block_sector_t sector)
+{
+  struct cache_entry *ce = cache_find (sector);
+
+  if (ce == NULL)
+  {
+    return false;
+  }
+  ce->dirty = true;
+  return true;
+}
+
 /* Allocate one cache entry */
 static struct cache_entry *
 cache_alloc (block_sector_t sector)
@@ -118,12 +131,14 @@ cache_alloc (block_sector_t sector)
     ce->data = (void *) malloc (BLOCK_SECTOR_SIZE);
   }
   /* Ce initialization */
+  ce->sector = sector;
   ce->dirty = false;
   ce->valid = true;
   ce->read_cnt = 0;
   ce->write_cnt = 0;
   ce->pending_cnt = 0;
-
+  /* Block read in cache data */
+  block_read (fs_device, ce->sector, ce->data);
   return ce;
 }
 
