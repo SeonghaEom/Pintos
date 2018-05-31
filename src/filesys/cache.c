@@ -3,6 +3,7 @@
 #include <list.h>
 #include <string.h>
 #include "threads/malloc.h"
+#include "threads/synch.h"
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
 #include "devices/block.h"
@@ -19,7 +20,7 @@ static struct cache_entry *cache_alloc (block_sector_t sector);
 static struct cache_entry *cache_evict (void);
 
 /* Write behind period (ticks) */
-#define WRITE_BEHIND_PERIOD 100
+#define WRITE_BEHIND_PERIOD 1000000000000000000
 
 /* Structure for cache entry */
 struct cache_entry
@@ -39,7 +40,7 @@ struct q_entry
 {
   struct list_elem elem;        /* List elem pushed in queue */
   block_sector_t sector;        /* Sector number of block location */
-}
+};
 
 /* Cache initialization */
 void cache_init (void)
@@ -209,8 +210,14 @@ void flusher_func (void)
  * Flush all dirty cache slots */
 void cache_write_behind (void)
 {
+  //printf ("cache_write_behind\n");
   struct list_elem *e;
   
+  if (list_empty (&cache))
+  {
+    return;
+  }
+
   for (e = list_front (&cache); e != list_end (&cache);
        e = list_next (e))
   {

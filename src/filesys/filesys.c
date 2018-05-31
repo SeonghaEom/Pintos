@@ -50,7 +50,7 @@ filesys_done (void)
 #ifdef FILESYS
   cache_write_behind ();
   cache_destroy ();
-  q_destory ();
+  q_destroy ();
 #endif
   free_map_close ();
 }

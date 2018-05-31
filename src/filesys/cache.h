@@ -12,6 +12,6 @@ void read_aheader_func (void);
 void cache_read_ahead (block_sector_t);
 void flusher_func (void);
 void cache_write_behind (void);
-void q_destory (void);
+void q_destroy (void);
 
 #endif /* filesys/cache.h */
