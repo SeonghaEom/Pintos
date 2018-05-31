@@ -6,6 +6,10 @@
 #include "filesys/free-map.h"
 #include "filesys/inode.h"
 #include "filesys/directory.h"
+#ifdef FILESYS
+#include "threads/thread.h"
+#include "filesys/cache.h"
+#endif
 
 /* Partition that contains the file system. */
 struct block *fs_device;
@@ -28,6 +32,14 @@ filesys_init (bool format)
     do_format ();
 
   free_map_open ();
+
+#ifdef FILESYS
+  /* Initialize cache */
+  cache_init ();
+  /* Creating read ahead and write behind threads */
+  thread_create ("read_aheader", PRI_DEFAULT, read_aheader_func, NULL);
+  thread_create ("flusher", PRI_DEFAULT, flusher_func, NULL);
+#endif
 }
 
 /* Shuts down the file system module, writing any unwritten data
@@ -35,6 +47,11 @@ filesys_init (bool format)
 void
 filesys_done (void) 
 {
+#ifdef FILESYS
+  cache_write_behind ();
+  cache_destroy ();
+  q_destory ();
+#endif
   free_map_close ();
 }
 

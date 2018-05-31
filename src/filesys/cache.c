@@ -9,16 +9,22 @@
 
 /* Structure for buffer cache */
 static struct list cache;
+static struct list queue;
+static struct lock q_lock;
+static struct condition q_not_empty;
 /* List element for saved victim */
 static struct list_elem *saved_victim;
 
 static struct cache_entry *cache_alloc (block_sector_t sector);
 static struct cache_entry *cache_evict (void);
 
+/* Write behind period (ticks) */
+#define WRITE_BEHIND_PERIOD 100
+
 /* Structure for cache entry */
 struct cache_entry
 {
-  struct list_elem elem;        /* List elem */
+  struct list_elem elem;        /* List elem pushed in cache */
   block_sector_t sector;        /* Sector number of disk location */
   bool dirty;                   /* Dirty bit */
   bool valid;                   /* Valid bit */
@@ -29,10 +35,19 @@ struct cache_entry
   uint32_t *data;               /* Actual data that are cached */
 };
 
+struct q_entry
+{
+  struct list_elem elem;        /* List elem pushed in queue */
+  block_sector_t sector;        /* Sector number of block location */
+}
+
 /* Cache initialization */
 void cache_init (void)
 {
   list_init (&cache);
+  list_init (&queue);
+  lock_init (&q_lock);
+  cond_init (&q_not_empty);
 }
 
 /* Cache destruction */
@@ -47,7 +62,6 @@ void cache_destroy (void)
     free (ce->data);
     free (ce);
   }
-  free (&cache);
 }
 
 /* Find cache entry pointer with block sector number and return NULL if none*/
@@ -149,4 +163,74 @@ cache_evict (void)
   return victim;
 }
 
+/* Read aheader function
+ * This function will used in kernel thread read_aheader */
+void read_aheader_func (void)
+{
 
+  while (true)
+  {
+    lock_acquire (&q_lock);
+    while (list_empty (&queue))
+    { 
+      cond_wait (&q_not_empty, &q_lock);
+    }
+    struct list_elem *e = list_pop_front (&queue);
+    struct q_entry *qe = list_entry (e, struct q_entry, elem);
+    cache_read (qe->sector);
+    lock_release (&q_lock);
+  }
+}
+
+/* Cache read ahead 
+ * Push read ahead request in queue */
+void cache_read_ahead (block_sector_t sector)
+{
+  lock_acquire (&q_lock);
+  struct q_entry *qe = (struct q_entry *) malloc (sizeof (struct q_entry));
+  qe->sector = sector;
+  list_push_back (&queue, &qe->elem);
+  cond_signal (&q_not_empty, &q_lock);
+  lock_release (&q_lock);
+}
+
+/* Flusher function 
+ * This function will used in kernel thread flusher */
+void flusher_func (void)
+{
+  while (true)
+  {
+    timer_sleep (WRITE_BEHIND_PERIOD);
+    cache_write_behind ();
+  }
+}
+
+/* Cache write behind
+ * Flush all dirty cache slots */
+void cache_write_behind (void)
+{
+  struct list_elem *e;
+  
+  for (e = list_front (&cache); e != list_end (&cache);
+       e = list_next (e))
+  {
+    struct cache_entry *ce = list_entry (e, struct cache_entry, elem);
+    if (ce->dirty) 
+    {
+      block_write (fs_device, ce->sector, ce->data);
+    }
+  }
+}
+
+/* Queue destruction */
+void q_destroy (void)
+{
+  struct list_elem *e;
+  struct q_entry *qe;
+  while (!list_empty (&queue))
+  {
+    e = list_pop_front (&queue);
+    qe = list_entry (e, struct q_entry, elem);
+    free (qe);
+  }
+}
