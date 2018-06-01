@@ -122,7 +122,7 @@ check_sector (struct block *block, block_sector_t sector)
 void
 block_read (struct block *block, block_sector_t sector, void *buffer)
 {
-  printf ("thread%d, block_read, sector : %d\n", thread_current ()->tid, sector);
+  //printf ("thread%d, block_read, sector : %d\n", thread_current ()->tid, sector);
   check_sector (block, sector);
   block->ops->read (block->aux, sector, buffer);
   block->read_cnt++;
@@ -136,7 +136,7 @@ block_read (struct block *block, block_sector_t sector, void *buffer)
 void
 block_write (struct block *block, block_sector_t sector, const void *buffer)
 {
-  printf ("thread%d, block_write, secotr : %d\n", thread_current ()->tid, sector);
+  //printf ("thread%d, block_write, secotr : %d\n", thread_current ()->tid, sector);
   check_sector (block, sector);
   ASSERT (block->type != BLOCK_FOREIGN);
   block->ops->write (block->aux, sector, buffer);

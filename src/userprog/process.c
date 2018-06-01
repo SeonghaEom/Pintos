@@ -176,6 +176,7 @@ process_exit (void)
       file_allow_write (cur->my_file);
     }
     //printf ("a\n");
+    /*
     if (&file_lock != NULL)
     {
       //printf ("b\n");
@@ -189,27 +190,27 @@ process_exit (void)
           lock_release (&file_lock);
         }
       }
-    }
+    }*/
 
-    lock_acquire (&file_lock);
+    //lock_acquire (&file_lock);
 #ifdef VM
     // remove mmap files
     //printf ("process_exit : thread%d mmap file size : %d\n", thread_current ()->tid,list_size (&thread_current ()->mmap_files)); 
     //printf ("process_exit : thread%d before remove all mfs\n", thread_current ()->tid);
     remove_all_mfs ();
     //printf ("process_exit : thread%d after remove all mfs\n", thread_current ()->tid);
-    lock_release (&file_lock);
+    //lock_release (&file_lock);
 #endif
     //printf ("process_exit : thread%d try to acquire file lock\n", thread_current ()->tid);
 
     // close files 
-    lock_acquire (&file_lock);
+    //lock_acquire (&file_lock);
     file_close (cur->my_file);
     //printf ("process_exit : thread%d before file close\n", thread_current ()->tid);
     close_all_files ();
     //printf ("process_exit : thread%d after file close\n", thread_current ()->tid);
     //printf ("process exit : thread%d r file lock\n", thread_current ()->tid);
-    lock_release (&file_lock);
+    //lock_release (&file_lock);
   }
   uint32_t *pd;
   
@@ -335,7 +336,6 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
 {
-  printf ("load..!!!!!!!!\n");
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -366,11 +366,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  lock_acquire (&file_lock);
-  printf ("load : thread%d a file lock\n", thread_current ()->tid);
+  //lock_acquire (&file_lock);
   file = filesys_open (argv[0]);
-  printf ("load : thread%d r file lock\n", thread_current ()->tid);
-  lock_release (&file_lock);
+  //lock_release (&file_lock);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -389,12 +387,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: error loading executable\n", file_name);
       goto done; 
     }
-  printf ("aaa\n");
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
   for (i = 0; i < ehdr.e_phnum; i++) 
     {
-      printf ("bbb\n");
       struct Elf32_Phdr phdr;
 
       if (file_ofs < 0 || file_ofs > file_length (file))
@@ -423,7 +419,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
           goto done;
         case PT_LOAD:
           /* TODO */
-          printf ("PT_LOAD\n");
           if (validate_segment (&phdr, file)) 
             {
               bool writable = (phdr.p_flags & PF_W) != 0;
@@ -542,7 +537,6 @@ static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
 {
-  printf ("load_segment!\n");
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
@@ -564,7 +558,6 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Populate spt */
       struct spte *spte = (struct spte *) malloc (sizeof (struct spte));
       spte->addr = upage;
-      printf ("addr : %p\n", upage);
       spte->file = file;
       spte->ofs = offset;
       spte->read_bytes = page_read_bytes;

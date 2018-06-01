@@ -91,26 +91,26 @@ fs_load (struct spte *spte)
   /* 2. page zero byte is 0 */
   else if (page_zero_bytes == 0)
   {
-    lock_acquire (&file_lock);
+    //lock_acquire (&file_lock);
     if (file_read_at (file, kpage, page_read_bytes, ofs) != PGSIZE)
     {
-      lock_release (&file_lock);
+      //lock_release (&file_lock);
       frame_free (kpage);
       return false;
     }
-    lock_release (&file_lock);
+    //lock_release (&file_lock);
   }
   /* 3. page zero byte is beween 0 and PGSIZE  */
   else
   {
-    lock_acquire (&file_lock);
+    //lock_acquire (&file_lock);
     if (file_read_at (file, kpage, page_read_bytes, ofs) != (int) page_read_bytes)
     {
-      lock_release (&file_lock);
+      //lock_release (&file_lock);
       frame_free (kpage);
       return false; 
     }
-    lock_release (&file_lock);
+    //lock_release (&file_lock);
 
     memset (kpage + page_read_bytes, 0, page_zero_bytes);
   }

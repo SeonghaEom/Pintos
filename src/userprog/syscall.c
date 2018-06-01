@@ -55,7 +55,7 @@ void
 syscall_init (void) 
 {
   //file_lock = (struct lock *) malloc (sizeof (struct lock));
-  lock_init (&file_lock);
+  //lock_init (&file_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
   lock_init (&mapid_lock);
 }
@@ -310,9 +310,9 @@ exec (const char *cmd_line)
 static bool
 create (const char *file, unsigned initial_size)
 {
-  lock_acquire (&file_lock);
+  //lock_acquire (&file_lock);
   bool result =  filesys_create (file, (int32_t) initial_size);
-  lock_release (&file_lock);
+  //lock_release (&file_lock);
   return result;
 }
 
@@ -351,9 +351,9 @@ write (int fd, const void *buffer, unsigned size)
     {
       thread_yield();
       struct file *f = filedes->file;
-      lock_acquire (&file_lock);
+      //lock_acquire (&file_lock);
       int result = (int) file_write (f, buffer, (off_t) size);
-      lock_release (&file_lock);
+      //lock_release (&file_lock);
       return result;
     }
   }
@@ -364,11 +364,11 @@ static bool
 remove (const char *file)
 { 
   //printf ("remove : thread%d a file lock\n", thread_current ()->tid);
-  lock_acquire (&file_lock);
+  //lock_acquire (&file_lock);
   //printf ("remove : thread%d a file lock\n", thread_current ()->tid);
   bool result = filesys_remove (file);
   //printf ("remove : thread%d r file lock\n", thread_current ()->tid);
-  lock_release (&file_lock);
+  //lock_release (&file_lock);
 
   return result;
 }
@@ -377,9 +377,9 @@ remove (const char *file)
 static int
 open (const char *file)
 {    
-  lock_acquire (&file_lock);
+  //lock_acquire (&file_lock);
   struct file *open_file = filesys_open(file);
-  lock_release (&file_lock);
+  //lock_release (&file_lock);
  
   /* file open fail */
   if (open_file == NULL)
@@ -562,9 +562,9 @@ read (int fd, void *buffer, unsigned size, struct intr_frame * i_f)
       } 
       
 #endif
-      lock_acquire (&file_lock);
+      //lock_acquire (&file_lock);
       int result = (int) file_read (f, buffer, size);
-      lock_release (&file_lock);
+      //lock_release (&file_lock);
 #ifdef VM
       /* Make all spte touchable here */
       for (i = 0; i < alloc_num; i++)
@@ -590,9 +590,9 @@ seek (int fd , unsigned position)
   else 
   {
     struct file *f = filedes->file;
-    lock_acquire (&file_lock);
+    //lock_acquire (&file_lock);
     file_seek (f, (off_t) position);
-    lock_release (&file_lock);
+    //lock_release (&file_lock);
   }
 }
 
@@ -606,9 +606,9 @@ tell (int fd)
   else 
   {
     struct file *f = find_file (fd)->file;
-    lock_acquire (&file_lock);
+    //lock_acquire (&file_lock);
     unsigned result = (unsigned) file_tell (f);
-    lock_release (&file_lock);
+    //lock_release (&file_lock);
 
     return result;
   }
@@ -633,9 +633,9 @@ close (int fd)
   { 
     struct file *f = find_file(fd)->file;
     list_remove (&filedes->elem);
-    lock_acquire (&file_lock);
+    //lock_acquire (&file_lock);
     file_close (f);
-    lock_release (&file_lock);
+    //lock_release (&file_lock);
     free (filedes);
   }
 }
@@ -710,7 +710,7 @@ mmap (int fd, void *addr)
     }
   }
    
-  lock_acquire (&file_lock);
+  //lock_acquire (&file_lock);
 
   struct file *newfile = file_reopen (file);
   /* Push the new file as new filedescriptor in open files and close it later by close_all_files */
@@ -718,7 +718,7 @@ mmap (int fd, void *addr)
   filedes->fd = fd;
   filedes->file = newfile;
   list_push_back (&thread_current ()->open_files, &filedes->elem);
-  lock_release (&file_lock);
+  //lock_release (&file_lock);
    
 
   /* Allocating new spte for each page while memory mapping */

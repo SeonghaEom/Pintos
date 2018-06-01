@@ -23,7 +23,7 @@ static struct cache_entry *cache_alloc (block_sector_t sector);
 static struct cache_entry *cache_evict (void);
 
 /* Write behind period (ticks) */
-#define WRITE_BEHIND_PERIOD 1000
+#define WRITE_BEHIND_PERIOD 10000000000000
 
 /* Lock state */
 enum lock_state
@@ -47,7 +47,7 @@ struct cache_entry
   enum lock_state state;        /* State of lock */
   struct condition r_end;       /* Signaled when read ends */
   struct condition w_end;       /* Signaled when write ends */
-  uint32_t *data;               /* Actual data that are cached */
+  uint8_t *data;               /* Actual data that are cached */
   bool touchable;               /* Can evict this cache entry */
 };
 
@@ -256,7 +256,7 @@ void flusher_func (void)
  * Flush all dirty cache slots */
 void cache_write_behind (void)
 {
-  printf ("----------------cache_write_behind--------------\n");
+  //printf ("----------------cache_write_behind--------------\n");
   struct list_elem *e;
   
   if (list_empty (&cache))
@@ -296,7 +296,7 @@ void q_destroy (void)
 off_t
 cache_read_at (void *dst, block_sector_t sector, off_t size, off_t offset)
 {
-  printf ("thread%d, cache READ, sector: %d, size: %d, offset: %d\n", thread_current()->tid, sector, size, offset);
+  //printf ("thread%d, cache READ, sector: %d, size: %d, offset: %d\n", thread_current()->tid, sector, size, offset);
   struct cache_entry *ce = cache_get_block (sector); 
   
   lock_acquire (&ce->lock);
@@ -347,7 +347,7 @@ cache_read_at (void *dst, block_sector_t sector, off_t size, off_t offset)
 off_t
 cache_write_at (block_sector_t sector, void *src, off_t size, off_t offset)
 {
-  printf ("thread%d, cache WRITE at sector: %d\n", thread_current()->tid, sector);
+  //printf ("thread%d, cache WRITE at sector: %d\n", thread_current()->tid, sector);
   struct cache_entry *ce = cache_get_block (sector);
 
   lock_acquire (&ce->lock);
