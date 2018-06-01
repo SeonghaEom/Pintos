@@ -1,12 +1,15 @@
 #include "filesys/cache.h"
+#include <stdio.h>
 #include <debug.h>
 #include <list.h>
 #include <string.h>
+#include "devices/block.h"
+#include "devices/timer.h"
+#include "threads/thread.h"
 #include "threads/malloc.h"
 #include "threads/synch.h"
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
-#include "devices/block.h"
 
 /* Structure for buffer cache */
 static struct list cache;
@@ -85,13 +88,21 @@ cache_find (block_sector_t sector)
 /* Try to read SECTOR from cache or block read if there is none */
 void *cache_read (block_sector_t sector)
 {
+  //printf ("thread%d, cache_read sector : %d\n", thread_current ()->tid, sector);
   struct cache_entry *ce = cache_find (sector);
 
   /* There is no corresponding block for the sector
    * and create new cache_entry */
   if (ce == NULL)
   {
+    printf ("cache miss! sector %d\n", sector);
+    //printf ("cache entry is NULL for sector : %d\n", sector);
     ce = cache_alloc (sector);
+  }
+  else 
+  {
+    printf ("cache hit! sector %d\n", sector);
+    //printf ("cache entry is not NULL for sector : %d\n", sector);
   }
   ce->read_cnt++;
 
@@ -129,6 +140,7 @@ cache_alloc (block_sector_t sector)
   {
     ce = (struct cache_entry *) malloc (sizeof (struct cache_entry));
     ce->data = (void *) malloc (BLOCK_SECTOR_SIZE);
+    list_push_back (&cache, &ce->elem);
   }
   /* Ce initialization */
   ce->sector = sector;
@@ -225,7 +237,7 @@ void flusher_func (void)
  * Flush all dirty cache slots */
 void cache_write_behind (void)
 {
-  //printf ("cache_write_behind\n");
+  printf ("cache_write_behind\n");
   struct list_elem *e;
   
   if (list_empty (&cache))
@@ -240,6 +252,7 @@ void cache_write_behind (void)
     if (ce->dirty) 
     {
       block_write (fs_device, ce->sector, ce->data);
+      ce->dirty = false;
     }
   }
 }

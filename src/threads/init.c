@@ -129,6 +129,7 @@ main (void)
   locate_block_devices ();
   filesys_init (format_filesys);
 #endif
+
 #ifdef VM
   /* Initialize frame table and swap table*/
   frame_table_init ();   

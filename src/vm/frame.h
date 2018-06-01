@@ -30,6 +30,6 @@ void frame_table_init (void);
 void *frame_alloc (enum palloc_flags flags, struct spte *spte);
 void frame_free (void *frame);
 struct fte *find_entry_by_frame(void *);
-struct fte *find_fte_by_stpe (struct spte *);
+struct fte *find_fte_by_spte (struct spte *spte);
 void remove_all_fte (void);
 #endif

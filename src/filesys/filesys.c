@@ -28,11 +28,6 @@ filesys_init (bool format)
   inode_init ();
   free_map_init ();
 
-  if (format) 
-    do_format ();
-
-  free_map_open ();
-
 #ifdef FILESYS
   /* Initialize cache */
   cache_init ();
@@ -40,6 +35,19 @@ filesys_init (bool format)
   thread_create ("read_aheader", PRI_DEFAULT, read_aheader_func, NULL);
   thread_create ("flusher", PRI_DEFAULT, flusher_func, NULL);
 #endif
+
+  if (format) 
+    do_format ();
+  free_map_open ();
+/*
+#ifdef FILESYS
+  /* Initialize cache 
+  cache_init ();
+  /* Creating read ahead and write behind threads 
+  thread_create ("read_aheader", PRI_DEFAULT, read_aheader_func, NULL);
+  thread_create ("flusher", PRI_DEFAULT, flusher_func, NULL);
+#endif*/
+
 }
 
 /* Shuts down the file system module, writing any unwritten data

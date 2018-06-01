@@ -15,10 +15,11 @@
  *  KimYoonseo
  *  EomSungha
  */
+
 /* Saved victim for second change algorithm */
 static struct list_elem *saved_victim;
 static void frame_add_to_table (void *frame, struct spte *spte);
-static void *frame_evict (enum palloc_flags flag);
+static void *frame_evict (void);
 
 /* Initialize the frame table */
 void frame_table_init (void)
@@ -62,7 +63,7 @@ void *frame_alloc (enum palloc_flags flag, struct spte *spte)
   else
   {
     lock_acquire (&frame_lock);
-    void *evicted_frame = frame_evict (flag);
+    void *evicted_frame = frame_evict ();
     /*  New spte is mapped with evited frame */
     struct fte *fte = find_entry_by_frame (evicted_frame);
     fte->spte = spte;
@@ -91,7 +92,7 @@ void frame_free (void *frame)
 
 /* Find the victom in frame table by second chance algorithm
  * and swapt out and return the victim's frame pointer to allocate new */
-static void *frame_evict (enum palloc_flags flag)
+static void *frame_evict (void)
 {
   /* Find the victim in frame table by second chance algorithm */
   struct list_elem *i;
@@ -153,6 +154,7 @@ find_entry_by_frame (void *frame)
   return NULL;
 }
 
+/* Find frame table entry in frame table by spte */
 struct fte *
 find_fte_by_spte (struct spte *spte)
 {
@@ -188,3 +190,6 @@ remove_all_fte (void)
     }
   }
 }
+
+
+
