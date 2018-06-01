@@ -15,6 +15,6 @@ void cache_read_ahead (block_sector_t);
 void flusher_func (void);
 void cache_write_behind (void);
 void q_destroy (void);
-off_t cache_read_at (void*, block_sector_t, off_t size, off_t offset);
-off_t cache_write_at (block_sector_t, void*, off_t size, off_t offset);
+off_t cache_read_at (void*, block_sector_t, off_t size, off_t offset, bool ahead);
+off_t cache_write_at (block_sector_t, void*, off_t size, off_t offset, bool ahead);
 #endif /* filesys/cache.h */

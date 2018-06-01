@@ -294,7 +294,7 @@ void q_destroy (void)
 
 /* Cache read at from sector plus offset to dst by size */
 off_t
-cache_read_at (void *dst, block_sector_t sector, off_t size, off_t offset)
+cache_read_at (void *dst, block_sector_t sector, off_t size, off_t offset, bool ahead)
 {
   //printf ("thread%d, cache READ, sector: %d, size: %d, offset: %d\n", thread_current()->tid, sector, size, offset);
   struct cache_entry *ce = cache_get_block (sector); 
@@ -314,8 +314,9 @@ cache_read_at (void *dst, block_sector_t sector, off_t size, off_t offset)
   }
   /* Start reading */
   /* Accessing cache entry and write to buffer */
-
-  cache_read_ahead (sector + 1);
+  
+  if (ahead)
+    cache_read_ahead (sector + 1);
   memcpy (dst, ce->data + offset, size);
   
   /* End reading 
@@ -345,7 +346,7 @@ cache_read_at (void *dst, block_sector_t sector, off_t size, off_t offset)
 
 /* Cache write from src to sector plus offset by size*/
 off_t
-cache_write_at (block_sector_t sector, void *src, off_t size, off_t offset)
+cache_write_at (block_sector_t sector, void *src, off_t size, off_t offset, bool ahead)
 {
   //printf ("thread%d, cache WRITE at sector: %d\n", thread_current()->tid, sector);
   struct cache_entry *ce = cache_get_block (sector);
@@ -365,7 +366,8 @@ cache_write_at (block_sector_t sector, void *src, off_t size, off_t offset)
     cond_wait (&ce->r_end, &ce->lock);
   }
   /* Accessing cache entry and write to it */
-  cache_read_ahead (sector + 1);
+  if (ahead)
+    cache_read_ahead (sector + 1);
   memcpy (ce->data + offset, src, size);
   ce->dirty = true;
   /* If there are actually no waiters in w_end
