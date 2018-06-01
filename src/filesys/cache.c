@@ -35,7 +35,7 @@ struct cache_entry
   int read_cnt;                 /* Read count */
   int write_cnt;                /* Write count */
   int pending_cnt;              /* Pending count for read/write requests */
-  // struct lock lock;
+  struct lock *lock;
   uint32_t *data;               /* Actual data that are cached */
 };
 
@@ -64,6 +64,7 @@ void cache_destroy (void)
     e = list_pop_front (&cache);
     ce = list_entry (e, struct cache_entry, elem);
     free (ce->data);
+    free (ce->lock);
     free (ce);
   }
 }
@@ -95,13 +96,13 @@ void *cache_read (block_sector_t sector)
    * and create new cache_entry */
   if (ce == NULL)
   {
-    printf ("cache miss! sector %d\n", sector);
+    //printf ("cache miss! sector %d\n", sector);
     //printf ("cache entry is NULL for sector : %d\n", sector);
     ce = cache_alloc (sector);
   }
   else 
   {
-    printf ("cache hit! sector %d\n", sector);
+    //printf ("cache hit! sector %d\n", sector);
     //printf ("cache entry is not NULL for sector : %d\n", sector);
   }
   ce->read_cnt++;
@@ -139,6 +140,9 @@ cache_alloc (block_sector_t sector)
   else
   {
     ce = (struct cache_entry *) malloc (sizeof (struct cache_entry));
+    struct lock *lock = (struct lock *) malloc (sizeof (struct lock));
+    lock_init (lock);
+    ce->lock = lock;
     ce->data = (void *) malloc (BLOCK_SECTOR_SIZE);
     list_push_back (&cache, &ce->elem);
   }

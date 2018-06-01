@@ -93,22 +93,21 @@ inode_create (block_sector_t sector, off_t length)
       disk_inode->magic = INODE_MAGIC;
       if (free_map_allocate (sectors, &disk_inode->start)) 
         {
-          //bounce = cache_read (sector);
-          //cache_read_ahead (sector + 1);
-          //memcpy (disk_inode, bounce, BLOCK_SECTOR_SIZE);
-          //cache_set_dirty (sector);
-          block_write (fs_device, sector, disk_inode);
-          
+          bounce = cache_read (sector);
+          cache_read_ahead (sector + 1);
+          memcpy (bounce, disk_inode, BLOCK_SECTOR_SIZE);
+          cache_set_dirty (sector);
+          //block_write (fs_device, sector, disk_inode);
           if (sectors > 0) 
             {
               static char zeros[BLOCK_SECTOR_SIZE];
               size_t i;
               
               for (i = 0; i < sectors; i++) 
-                //bounce = cache_read (disk_inode->start + i);
-                //cache_read_ahead (disk_inode->start + i + 1);
-                //memcpy (zeros, bounce, BLOCK_SECTOR_SIZE);
-                block_write (fs_device, disk_inode->start + i, zeros);
+                bounce = cache_read (disk_inode->start + i);
+                cache_read_ahead (disk_inode->start + i + 1);
+                memcpy (bounce, zeros, BLOCK_SECTOR_SIZE);
+                //block_write (fs_device, disk_inode->start + i, zeros);
             }
           success = true; 
         } 
@@ -152,10 +151,10 @@ inode_open (block_sector_t sector)
   inode->deny_write_cnt = 0;
   inode->removed = false;
   
-  block_read (fs_device, inode->sector, &inode->data);
-  //bounce = cache_read (sector);
-  //cache_read_ahead (sector + 1);
-  //memcpy (&inode->data, bounce, BLOCK_SECTOR_SIZE);
+  //block_read (fs_device, inode->sector, &inode->data);
+  bounce = cache_read (sector);
+  cache_read_ahead (sector + 1);
+  memcpy (&inode->data, bounce, BLOCK_SECTOR_SIZE);
   return inode;
 }
 

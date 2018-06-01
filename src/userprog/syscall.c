@@ -350,7 +350,7 @@ write (int fd, const void *buffer, unsigned size)
     else
     {
       thread_yield();
-      struct file *f = find_file (fd)->file;
+      struct file *f = filedes->file;
       lock_acquire (&file_lock);
       int result = (int) file_write (f, buffer, (off_t) size);
       lock_release (&file_lock);
