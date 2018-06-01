@@ -93,21 +93,27 @@ inode_create (block_sector_t sector, off_t length)
       disk_inode->magic = INODE_MAGIC;
       if (free_map_allocate (sectors, &disk_inode->start)) 
         {
+          /*
           bounce = cache_read (sector);
           cache_read_ahead (sector + 1);
           memcpy (bounce, disk_inode, BLOCK_SECTOR_SIZE);
-          cache_set_dirty (sector);
+          cache_set_dirty (sector); */
+          cache_write_at (sector, disk_inode, BLOCK_SECTOR_SIZE, 0);
           //block_write (fs_device, sector, disk_inode);
           if (sectors > 0) 
             {
               static char zeros[BLOCK_SECTOR_SIZE];
               size_t i;
               
-              for (i = 0; i < sectors; i++) 
+              for (i = 0; i < sectors; i++)
+              {
+                /*
                 bounce = cache_read (disk_inode->start + i);
                 cache_read_ahead (disk_inode->start + i + 1);
-                memcpy (bounce, zeros, BLOCK_SECTOR_SIZE);
+                memcpy (bounce, zeros, BLOCK_SECTOR_SIZE); */
+                cache_write_at (disk_inode->start + i, zeros, BLOCK_SECTOR_SIZE, 0);
                 //block_write (fs_device, disk_inode->start + i, zeros);
+              }
             }
           success = true; 
         } 
@@ -152,9 +158,11 @@ inode_open (block_sector_t sector)
   inode->removed = false;
   
   //block_read (fs_device, inode->sector, &inode->data);
+  /*
   bounce = cache_read (sector);
   cache_read_ahead (sector + 1);
-  memcpy (&inode->data, bounce, BLOCK_SECTOR_SIZE);
+  memcpy (&inode->data, bounce, BLOCK_SECTOR_SIZE); */
+  cache_read_at (&inode->data, sector, BLOCK_SECTOR_SIZE, 0);
   return inode;
 }
 
@@ -258,10 +266,14 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
           memcpy (buffer + bytes_read, bounce + sector_ofs, chunk_size);
         }
       */
+    
+      cache_read_at (buffer + bytes_read, sector_idx, chunk_size, sector_ofs);
+      /*
       bounce = cache_read (sector_idx);
       cache_read_ahead (sector_idx + 1);
       memcpy (buffer + bytes_read, bounce + sector_ofs, chunk_size);
-      
+      */
+
       /* Advance. */
       size -= chunk_size;
       offset += chunk_size;
@@ -330,11 +342,14 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
           block_write (fs_device, sector_idx, bounce);
         }
       */
+
+      cache_write_at (sector_idx, buffer + bytes_written , chunk_size, sector_ofs);
+      /*
       bounce = cache_read (sector_idx);
       cache_read_ahead (sector_idx + 1);
       memcpy (bounce + sector_ofs, buffer + bytes_written, chunk_size);
       cache_set_dirty (sector_idx);
-
+      */
       /* Advance. */
       size -= chunk_size;
       offset += chunk_size;

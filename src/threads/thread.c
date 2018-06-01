@@ -198,7 +198,6 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-
   struct semaphore *exit_sema = (struct semaphore *) malloc (sizeof (struct semaphore));
   sema_init (exit_sema, 0);
   t->exit_sema = exit_sema;

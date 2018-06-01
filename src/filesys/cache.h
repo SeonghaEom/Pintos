@@ -4,16 +4,17 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include "devices/block.h"
+#include "filesys/off_t.h"
 
 void cache_init (void);
 void cache_destroy (void);
 struct cache_entry *cache_find (block_sector_t);
-void *cache_read (block_sector_t);
-bool cache_set_dirty (block_sector_t);
+struct cache_entry *cache_get_block (block_sector_t);
 void read_aheader_func (void);
 void cache_read_ahead (block_sector_t);
 void flusher_func (void);
 void cache_write_behind (void);
 void q_destroy (void);
-
+off_t cache_read_at (void*, block_sector_t, off_t size, off_t offset);
+off_t cache_write_at (block_sector_t, void*, off_t size, off_t offset);
 #endif /* filesys/cache.h */

@@ -335,6 +335,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
 {
+  printf ("load..!!!!!!!!\n");
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -366,9 +367,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   /* Open executable file. */
   lock_acquire (&file_lock);
-  //printf ("load : thread%d a file lock\n", thread_current ()->tid);
+  printf ("load : thread%d a file lock\n", thread_current ()->tid);
   file = filesys_open (argv[0]);
-  //printf ("load : thread%d r file lock\n", thread_current ()->tid);
+  printf ("load : thread%d r file lock\n", thread_current ()->tid);
   lock_release (&file_lock);
   if (file == NULL) 
     {
@@ -388,11 +389,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: error loading executable\n", file_name);
       goto done; 
     }
-
+  printf ("aaa\n");
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
   for (i = 0; i < ehdr.e_phnum; i++) 
     {
+      printf ("bbb\n");
       struct Elf32_Phdr phdr;
 
       if (file_ofs < 0 || file_ofs > file_length (file))
@@ -421,6 +423,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
           goto done;
         case PT_LOAD:
           /* TODO */
+          printf ("PT_LOAD\n");
           if (validate_segment (&phdr, file)) 
             {
               bool writable = (phdr.p_flags & PF_W) != 0;
@@ -539,7 +542,7 @@ static bool
 load_segment (struct file *file, off_t ofs, uint8_t *upage,
               uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
 {
-  //printf ("load_segment!\n");
+  printf ("load_segment!\n");
   ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
   ASSERT (pg_ofs (upage) == 0);
   ASSERT (ofs % PGSIZE == 0);
@@ -561,7 +564,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       /* Populate spt */
       struct spte *spte = (struct spte *) malloc (sizeof (struct spte));
       spte->addr = upage;
-      //printf ("addr : %p\n", upage);
+      printf ("addr : %p\n", upage);
       spte->file = file;
       spte->ofs = offset;
       spte->read_bytes = page_read_bytes;

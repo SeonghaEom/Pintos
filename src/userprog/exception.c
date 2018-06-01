@@ -268,6 +268,7 @@ page_fault (struct intr_frame *f)
     }
     else
     {
+      printf ("no spte...\n");
       if (user)
       {
         exit (-1);
