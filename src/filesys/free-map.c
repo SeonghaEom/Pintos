@@ -88,6 +88,8 @@ free_map_create (void)
 size_t
 free_map_left (void)
 {
-  return bitmap_count (free_map, 0, free_map->bit_cnt, false); 
+  size_t size = bitmap_size (free_map); 
+  size_t cnt = bitmap_count (free_map, (size_t) 0, size, false); 
+  return cnt;
 }
 
