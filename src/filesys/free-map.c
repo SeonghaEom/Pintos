@@ -83,3 +83,11 @@ free_map_create (void)
   if (!bitmap_write (free_map, free_map_file))
     PANIC ("can't write free map");
 }
+
+/* Returns number of free sector */
+size_t
+free_map_left (void)
+{
+  return bitmap_count (free_map, 0, free_map->bit_cnt, false); 
+}
+

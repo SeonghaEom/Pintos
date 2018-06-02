@@ -5,6 +5,11 @@
 #include "filesys/off_t.h"
 #include "devices/block.h"
 
+#define DIRECT_BLOCK 124
+#define INDIRECT_BLOCK 1
+#define DOUBLY_INDIRECT_BLOCK 1
+#define INDEX_BLOCK 128
+
 struct bitmap;
 
 void inode_init (void);

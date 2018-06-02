@@ -10,6 +10,7 @@
 #include "threads/synch.h"
 #include "filesys/filesys.h"
 #include "filesys/free-map.h"
+#include "filesys/inode.h"
 
 /* Structure for buffer cache */
 static struct list cache;
@@ -366,8 +367,8 @@ cache_write_at (block_sector_t sector, void *src, off_t size, off_t offset, bool
     cond_wait (&ce->r_end, &ce->lock);
   }
   /* Accessing cache entry and write to it */
-  if (ahead)
-    cache_read_ahead (sector + 1);
+  //if (ahead)
+  //  cache_read_ahead (sector + 1);
   memcpy (ce->data + offset, src, size);
   ce->dirty = true;
   /* If there are actually no waiters in w_end
@@ -389,4 +390,24 @@ cache_write_at (block_sector_t sector, void *src, off_t size, off_t offset, bool
     cond_broadcast (&ce->w_end, &ce->lock);
   }
   lock_release (&ce->lock);
+}
+
+/* Inode in given sector is closed, so need to release corresponding free map */
+void cache_close_inode (block_sector_t sector)
+{
+  struct cache_entry *ce = cache_get_block (sector);
+  struct inode_disk *id = ce->data;
+  // TODO 
+  if (id < DIRECT_BLOCK)
+  {
+    
+  }
+}
+
+/* Returns the length, in bytes, of inode's datain given SECTOR */
+off_t cache_inode_length (block_sector_t sector)
+{
+  struct cache_entry *ce = cache_get_block (sector);
+  struct inode_disk *id = ce->data;
+  return id->length;
 }
