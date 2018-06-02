@@ -472,16 +472,19 @@ cache_byte_to_sector (block_sector_t sector, off_t offset)
   struct inode_disk *id = ce->data;
   if (offset < id->length)
   {
-    size_t sector_index = DIV_ROUND_UP (offset, BLOCK_SECTOR_SIZE); 
-    if (sector_index <= DIRECT_BLOCK)
+    size_t sector_index = offset/BLOCK_SECTOR_SIZE;  
+    //printf ("sector_index :%d\n", sector_index);
+    if (sector_index < DIRECT_BLOCK)
     {
+      //printf ("id->direct[sector_index] = %d\n",id->direct[sector_index]);
       return id->direct[sector_index];
     } 
-    else if  (sector_index <= DIRECT_BLOCK + INDEX_BLOCK)
+    else if  (sector_index < DIRECT_BLOCK + INDEX_BLOCK)
     {
       /* Accessing indirect block */
       struct cache_entry *ce2 = cache_get_block (id->indirect[0]);
       struct index_disk *id2 = ce2->data;
+      //printf ("id2->index[sector_index - DIRECT_BLOCK] = %d\n", id2->index[sector_index-DIRECT_BLOCK]);
       return id2->index[sector_index - DIRECT_BLOCK];
     }
     else 

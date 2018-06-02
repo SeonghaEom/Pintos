@@ -169,12 +169,15 @@ process_exit (void)
 {
   //printf ("process_exit : thread%d\n", thread_current ()->tid);
   struct thread *cur = thread_current ();
+  
   if (cur->parent != NULL)
   {
+    /*
     if (cur->my_file != NULL)
     {
       file_allow_write (cur->my_file);
-    }
+    }*/
+
     //printf ("a\n");
     /*
     if (&file_lock != NULL)
