@@ -16,7 +16,6 @@
 //#define DOUBLY_INDIRECT_BLOCK 1
 //#define INDEX_BLOCK 128
 
-
 /* Returns the number of sectors to allocate for an inode SIZE
    bytes long. */
 static inline size_t
@@ -429,9 +428,9 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 
   if (inode->deny_write_cnt)
     return 0;
-
   while (size > 0) 
     {
+      cache_inode_extend (inode->sector, size, offset);
       /* Sector to write, starting byte offset within sector. */
       block_sector_t sector_idx = cache_byte_to_sector (inode->sector, offset);
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
@@ -474,6 +473,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       */
 
       cache_write_at (sector_idx, buffer + bytes_written , chunk_size, sector_ofs);
+
       /*
       bounce = cache_read (sector_idx);
       cache_read_ahead (sector_idx + 1);
@@ -517,3 +517,5 @@ inode_length (const struct inode *inode)
   return cache_inode_length (inode->sector);
   //return inode->data.length;
 }
+
+
