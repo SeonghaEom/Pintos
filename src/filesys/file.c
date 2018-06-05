@@ -158,6 +158,7 @@ file_seek (struct file *file, off_t new_pos)
 {
   ASSERT (file != NULL);
   ASSERT (new_pos >= 0);
+  //inode_extend (file->inode, new_pos);
   file->pos = new_pos;
 }
 

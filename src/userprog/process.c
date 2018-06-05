@@ -169,9 +169,10 @@ process_exit (void)
 {
   //printf ("process_exit : thread%d\n", thread_current ()->tid);
   struct thread *cur = thread_current ();
-  
+  //printf ("a\n"); 
   if (cur->parent != NULL)
   {
+    //printf ("b\n");
     /*
     if (cur->my_file != NULL)
     {
@@ -220,8 +221,8 @@ process_exit (void)
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
-  sema_up(cur->exit_sema);
-  sema_down(cur->exit_status_sema);
+  sema_up (cur->exit_sema);
+  sema_down (cur->exit_status_sema);
 
   if (pd != NULL) 
     {
@@ -233,14 +234,14 @@ process_exit (void)
          directory, or our active page directory will be one
          that's been freed (and cleared). */
 
-
-      //lock_acquire (&frame_lock);
+      lock_acquire (&frame_lock);
       //printf ("process exit : thread%d a file lock \n", thread_current ()->tid);
       cur->pagedir = NULL;
       pagedir_activate (NULL);
       pagedir_destroy (pd);
       remove_all_fte ();
-      //lock_release (&frame_lock);
+      
+      lock_release (&frame_lock);
       //printf ("before remove_all_fte\n");
       //printf ("process exit : thread%d r file lock \n", thread_current ()->tid);
     }

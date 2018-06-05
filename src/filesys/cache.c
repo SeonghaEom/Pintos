@@ -509,52 +509,112 @@ cache_byte_to_sector (block_sector_t sector, off_t offset)
   }
 }   
 
-void cache_inode_extend (block_sector_t sector, off_t size, off_t offset)
+/* Extend inode with given sector to length be a new_pos */
+void cache_inode_extend (block_sector_t sector, off_t new_pos)
 {
   struct cache_entry *ce = cache_find (sector);
   struct inode_disk *id = ce->data;
-  int sector_length = DIV_ROUND_UP (id->length, BLOCK_SECTOR_SIZE);
-  int ext_cnt = DIV_ROUND_UP (offset + size, BLOCK_SECTOR_SIZE) - sector_length;
-  printf ("thread%d:SIZE %d, OFFSET %d\n", thread_current()->tid, size, offset);
-  printf ("thread%d:LENGTH %d\n",thread_current()->tid, id->length);
+  size_t sector_length = DIV_ROUND_UP (id->length, BLOCK_SECTOR_SIZE);
+  size_t needed_length = DIV_ROUND_UP (new_pos, BLOCK_SECTOR_SIZE);
+  
+  /* extension needed */
+  int ext_cnt = needed_length - sector_length;
+  
+  //printf ("inode block %d, current sector length %d, current write needs :%d, extended :%d\n", sector, sector_length, needed_length, ext_cnt);
+  
+  //printf ("thread%d:SIZE %d, OFFSET %d\n", thread_current()->tid, size, offset);
+  //printf ("thread%d:LENGTH %d\n",thread_current()->tid, id->length);
+  
   if (ext_cnt > 0)
   {
     int i;
-    printf ("ext_cnt = %d\n", ext_cnt);
+    //printf ("ext_cnt = %d\n", ext_cnt);
     static char zeros[BLOCK_SECTOR_SIZE];
-    for (i = 0; i<ext_cnt; i++)
+    for (i = 0; i < ext_cnt; i++)
     {
       if (sector_length < DIRECT_BLOCK)
       {
-        printf ("direct block, sector_length: %d\n", sector_length);
+        //printf ("direct block, sector_length: %d\n", sector_length);
         free_map_allocate (1, &id->direct[sector_length]);
         cache_write_at (id->direct[sector_length], zeros, BLOCK_SECTOR_SIZE, 0);
       }
       else if (sector_length < DIRECT_BLOCK + INDEX_BLOCK)
       {
-        printf ("indirect block, sector_length: %d\n", sector_length);
+        if (sector_length == DIRECT_BLOCK)
+        {
+          struct index_disk *indirect_index = calloc (1, sizeof *indirect_index);
+          if (indirect_index != NULL)
+          {
+            free_map_allocate (1, &id->indirect[0]);
+            cache_write_at (id->indirect[0], indirect_index, BLOCK_SECTOR_SIZE, 0);
+          }
+        }
+        //printf ("inode block %d, current sector length %d, current write needs :%d, extended :%d\n", sector, sector_length, needed_length, ext_cnt);
+        //printf ("indirect block, sector_length: %d\n", sector_length);
         struct cache_entry *ce2 = cache_find (id->indirect[0]);
         struct index_disk *id2 = ce2->data;
+        //printf ("id2 index : %d\n", sector_length - DIRECT_BLOCK);
         free_map_allocate (1, &id2->index[sector_length - DIRECT_BLOCK]);
         cache_write_at (id2->index[sector_length - DIRECT_BLOCK], zeros, BLOCK_SECTOR_SIZE, 0);
       }
       else
       {
-        printf ("doubley indirect block, sector_length: %d\n", sector_length);
+        if (sector_length == DIRECT_BLOCK + INDEX_BLOCK)
+        {
+          struct index_disk *doubly_indirect_index = calloc (1, sizeof *doubly_indirect_index);
+          if (doubly_indirect_index != NULL)
+          {
+            free_map_allocate (1, &id->doubly_indirect[0]);
+            cache_write_at (id->doubly_indirect[0], doubly_indirect_index, BLOCK_SECTOR_SIZE, 0);
+          }
+        }
+        size_t index = (sector_length - DIRECT_BLOCK - INDEX_BLOCK) / INDEX_BLOCK;
+        size_t remainder = (sector_length - DIRECT_BLOCK - INDEX_BLOCK) % INDEX_BLOCK;
+        if (remainder == 0)
+        {
+          struct index_disk *doubly_indirect_indirect_index =
+            calloc (1, sizeof *doubly_indirect_indirect_index);
+          if (doubly_indirect_indirect_index != NULL)
+          {
+            free_map_allocate (1, &doubly_indirect_indirect_index[index]);
+          }
+        }
+        //printf ("doubley indirect block, sector_length: %d\n", sector_length);
         struct cache_entry *ce3 = cache_find (id->doubly_indirect[0]);
         struct index_disk *id3 = ce3->data;
-        free_map_allocate (1, &id3->index[sector_length - DIRECT_BLOCK - INDEX_BLOCK]);
-        cache_write_at (id3->index[sector_length - DIRECT_BLOCK - INDEX_BLOCK], zeros, BLOCK_SECTOR_SIZE, 0);
+        struct cache_entry *ce4 = cache_find (id3->index[index]);
+        struct index_disk *id4 = ce4->data;
+        free_map_allocate (1, &id4->index[sector_length - DIRECT_BLOCK - INDEX_BLOCK * index]);
+        cache_write_at (&id4->index[sector_length - DIRECT_BLOCK - INDEX_BLOCK *index],
+            zeros, BLOCK_SECTOR_SIZE, 0);
       }   
       sector_length++;
     }
-
-  }
-  if ( size + offset > id->length)
-  {
-
-    printf ("thread%d: extended %d\n", thread_current()->tid, size + offset - id->length);
-    id->length = size + offset;
   }
   
+  if (new_pos > id->length)
+  {
+    //printf ("thread%d: extended %d\n", thread_current()->tid, size + offset - id->length);
+    id->length = new_pos;
+  }
+  
+}
+
+/* Cache save inode
+ * Get inode from given sector and save sector to disk if dirty */
+void cache_save_inode (block_sector_t sector)
+{
+  struct cache_entry *ce = cache_find (sector);
+  struct inode_disk *id = ce->data;
+  if (id != NULL)
+  {
+    if (ce->dirty)
+    {
+      //cache_write_at (ce->sector, ce->data, BLOCK_SECTOR_SIZE, 0);
+      //block_write (fs_device, ce->sector, ce->data);
+      ce->dirty = false;
+    }
+    size_t sectors = bytes_to_sectors (id->length);
+    size_ 
+  }
 }

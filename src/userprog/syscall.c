@@ -674,6 +674,7 @@ remove_all_mfs (void)
     munmap (mf->mapid);
   }
 }
+
 /* Mmap with fd and user virtual address */
 static mapid_t
 mmap (int fd, void *addr)
