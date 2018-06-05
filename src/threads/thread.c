@@ -219,6 +219,9 @@ thread_create (const char *name, int priority,
   spt_init (spt);
 
 #endif
+#ifdef FILESYS
+  t->cur_dir = thread_current ()->cur_dir;
+#endif
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 
      member cannot be observed. */
@@ -831,3 +834,29 @@ find_file_by_name (char * file_name, struct list *parent_list )
   return NULL;
 }
 
+#ifdef FILESYS
+/* Find open directory in open_dirs */
+struct filedescriptor *
+find_dir (int fd)
+{
+  struct list_elem *e;
+  struct list *fds = &thread_current ()->open_dirs;
+
+  /* open_files is not empty */
+  if (list_size (fds) != 0)
+  {
+    //printf ("find_file\n");
+    for (e = list_begin (fds); e != list_end (fds);
+         e = list_next (e))
+    {
+      struct filedescriptor *f = list_entry (e, struct filedescriptor, elem);
+      /* We found thread with fd */
+      if (f->fd == fd)
+      {
+        return f;
+      }
+    }
+  }
+  return NULL;
+}
+#endif

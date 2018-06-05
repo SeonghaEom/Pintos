@@ -5,6 +5,9 @@
 #include <list.h>
 #include <stdint.h>
 #include "synch.h"
+#ifdef FILESYS
+#include "filesys/directory.h"
+#endif
 
 
 /* States in a thread's life cycle. */
@@ -125,6 +128,10 @@ struct thread
     struct hash *spt;                   /* Supplemental page table */ 
     struct list mmap_files;             /* Mmap files list */
 #endif
+#ifdef FILESYS
+    struct dir *cur_dir;                /* Current directory that this thread is in */
+    struct list open_dirs;
+#endif
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
@@ -137,6 +144,9 @@ struct filedescriptor
     const char *filename;
     struct list_elem elem;
     struct file *file;
+#ifdef FILESYS
+    struct dir *dir;
+#endif
   };
 
 

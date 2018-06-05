@@ -5,6 +5,7 @@
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
 #include "threads/malloc.h"
+#include "devices/block.h"
 
 /* A directory. */
 struct dir 
@@ -234,3 +235,17 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
     }
   return false;
 }
+
+/*bool
+dir_absolute (const char *dir, char *argv[50)
+{
+  char *argv[50];
+  char *dir_copy;
+  strlcpy (dir_copy, dir, strlen(dir)+1);
+  int i;
+  for (i=0; i<50; i++)
+  {
+    argv[i] = strtok_r (dir_copy, "/", &save_ptr);
+  }
+}
+*/
