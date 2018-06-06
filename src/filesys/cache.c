@@ -24,6 +24,14 @@ static struct list_elem *saved_victim;
 static struct cache_entry *cache_alloc (block_sector_t sector);
 static struct cache_entry *cache_evict (void);
 
+/* Returns the number of sectors to allocate for an inode SIZE
+   bytes long. */
+static inline size_t
+bytes_to_sectors (off_t size)
+{
+  return DIV_ROUND_UP (size, BLOCK_SECTOR_SIZE);
+}
+
 /* Write behind period (ticks) */
 #define WRITE_BEHIND_PERIOD 10000000000000
 
@@ -271,13 +279,14 @@ void cache_write_behind (void)
   {
     struct cache_entry *ce = list_entry (e, struct cache_entry, elem);
     /* For sync with flusher */
-    ce->touchable = false;
+    //ce->touchable = false;
     if (ce->dirty) 
     {
+      //ce->touchable = false;
       block_write (fs_device, ce->sector, ce->data);
       ce->dirty = false;
     }
-    ce->touchable = true;
+    //ce->touchable = true;
   }
 }
 
@@ -471,13 +480,13 @@ cache_byte_to_sector (block_sector_t sector, off_t offset)
   /* Accesing inode disk */
   struct cache_entry *ce = cache_get_block (sector);
   struct inode_disk *id = ce->data;
+  //printf ("cache_byte_to_sector setcor%d, offset: %d, id->length: %d\n", sector, offset, id->length);
   if (offset < id->length)
   {
     size_t sector_index = offset/BLOCK_SECTOR_SIZE;  
     //printf ("sector_index :%d\n", sector_index);
     if (sector_index < DIRECT_BLOCK)
     {
-      //printf ("id->direct[sector_index] = %d\n",id->direct[sector_index]);
       return id->direct[sector_index];
     } 
     else if  (sector_index < DIRECT_BLOCK + INDEX_BLOCK)
@@ -492,15 +501,27 @@ cache_byte_to_sector (block_sector_t sector, off_t offset)
     {
       /* Accessing doubly indirect block */
       struct cache_entry *ce3 = cache_get_block (id->doubly_indirect[0]);
+      //printf ("doubly indirect의 섹터 번호: %d\n", id->doubly_indirect[0]);
       struct index_disk *id3 = ce3->data;
       size_t doubly_indirect_index = 
-        DIV_ROUND_UP (sector_index - DIRECT_BLOCK - INDEX_BLOCK, INDEX_BLOCK);
-    
+        (sector_index - DIRECT_BLOCK - INDEX_BLOCK) / INDEX_BLOCK;
+      
+      //printf ("doubly_indirect_index: %d\n", doubly_indirect_index);
       /* Acessing doubly indirect indirect block */
       struct cache_entry *ce4 = cache_get_block (id3->index[doubly_indirect_index]);
+      //printf ("doubly_indirect_indrect의 섹터 번호: %d\n", id3->index[0]);
       struct index_disk *id4 = ce4->data;
-      return id4->index[sector_index - DIRECT_BLOCK -
-        INDEX_BLOCK * doubly_indirect_index];
+      if (sector == 227)
+      {
+        //printf ("sector_index %d, sector_index - DB -IB = %d\n", sector_index, sector_index - DIRECT_BLOCK - INDEX_BLOCK);
+        
+        //printf ("doubly_indirect_index: %d\n", doubly_indirect_index);
+        //printf ("cache_byte_to_sector: %d, offset: %d\n", sector, offset);
+        //printf ("index: %d\n", sector_index - DIRECT_BLOCK - INDEX_BLOCK - INDEX_BLOCK * (doubly_indirect_index));
+        //printf ("id4->index[sector_index - DIRECT_BLOCK - INDEX_BLOCK * doubly_indirect_index] = %d\n", id4->index[sector_index - DIRECT_BLOCK - - INDEX_BLOCK - INDEX_BLOCK * (doubly_indirect_index )]);
+      }
+      return id4->index[sector_index - DIRECT_BLOCK - INDEX_BLOCK - 
+        INDEX_BLOCK * (doubly_indirect_index)];
     }
   }
   else
@@ -520,13 +541,13 @@ void cache_inode_extend (block_sector_t sector, off_t new_pos)
   /* extension needed */
   int ext_cnt = needed_length - sector_length;
   
-  //printf ("inode block %d, current sector length %d, current write needs :%d, extended :%d\n", sector, sector_length, needed_length, ext_cnt);
-  
   //printf ("thread%d:SIZE %d, OFFSET %d\n", thread_current()->tid, size, offset);
   //printf ("thread%d:LENGTH %d\n",thread_current()->tid, id->length);
   
   if (ext_cnt > 0)
   {
+    //printf ("inode block %d, current sector length %d, current write needs :%d, extended :%d\n", sector, sector_length, needed_length, ext_cnt);
+ 
     int i;
     //printf ("ext_cnt = %d\n", ext_cnt);
     static char zeros[BLOCK_SECTOR_SIZE];
@@ -536,6 +557,7 @@ void cache_inode_extend (block_sector_t sector, off_t new_pos)
       {
         //printf ("direct block, sector_length: %d\n", sector_length);
         free_map_allocate (1, &id->direct[sector_length]);
+        ce->dirty = true;
         cache_write_at (id->direct[sector_length], zeros, BLOCK_SECTOR_SIZE, 0);
       }
       else if (sector_length < DIRECT_BLOCK + INDEX_BLOCK)
@@ -546,6 +568,7 @@ void cache_inode_extend (block_sector_t sector, off_t new_pos)
           if (indirect_index != NULL)
           {
             free_map_allocate (1, &id->indirect[0]);
+            ce->dirty = true;
             cache_write_at (id->indirect[0], indirect_index, BLOCK_SECTOR_SIZE, 0);
           }
         }
@@ -555,6 +578,7 @@ void cache_inode_extend (block_sector_t sector, off_t new_pos)
         struct index_disk *id2 = ce2->data;
         //printf ("id2 index : %d\n", sector_length - DIRECT_BLOCK);
         free_map_allocate (1, &id2->index[sector_length - DIRECT_BLOCK]);
+        ce2->dirty = true;
         cache_write_at (id2->index[sector_length - DIRECT_BLOCK], zeros, BLOCK_SECTOR_SIZE, 0);
       }
       else
@@ -565,26 +589,33 @@ void cache_inode_extend (block_sector_t sector, off_t new_pos)
           if (doubly_indirect_index != NULL)
           {
             free_map_allocate (1, &id->doubly_indirect[0]);
+            ce->dirty = true;
             cache_write_at (id->doubly_indirect[0], doubly_indirect_index, BLOCK_SECTOR_SIZE, 0);
           }
         }
         size_t index = (sector_length - DIRECT_BLOCK - INDEX_BLOCK) / INDEX_BLOCK;
         size_t remainder = (sector_length - DIRECT_BLOCK - INDEX_BLOCK) % INDEX_BLOCK;
+        struct cache_entry *ce3 = cache_find (id->doubly_indirect[0]);
+        struct index_disk *id3  = ce3->data;
         if (remainder == 0)
         {
           struct index_disk *doubly_indirect_indirect_index =
             calloc (1, sizeof *doubly_indirect_indirect_index);
           if (doubly_indirect_indirect_index != NULL)
           {
-            free_map_allocate (1, &doubly_indirect_indirect_index[index]);
+            free_map_allocate (1, &id3->index[index]);
+            //free_map_allocate (1, &doubly_indirect_indirect_index[index]);
+            ce3->dirty = true;
+            cache_write_at (id3->index[index], doubly_indirect_indirect_index,
+                BLOCK_SECTOR_SIZE, 0);
           }
         }
         //printf ("doubley indirect block, sector_length: %d\n", sector_length);
-        struct cache_entry *ce3 = cache_find (id->doubly_indirect[0]);
-        struct index_disk *id3 = ce3->data;
         struct cache_entry *ce4 = cache_find (id3->index[index]);
         struct index_disk *id4 = ce4->data;
         free_map_allocate (1, &id4->index[sector_length - DIRECT_BLOCK - INDEX_BLOCK * index]);
+        ce3->dirty = true;
+        ce4->dirty = true;
         cache_write_at (&id4->index[sector_length - DIRECT_BLOCK - INDEX_BLOCK *index],
             zeros, BLOCK_SECTOR_SIZE, 0);
       }   
@@ -595,6 +626,7 @@ void cache_inode_extend (block_sector_t sector, off_t new_pos)
   if (new_pos > id->length)
   {
     //printf ("thread%d: extended %d\n", thread_current()->tid, size + offset - id->length);
+    //printf ("sector%d, prev length : %d, extended length : %d\n", sector, id->length, new_pos);
     id->length = new_pos;
   }
   
@@ -615,6 +647,6 @@ void cache_save_inode (block_sector_t sector)
       ce->dirty = false;
     }
     size_t sectors = bytes_to_sectors (id->length);
-    size_ 
+    //size_ 
   }
 }

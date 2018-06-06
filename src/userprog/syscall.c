@@ -23,6 +23,7 @@
 #include "devices/block.h"
 #include <bitmap.h>
 #include "threads/synch.h"
+/* PJ4 */
 #endif
 #ifdef FILESYS
 #include "filesys/directory.h"
@@ -60,6 +61,7 @@ static bool mkdir (const char *dir);
 static bool readdir (int fd, char *name);
 static bool isdir (int fd);
 static int inumber (int fd);
+#define READDIR_MAX_LEN 14
 #endif
 
 void
@@ -209,7 +211,10 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_READDIR:
       read_arguments (f->esp, &argv[0], 2, f);
       fd = (int) argv[0];
-      char name[READDIR_MAX_LEN + 1] = (char *) &argv[0];
+      char name[READDIR_MAX_LEN + 1];
+      printf ("argv[0] : %s\n", (char *) argv[0]);
+      printf ("argv[1] : %s\n", (char *) argv[1]);
+      //name = (char *) &argv[1];
       f->eax = readdir (fd, name);
       break;
     case SYS_ISDIR:
@@ -939,7 +944,7 @@ static bool chdir (const char *dir)
     }
   }
   //Relative directory
-  thread_current ()->cur_dir = directory;
+  /////////thread_current ()->cur_dir = directory;
   return true;
 }
 
@@ -971,7 +976,7 @@ static bool mkdir (const char *dir)
         ret_ptr = strtok_r (NULL, "/", &save_ptr);
         if (ret_ptr == NULL)
         {
-          dir_create (directory->inode->sector, 0);
+          //dir_create (directory->inode->sector, 0);
         }
         else
         {
@@ -1023,7 +1028,7 @@ static int inumber (int fd)
  else
  {
   struct file *f = filedes->file;
-  int inumber = f->inode->sector;
+  int inumber = inode_get_inumber (file_get_inode (f));
   return inumber;
  }
 }
