@@ -411,7 +411,7 @@ void cache_close_inode (block_sector_t sector)
 {
   struct cache_entry *inode_ce = cache_get_block (sector);
   struct inode_disk *inode_id = inode_ce->data;
-  off_t sector_remained = DIV_ROUND_UP (id->length, BLOCK_SECTOR_SIZE);
+  off_t sector_remained = DIV_ROUND_UP (inode_id->length, BLOCK_SECTOR_SIZE);
   
   /* Release inode_disk */
   if (inode_ce->dirty)
@@ -427,7 +427,7 @@ void cache_close_inode (block_sector_t sector)
   int i;
   for (i = 0; i < release_cnt; i++)
   {
-    free_map_release (id->direct[i], 1);
+    free_map_release (inode_id->direct[i], 1);
     sector_remained--;
   }
  
@@ -435,7 +435,7 @@ void cache_close_inode (block_sector_t sector)
   if (sector_remained > 0)
   {
     release_cnt = sector_remained < INDEX_BLOCK ? sector_remained : INDEX_BLOCK;
-    struct cache_entry *si_ce = cache_get_block (id->indirect[0]);
+    struct cache_entry *si_ce = cache_get_block (inode_id->indirect[0]);
     struct index_disk *si_id = si_ce->data;
     int j;
     for (j = 0; j < release_cnt; j++)
@@ -456,7 +456,7 @@ void cache_close_inode (block_sector_t sector)
   /* Release doubly indirect index blocks */
   if (sector_remained > 0)
   {
-    struct cache_entry *di_ce = cache_get_block (id->doubly_indirect[0]);
+    struct cache_entry *di_ce = cache_get_block (inode_id->doubly_indirect[0]);
     struct index_disk *di_id = di_ce->data;
     
     int k = 0;
@@ -498,9 +498,9 @@ cache_byte_to_sector (block_sector_t sector, off_t offset)
 {
   /* Accesing inode disk */
   struct cache_entry *inode_ce = cache_get_block (sector);
-  struct inode_disk *inode_id = ce->data;
+  struct inode_disk *inode_id = inode_ce->data;
   
-  if (offset < id->length)
+  if (offset < inode_id->length)
   {
     /* Block index in data part of inode,
      * function should return sector which has this indexed data */
@@ -508,12 +508,12 @@ cache_byte_to_sector (block_sector_t sector, off_t offset)
     /* Direct block */ 
     if (sector_index < DIRECT_BLOCK)
     {
-      return id->direct[sector_index];
+      return inode_id->direct[sector_index];
     } 
     /* Indirect block */
     else if  (sector_index < DIRECT_BLOCK + INDEX_BLOCK)
     {
-      struct cache_entry *si_ce = cache_get_block (id->indirect[0]);
+      struct cache_entry *si_ce = cache_get_block (inode_id->indirect[0]);
       struct index_disk *si_id = si_ce->data;
       return si_id->index[sector_index - DIRECT_BLOCK];
     }
@@ -545,7 +545,7 @@ void cache_inode_extend (block_sector_t sector, off_t new_pos)
   struct cache_entry *inode_ce = cache_find (sector);
   struct inode_disk *inode_id = inode_ce->data;
   /* Current sector length and needed sector length */
-  size_t current_length = DIV_ROUND_UP (id->length, BLOCK_SECTOR_SIZE);
+  size_t current_length = DIV_ROUND_UP (inode_id->length, BLOCK_SECTOR_SIZE);
   size_t needed_length = DIV_ROUND_UP (new_pos, BLOCK_SECTOR_SIZE);
   
   /* Extension needed */
@@ -621,9 +621,9 @@ void cache_inode_extend (block_sector_t sector, off_t new_pos)
       current_length++;
     }
     /* Update inode length */
-    if (new_pos > id->length)
+    if (new_pos > inode_id->length)
     {
-      id->length = new_pos;
+      inode_id->length = new_pos;
     }
   }
 }

@@ -62,12 +62,12 @@ inode_create (block_sector_t sector, off_t length)
   ASSERT (sizeof *inode_id == BLOCK_SECTOR_SIZE);
   ASSERT (sizeof *index_id == BLOCK_SECTOR_SIZE);
   
-  inode_id = calloc (1, sizeof *disk_inode);
-  if (disk_inode != NULL)
+  inode_id = calloc (1, sizeof *inode_id);
+  if (inode_id != NULL)
   {
     size_t sectors = bytes_to_sectors (length);
-    disk_inode->length = length;
-    disk_inode->magic = INODE_MAGIC;
+    inode_id->length = length;
+    inode_id->magic = INODE_MAGIC;
     
     /* Calculate number of needed sector for inode */
     size_t sector_needed = sectors;
@@ -156,19 +156,19 @@ inode_create (block_sector_t sector, off_t length)
                   }
                   /* Write doubly indirect indirect index block */
                   cache_write_at (di_id->index[k], dii_id, BLOCK_SECTOR_SIZE, 0);
-                  free (doubly_indirect_indirect_index);
+                  free (dii_id);
                   k++;
                 }
               }
               /* Write doubly indirect index block */
               cache_write_at (inode_id->doubly_indirect[0], di_id, BLOCK_SECTOR_SIZE, 0);
-              free (doubly_indirect_index);
+              free (di_id);
             }
           }
         }
       }
-      cache_write_at (sector, disk_inode, BLOCK_SECTOR_SIZE, 0);
-      free (disk_inode);
+      cache_write_at (sector, inode_id, BLOCK_SECTOR_SIZE, 0);
+      free (inode_id);
       success = true;
     }
   }
@@ -283,8 +283,8 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       /* Abnormal offset */
       if (sector_idx == -1)
       {
-        printf ("Strange offset in inode_read_at\n");
-        printf ("Inode length: %d, offset: %d, size: %d\n", inode_length (inode), offset, size);
+        //printf ("Strange offset in inode_read_at\n");
+        //printf ("Inode length: %d, offset: %d, size: %d\n", inode_length (inode), offset, size);
         break;
       }
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
@@ -334,7 +334,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
 
   if (inode->deny_write_cnt)
   {
-    printf ("inode_write_at sector%d inode deny write cnt is %d\n", inode->sector, inode->deny_write_cnt);
+    //printf ("inode_write_at sector%d inode deny write cnt is %d\n", inode->sector, inode->deny_write_cnt);
     return 0;
   }
 
