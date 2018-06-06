@@ -29,6 +29,9 @@ struct inode
     bool removed;                       /* True if deleted, false otherwise. */
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct lock extension_lock;         /* Extension lock */
+    bool is_dir;                        /* Is this inode is for directory */
+    enum inode_type type;               /* Inode type (INODE_FILE or INODE_DIR */
+    struct inode *parent_dir;           /* Pointer to parent directory */
     //struct inode_disk data;             /* Inode content. */
   };
 
@@ -49,7 +52,7 @@ inode_init (void)
    Returns true if successful.
    Returns false if memory or disk allocation fails. */
 bool
-inode_create (block_sector_t sector, off_t length)
+inode_create (block_sector_t sector, off_t length, enum inode_type type)
 {
   struct inode_disk *inode_id = NULL;
   struct index_disk *index_id = NULL;
@@ -68,7 +71,7 @@ inode_create (block_sector_t sector, off_t length)
     size_t sectors = bytes_to_sectors (length);
     inode_id->length = length;
     inode_id->magic = INODE_MAGIC;
-    
+    inode_id->type = type;
     /* Calculate number of needed sector for inode */
     size_t sector_needed = sectors;
     if (sectors > DIRECT_BLOCK) 
@@ -332,6 +335,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
   const uint8_t *buffer = buffer_;
   off_t bytes_written = 0;
 
+  //printf ("inode in sector %d, length %d, size %d, offset %d\n", inode->sector, inode_length(inode),  size, offset);
   if (inode->deny_write_cnt)
   {
     //printf ("inode_write_at sector%d inode deny write cnt is %d\n", inode->sector, inode->deny_write_cnt);

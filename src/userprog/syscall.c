@@ -355,7 +355,7 @@ static bool
 create (const char *file, unsigned initial_size)
 {
   //lock_acquire (&file_lock);
-  bool result =  filesys_create (file, (int32_t) initial_size);
+  bool result = filesys_create (file, (int32_t) initial_size, INODE_FILE);
   //lock_release (&file_lock);
   return result;
 }

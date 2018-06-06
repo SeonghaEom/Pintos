@@ -128,6 +128,7 @@ struct thread
     struct hash *spt;                   /* Supplemental page table */ 
     struct list mmap_files;             /* Mmap files list */
 #endif
+
 #ifdef FILESYS
     struct dir *cur_dir;                /* Current directory that this thread is in */
     struct list open_dirs;

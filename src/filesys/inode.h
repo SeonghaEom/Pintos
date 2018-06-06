@@ -5,18 +5,26 @@
 #include "filesys/off_t.h"
 #include "devices/block.h"
 
-#define DIRECT_BLOCK 124
+#define DIRECT_BLOCK 123
 #define INDIRECT_BLOCK 1
 #define DOUBLY_INDIRECT_BLOCK 1
 #define INDEX_BLOCK 128
 
 struct bitmap;
 
+/* Inode type */
+enum inode_type
+{
+  INODE_FILE,   /* File inode */
+  INODE_DIR,    /* Directory inode */
+};
+
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */
 struct inode_disk
   {
     off_t length;                       /* File size in bytes */
+    enum inode_type type;               /* Inode type */
     block_sector_t direct[DIRECT_BLOCK];                
     block_sector_t indirect[INDIRECT_BLOCK];          
     block_sector_t doubly_indirect[DOUBLY_INDIRECT_BLOCK];    
@@ -30,7 +38,7 @@ struct index_disk
   };      
 
 void inode_init (void);
-bool inode_create (block_sector_t, off_t);
+bool inode_create (block_sector_t, off_t, enum inode_type);
 struct inode *inode_open (block_sector_t);
 struct inode *inode_reopen (struct inode *);
 block_sector_t inode_get_inumber (const struct inode *);

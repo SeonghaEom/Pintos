@@ -547,8 +547,7 @@ void cache_inode_extend (block_sector_t sector, off_t new_pos)
   /* Current sector length and needed sector length */
   size_t current_length = DIV_ROUND_UP (inode_id->length, BLOCK_SECTOR_SIZE);
   size_t needed_length = DIV_ROUND_UP (new_pos, BLOCK_SECTOR_SIZE);
-  
-  /* Extension needed */
+  //printf ("inode in sector %d current_length %d, needed_length %d\n", sector, current_length, needed_length);
   int ext_cnt = needed_length - current_length;
   if (ext_cnt > 0)
   {
@@ -562,6 +561,8 @@ void cache_inode_extend (block_sector_t sector, off_t new_pos)
       if (current_length < DIRECT_BLOCK)
       {
         free_map_allocate (1, &inode_id->direct[current_length]);
+        inode_ce->dirty = true;
+        //printf ("new direct block sector: %d\n", inode_id->direct[current_length]);
         cache_write_at (inode_id->direct[current_length], zeros, BLOCK_SECTOR_SIZE, 0);
       }
       /* Next block is indirect block */
@@ -574,6 +575,7 @@ void cache_inode_extend (block_sector_t sector, off_t new_pos)
           if (si_id != NULL)
           {
             free_map_allocate (1, &inode_id->indirect[0]);
+            inode_ce->dirty = true;
             cache_write_at (inode_id->indirect[0], si_id, BLOCK_SECTOR_SIZE, 0);
           }
         }
@@ -619,12 +621,14 @@ void cache_inode_extend (block_sector_t sector, off_t new_pos)
             zeros, BLOCK_SECTOR_SIZE, 0);
       }   
       current_length++;
+    
     }
-    /* Update inode length */
-    if (new_pos > inode_id->length)
-    {
-      inode_id->length = new_pos;
-    }
+  }
+  /* Update inode length */
+  if (new_pos > inode_id->length)
+  {
+    //printf ("new position: %d\n", new_pos);
+    inode_id->length = new_pos;
   }
 }
 
