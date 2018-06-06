@@ -12,6 +12,7 @@ struct dir
   {
     struct inode *inode;                /* Backing store. */
     off_t pos;                          /* Current position. */
+    struct dir *parent_dir;             /* Parent dir */
   };
 
 /* A single directory entry. */
