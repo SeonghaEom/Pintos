@@ -357,7 +357,6 @@ static bool
 create (const char *file, unsigned initial_size)
 {
   //lock_acquire (&file_lock);
-  printf ("INODE_FILE: %d\n", INODE_FILE);
   bool result = filesys_create (file, (int32_t) initial_size, INODE_FILE);
   //lock_release (&file_lock);
   return result;
@@ -425,7 +424,7 @@ static int
 open (const char *file)
 {    
   //lock_acquire (&file_lock);
-  struct file *open_file = filesys_open(file);
+  struct file *open_file = filesys_open (file);
   //lock_release (&file_lock);
  
   /* file open fail */
@@ -916,6 +915,7 @@ find_mf_by_mapid (mapid_t mapid)
 /* Change the current directory to DIR */
 static bool chdir (const char *dir)
 {
+  printf ("chdir: %s\n", dir);
   char *last_name = NULL;
   struct inode *inode = NULL;
   struct dir *directory = dir_open_path (dir, &last_name);
@@ -923,6 +923,7 @@ static bool chdir (const char *dir)
 
   if (directory != NULL)
   {
+    printf ("A\n");
     dir_lookup (directory, last_name, &inode);
   }
   else 
@@ -930,7 +931,7 @@ static bool chdir (const char *dir)
     return false;
   }
   dir_close (dir);
-  
+  printf ("inode : %x\n", inode); 
   new_directory = dir_open (inode);
   if (dir_get_inode (new_directory)->type == INODE_DIR)
   {  
@@ -946,9 +947,21 @@ static bool chdir (const char *dir)
 /* Create a new directory DIR */
 static bool mkdir (const char *dir)
 {
-  char **dummy;
-  struct dir *directory = dir_open_path (dir, &dummy);
+  printf ("mkdir dir: %s\n", dir);
+  
+  if (dir == "")
+  {
+    printf ("dir %s\n", dir);
+    return false;
+  }
+  char *last_name = NULL;
+  struct dir *directory = dir_open_path (dir, &last_name);
   if (directory == NULL)
+  {
+    return false;
+  }
+  printf ("lastname %s\n", last_name);
+  if (last_name == NULL)
   {
     return false;
   }
@@ -958,11 +971,11 @@ static bool mkdir (const char *dir)
   {
     if (!dir_add (directory, ".", sector))
     {
-      printf ("mkdir . failed\n");
+      //printf ("mkdir . failed\n");
     }
     if (!dir_add (directory, "..", dir_get_inode (directory)->sector))
     {
-      printf ("mkdir .. failed\n");
+      //printf ("mkdir .. failed\n");
     }
   }
   else

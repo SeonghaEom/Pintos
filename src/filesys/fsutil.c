@@ -122,6 +122,7 @@ fsutil_extract (char **argv UNUSED)
           //printf ("INNNOODDE_FILE %d\n", INODE_FILE);
           if (!filesys_create (file_name, size, INODE_FILE))
             PANIC ("%s: create failed", file_name);
+          printf ("file name %s\n", file_name);
           dst = filesys_open (file_name);
           if (dst == NULL)
             PANIC ("%s: open failed", file_name);

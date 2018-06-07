@@ -39,7 +39,7 @@ inode_init (void)
 bool
 inode_create (block_sector_t sector, off_t length, enum inode_type type)
 {
-  printf ("inode_create %d, length %d, type %d\n", sector, length, type);
+  //printf ("inode_create %d, length %d, type %d\n", sector, length, type);
   struct inode_disk *inode_id = NULL;
   struct index_disk *index_id = NULL;
   bool success = false;
@@ -55,7 +55,7 @@ inode_create (block_sector_t sector, off_t length, enum inode_type type)
   if (inode_id != NULL)
   {
     size_t sectors = bytes_to_sectors (length);
-    printf ("sectors: %d\n", sectors);
+    //printf ("sectors: %d\n", sectors);
     inode_id->length = length;
     inode_id->magic = INODE_MAGIC;
     inode_id->type = type;
@@ -73,7 +73,7 @@ inode_create (block_sector_t sector, off_t length, enum inode_type type)
     /* Available space in file disk or not */
     if (free_map_left () >= sector_needed)
     {
-      printf ("available space in disk\n");
+      //printf ("available space in disk\n");
       /* zeros */
       static char zeros[BLOCK_SECTOR_SIZE];
       /* sector remained for data part of this inode */
@@ -85,7 +85,7 @@ inode_create (block_sector_t sector, off_t length, enum inode_type type)
       size_t i;
       for (i = 0; i < direct_cnt; i++)
       {
-        printf ("Direct block %d\n", i);
+        //printf ("Direct block %d\n", i);
         free_map_allocate (1, &inode_id->direct[i]);
         cache_write_at (inode_id->direct[i], zeros, BLOCK_SECTOR_SIZE, 0); 
         sector_remained--;

@@ -129,9 +129,13 @@ dir_lookup (const struct dir *dir, const char *name,
   ASSERT (name != NULL);
 
   if (lookup (dir, name, &e, NULL))
+  {
     *inode = inode_open (e.inode_sector);
+  }
   else
+  {
     *inode = NULL;
+  }
 
   return *inode != NULL;
 }
@@ -248,6 +252,7 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
 struct dir *
 dir_open_path (const char *file, char **last_token)
 {
+  //printf ("dir_open_path start\n");
   char *file_copy = (char *) malloc (strlen (file) + 1);
   char *save_ptr;
   //printf ("file: %s\n", file);
@@ -263,13 +268,20 @@ dir_open_path (const char *file, char **last_token)
   //printf ("next_token: %s\n", next_token);
   struct dir *directory;
   
+  /* File copy is null */
   if (file_copy == NULL)
   {
     directory = dir_open_root ();
     return directory;
   }
+  /* File copy is empty maybe. */
+  else if (current_token == NULL)
+  {
+    directory = dir_open_root ();
+    return directory;
+  }
   /* This is the case for absolute path */
-  else if (strcmp (file_copy, "/") >= 0)
+  else if (strcmp (file_copy, DELIM) >= 0)
   {
     directory = dir_open_root ();
   }
@@ -306,7 +318,7 @@ dir_open_path (const char *file, char **last_token)
     current_token = next_token;
     next_token = strtok_r (NULL, "/", &save_ptr);
   }
-
+  
   *last_token = (char *) malloc (strlen (current_token) + 1);
   strlcpy (*last_token, current_token, strlen (current_token) + 1);
   //printf ("last token : %s\n", *last_token);

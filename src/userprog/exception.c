@@ -234,7 +234,7 @@ page_fault (struct intr_frame *f)
       /* Stack limit */
       if ((uint32_t) next_bound < STACK_LIMIT) 
       {
-        printf ("next bound exceed growth limit\n");
+        //printf ("next bound exceed growth limit\n");
         exit (-1);
       }
       /* Allocate new spte */

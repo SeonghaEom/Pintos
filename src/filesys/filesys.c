@@ -37,7 +37,12 @@ filesys_init (bool format)
 #endif
 
   if (format) 
+  {
     do_format ();
+    /* Set main thread's current directory */
+    thread_current ()->cur_dir = dir_open_root ();
+  }
+
   free_map_open ();
 }
 
@@ -65,9 +70,9 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
   block_sector_t inode_sector = 0;
   char *last_name;
   //printf ("last name address: %x\n", &last_name);
-  //struct dir *dir = dir_open_path (name, &last_name);
+  struct dir *dir = dir_open_path (name, &last_name);
   
-  struct dir *dir = dir_open_root ();
+  //struct dir *dir = dir_open_root ();
 
   //printf ("last name: %s\n", last_name); 
   struct inode *inode;
@@ -76,10 +81,6 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
   {  
     dir_lookup (dir, last_name, &inode);
   }
-  if (inode == NULL)
-  {
-    printf("dfad\n");
-  } 
   //printf ("dir %x\n", dir);
   //printf ("enum size: %d\n", sizeof (enum inode_type));
   //bool a = (dir != NULL);
@@ -88,6 +89,7 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
   //bool d = dir_add (dir, last_name, inode_sector);
   //printf ("which is false?: %s %s %s %s\n", a? "t":"f", b?"t":"f",c?"t":"f",d?"t":"f");
   //printf ("type : %d\n", type);
+  //printf ("last name: %s\n", last_name);
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size, type)//type);
@@ -118,8 +120,10 @@ filesys_open (const char *name)
   if (dir != NULL)
     dir_lookup (dir, name, &inode);
   dir_close (dir);
+  
   if (inode == NULL)
-      printf ("inode null in filesysopen\n");
+    return NULL;
+    //printf ("inode null in filesysopen\n");
   return file_open (inode);
 }
 
