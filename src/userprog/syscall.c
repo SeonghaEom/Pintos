@@ -29,6 +29,7 @@
 #include "filesys/directory.h"
 #include "filesys/inode.h"
 #include "stddef.h"
+#include "filesys/free-map.h"
 #endif
 
 static void syscall_handler (struct intr_frame *);
@@ -61,7 +62,7 @@ static bool mkdir (const char *dir);
 static bool readdir (int fd, char *name);
 static bool isdir (int fd);
 static int inumber (int fd);
-#define READDIR_MAX_LEN 14
+#define READDIR_MAX_LEN 50
 #endif
 
 void
@@ -214,7 +215,8 @@ syscall_handler (struct intr_frame *f UNUSED)
       char name[READDIR_MAX_LEN + 1];
       printf ("argv[0] : %s\n", (char *) argv[0]);
       printf ("argv[1] : %s\n", (char *) argv[1]);
-      //name = (char *) &argv[1];
+      strlcpy (name, argv[1], strlen (argv[1]) + 1);
+      printf ("name : %s\n", name);
       f->eax = readdir (fd, name);
       break;
     case SYS_ISDIR:
@@ -355,6 +357,7 @@ static bool
 create (const char *file, unsigned initial_size)
 {
   //lock_acquire (&file_lock);
+  printf ("INODE_FILE: %d\n", INODE_FILE);
   bool result = filesys_create (file, (int32_t) initial_size, INODE_FILE);
   //lock_release (&file_lock);
   return result;
@@ -913,88 +916,71 @@ find_mf_by_mapid (mapid_t mapid)
 /* Change the current directory to DIR */
 static bool chdir (const char *dir)
 {
-  //absolute or relative?
-  //dir_open_root
-  //dir_lookup
-  //check if it exists
-  //
-  char *dir_copy;
-  char *save_ptr;
-  strlcpy (dir_copy, dir, strlen(dir)+1);
-  //absolute directory`
-  if (strcmp (dir_copy, "/") == 0) // dir_copy first letter and "/"
+  char *last_name = NULL;
+  struct inode *inode = NULL;
+  struct dir *directory = dir_open_path (dir, &last_name);
+  struct dir *new_directory;
+
+  if (directory != NULL)
   {
-    struct dir *directory = dir_open_root ();
-    char *ret_ptr = strtok_r (dir_copy, "/", &save_ptr);
-    struct inode **inode;
-    while (ret_ptr)
-    {
-      /* If the directory has subdirectory or file name which is ret_ptr return true */
-      if (dir_lookup (directory, ret_ptr, inode))
-      {
-        /* Change the directory based on the inode */
-        directory = dir_open (*inode);
-      }
-      else
-      {
-        /* There is subdirectory or file name but does not exist in directory */
-        return false;
-      }
-      ret_ptr = strtok_r (NULL, "/", &save_ptr);
-    }
+    dir_lookup (directory, last_name, &inode);
   }
-  //Relative directory
-  /////////thread_current ()->cur_dir = directory;
+  else 
+  {
+    return false;
+  }
+  dir_close (dir);
+  
+  new_directory = dir_open (inode);
+  if (dir_get_inode (new_directory)->type == INODE_DIR)
+  {  
+    thread_current ()->cur_dir = new_directory;
+  }
+  else
+  {
+    return false;
+  }
   return true;
 }
 
 /* Create a new directory DIR */
 static bool mkdir (const char *dir)
 {
-  //absolute or relative?
-  char *dir_copy;
-  char *save_ptr;
-  strlcpy (dir_copy, dir, strlen(dir)+1);
-  //absolute directory`
-  if (strcmp (dir_copy, "/") == 0) //TODO dir_copy first letter and "/" not for sure
+  char **dummy;
+  struct dir *directory = dir_open_path (dir, &dummy);
+  if (directory == NULL)
   {
-    struct dir *directory = dir_open_root ();
-    char *ret_ptr = strtok_r (dir_copy, "/", &save_ptr);
-    struct inode **inode;
-    while (ret_ptr)
+    return false;
+  }
+  block_sector_t sector;
+  free_map_allocate (1, &sector);
+  if (dir_create (sector, 0))
+  {
+    if (!dir_add (directory, ".", sector))
     {
-      /* If the directory has subdirectory or file name which is ret_ptr return true */
-      if (dir_lookup (directory, ret_ptr, inode))
-      {
-        /* Change the directory based on the inode */
-        directory = dir_open (*inode);
-      }
-      else
-      {
-        /* There is subdirectory or file name but does not exist in directory
-         * possible or new directory?*/
-        ret_ptr = strtok_r (NULL, "/", &save_ptr);
-        if (ret_ptr == NULL)
-        {
-          //dir_create (directory->inode->sector, 0);
-        }
-        else
-        {
-          return false;
-        }
-      }
-      ret_ptr = strtok_r (NULL, "/", &save_ptr);
+      printf ("mkdir . failed\n");
+    }
+    if (!dir_add (directory, "..", dir_get_inode (directory)->sector))
+    {
+      printf ("mkdir .. failed\n");
     }
   }
+  else
+  {
+    printf ("mkdir failed..\n");
+    return false;
+  }
   return true;
+
+  
 }
 
 /* Read dir_entry from FD and stores file name in NAME */
 static bool readdir (int fd, char *name)
 {
-  struct filedescriptor *filedes = find_dir (fd);
+  struct filedescriptor *filedes = find_file (fd);
   // open file , open directory  따로 관리!?!!
-  struct dir *dir = filedes->dir;
+  struct dir *dir = dir_open (file_get_inode (filedes->file));
   char buf[NAME_MAX + 1];
   name = buf;
   return dir_readdir (dir, name);
@@ -1004,9 +990,8 @@ static bool readdir (int fd, char *name)
 static bool isdir (int fd)
 {
   //root    에서부터 찾기
- struct filedescriptor *filedes = find_file (fd);
-
-  if (filedes == NULL)
+  struct filedescriptor *filedes = find_file (fd);
+  if (file_get_inode (filedes->file)->type == INODE_DIR)
   {
     return true;
   }

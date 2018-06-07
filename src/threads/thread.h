@@ -145,9 +145,6 @@ struct filedescriptor
     const char *filename;
     struct list_elem elem;
     struct file *file;
-#ifdef FILESYS
-    struct dir *dir;
-#endif
   };
 
 

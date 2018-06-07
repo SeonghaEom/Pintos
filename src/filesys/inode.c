@@ -20,21 +20,6 @@ bytes_to_sectors (off_t size)
   return DIV_ROUND_UP (size, BLOCK_SECTOR_SIZE);
 }
 
-/* In-memory inode. */
-struct inode 
-  {
-    struct list_elem elem;              /* Element in inode list. */
-    block_sector_t sector;              /* Sector number of disk location. */
-    int open_cnt;                       /* Number of openers. */
-    bool removed;                       /* True if deleted, false otherwise. */
-    int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
-    struct lock extension_lock;         /* Extension lock */
-    bool is_dir;                        /* Is this inode is for directory */
-    enum inode_type type;               /* Inode type (INODE_FILE or INODE_DIR */
-    struct inode *parent_dir;           /* Pointer to parent directory */
-    //struct inode_disk data;             /* Inode content. */
-  };
-
 /* List of open inodes, so that opening a single inode twice
    returns the same `struct inode'. */
 static struct list open_inodes;
@@ -54,6 +39,7 @@ inode_init (void)
 bool
 inode_create (block_sector_t sector, off_t length, enum inode_type type)
 {
+  printf ("inode_create %d, length %d, type %d\n", sector, length, type);
   struct inode_disk *inode_id = NULL;
   struct index_disk *index_id = NULL;
   bool success = false;
@@ -69,6 +55,7 @@ inode_create (block_sector_t sector, off_t length, enum inode_type type)
   if (inode_id != NULL)
   {
     size_t sectors = bytes_to_sectors (length);
+    printf ("sectors: %d\n", sectors);
     inode_id->length = length;
     inode_id->magic = INODE_MAGIC;
     inode_id->type = type;
@@ -86,6 +73,7 @@ inode_create (block_sector_t sector, off_t length, enum inode_type type)
     /* Available space in file disk or not */
     if (free_map_left () >= sector_needed)
     {
+      printf ("available space in disk\n");
       /* zeros */
       static char zeros[BLOCK_SECTOR_SIZE];
       /* sector remained for data part of this inode */
@@ -97,6 +85,7 @@ inode_create (block_sector_t sector, off_t length, enum inode_type type)
       size_t i;
       for (i = 0; i < direct_cnt; i++)
       {
+        printf ("Direct block %d\n", i);
         free_map_allocate (1, &inode_id->direct[i]);
         cache_write_at (inode_id->direct[i], zeros, BLOCK_SECTOR_SIZE, 0); 
         sector_remained--;
@@ -172,6 +161,7 @@ inode_create (block_sector_t sector, off_t length, enum inode_type type)
       }
       cache_write_at (sector, inode_id, BLOCK_SECTOR_SIZE, 0);
       free (inode_id);
+      printf ("TLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL\n");
       success = true;
     }
   }
@@ -211,7 +201,9 @@ inode_open (block_sector_t sector)
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
-  lock_init (&inode->extension_lock);  
+  lock_init (&inode->extension_lock);
+
+  
   
   return inode;
 }

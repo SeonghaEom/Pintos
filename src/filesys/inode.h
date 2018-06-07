@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include "filesys/off_t.h"
 #include "devices/block.h"
+#include <list.h>
+#include "threads/synch.h"
 
 #define DIRECT_BLOCK 123
 #define INDIRECT_BLOCK 1
@@ -18,6 +20,20 @@ enum inode_type
   INODE_FILE,   /* File inode */
   INODE_DIR,    /* Directory inode */
 };
+
+/* In-memory inode. */
+struct inode 
+  {
+    struct list_elem elem;              /* Element in inode list. */
+    block_sector_t sector;              /* Sector number of disk location. */
+    int open_cnt;                       /* Number of openers. */
+    bool removed;                       /* True if deleted, false otherwise. */
+    int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
+    struct lock extension_lock;         /* Extension lock */
+    enum inode_type type;               /* Inode type (INODE_FILE or INODE_DIR */
+    //struct inode *parent_dir;           /* Pointer to parent directory */
+    //struct inode_disk data;             /* Inode content. */
+  };
 
 /* On-disk inode.
    Must be exactly BLOCK_SECTOR_SIZE bytes long. */

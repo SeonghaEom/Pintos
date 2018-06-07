@@ -39,15 +39,6 @@ filesys_init (bool format)
   if (format) 
     do_format ();
   free_map_open ();
-/*
-#ifdef FILESYS
-  /* Initialize cache 
-  cache_init ();
-  /* Creating read ahead and write behind threads 
-  thread_create ("read_aheader", PRI_DEFAULT, read_aheader_func, NULL);
-  thread_create ("flusher", PRI_DEFAULT, flusher_func, NULL);
-#endif*/
-
 }
 
 /* Shuts down the file system module, writing any unwritten data
@@ -62,7 +53,7 @@ filesys_done (void)
 #endif
   free_map_close ();
 }
-
+
 /* Creates a file named NAME with the given INITIAL_SIZE.
    Returns true if successful, false otherwise.
    Fails if a file named NAME already exists,
@@ -70,16 +61,45 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size, enum inode_type type) 
 {
+  printf ("filesys_create, name: %s, initial_size %d, inode_type: %d\n", name, initial_size, type);
   block_sector_t inode_sector = 0;
+  char *last_name;
+  printf ("last name address: %x\n", &last_name);
+  //struct dir *dir = dir_open_path (name, &last_name);
+  
   struct dir *dir = dir_open_root ();
+
+  printf ("last name: %s\n", last_name); 
+  struct inode *inode;
+  /*
+  if (last_name != NULL)
+  {  
+    dir_lookup (dir, last_name, &inode);
+  }
+  if (inode == NULL)
+  {
+    printf("dfad\n");
+  } */
+  printf ("dir %x\n", dir);
+  printf ("enum size: %d\n", sizeof (enum inode_type));
+  //bool a = (dir != NULL);
+  //bool b = (free_map_allocate (1, &inode_sector));
+  //bool c = inode_create (inode_sector, initial_size, 0);//type);
+  //bool d = dir_add (dir, last_name, inode_sector);
+  //printf ("which is false?: %s %s %s %s\n", a? "t":"f", b?"t":"f",c?"t":"f",d?"t":"f");
+  printf ("type : %d\n", type);
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
-                  && inode_create (inode_sector, initial_size, type)
-                  && dir_add (dir, name, inode_sector));
+                  && inode_create (inode_sector, initial_size, type)//type);
+                  && dir_add (dir, last_name, inode_sector));
+  printf ("success is %s\n", success? "true" : "false");
   if (!success && inode_sector != 0) 
+  {  
+    printf ("bbb\n");
     free_map_release (inode_sector, 1);
+  }
   dir_close (dir);
-
+  printf ("success\n");
   return success;
 }
 
@@ -91,8 +111,9 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
 struct file *
 filesys_open (const char *name)
 {
-  struct dir *dir = dir_open_root ();
-  struct inode *inode = NULL;
+  char *dummy;
+  struct dir *dir = dir_open_path (name, &dummy);
+  struct inode *inode = NULL; 
 
   if (dir != NULL)
     dir_lookup (dir, name, &inode);
@@ -108,7 +129,8 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name) 
 {
-  struct dir *dir = dir_open_root ();
+  char *dummy;
+  struct dir *dir = dir_open_path (name, &dummy);
   bool success = dir != NULL && dir_remove (dir, name);
   dir_close (dir); 
 
@@ -123,6 +145,10 @@ do_format (void)
   free_map_create ();
   if (!dir_create (ROOT_DIR_SECTOR, 16))
     PANIC ("root directory creation failed");
+  struct dir *root = dir_open_root ();
+  /* '.' and '..' for root directory */
+  dir_add (root, ".", ROOT_DIR_SECTOR); 
+  dir_add (root, "..", ROOT_DIR_SECTOR);
   free_map_close ();
   printf ("done.\n");
 }

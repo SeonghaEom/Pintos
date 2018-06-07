@@ -10,6 +10,7 @@
 #include "threads/malloc.h"
 #include "threads/palloc.h"
 #include "threads/vaddr.h"
+#include "filesys/inode.h"
 
 /* List files in the root directory. */
 void
@@ -118,7 +119,8 @@ fsutil_extract (char **argv UNUSED)
           printf ("Putting '%s' into the file system...\n", file_name);
 
           /* Create destination file. */
-          if (!filesys_create (file_name, size))
+          printf ("INNNOODDE_FILE %d\n", INODE_FILE);
+          if (!filesys_create (file_name, size, INODE_FILE))
             PANIC ("%s: create failed", file_name);
           dst = filesys_open (file_name);
           if (dst == NULL)

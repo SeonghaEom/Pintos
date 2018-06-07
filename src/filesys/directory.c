@@ -6,13 +6,13 @@
 #include "filesys/inode.h"
 #include "threads/malloc.h"
 #include "devices/block.h"
+#include "threads/thread.h"
 
 /* A directory. */
 struct dir 
   {
     struct inode *inode;                /* Backing store. */
     off_t pos;                          /* Current position. */
-    struct dir *parent_dir;             /* Parent dir */
   };
 
 /* A single directory entry. */
@@ -143,6 +143,7 @@ dir_lookup (const struct dir *dir, const char *name,
 bool
 dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 {
+  printf ("dir add \n");
   struct dir_entry e;
   off_t ofs;
   bool success = false;
@@ -152,8 +153,11 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 
   /* Check NAME for validity. */
   if (*name == '\0' || strlen (name) > NAME_MAX)
-    return false;
+  {  
+    printf ("dir_add success : %s\n", success? "true" : "false");
 
+    return false;
+  }
   /* Check that NAME is not in use. */
   if (lookup (dir, name, NULL, NULL))
     goto done;
@@ -177,6 +181,7 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   success = inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e;
 
  done:
+  printf ("dir_add success : %s\n", success? "true" : "false");
   return success;
 }
 
@@ -237,16 +242,70 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
   return false;
 }
 
-/*bool
-dir_absolute (const char *dir, char *argv[50)
+/* Open and return directory that the file is in and store in LAST_TOKEN*/
+struct dir *
+dir_open_path (const char *file, char **last_token)
 {
-  char *argv[50];
-  char *dir_copy;
-  strlcpy (dir_copy, dir, strlen(dir)+1);
-  int i;
-  for (i=0; i<50; i++)
+  char *file_copy;
+  char *save_ptr;
+  printf ("file: %s\n", file);
+  strlcpy (file_copy, file, strlen (file) + 1);
+  printf ("file_copy: %s\n", file_copy);
+  struct inode *inode;
+  file_copy = "args-none";
+  char *current_token = strtok_r (file_copy, "/", &save_ptr);
+  printf ("current_token: %s\n", current_token);
+  char *next_token = strtok_r (NULL, "/", &save_ptr);
+  printf ("next_token: %s\n", next_token);
+  struct dir *directory;
+  
+  if (file_copy == NULL)
   {
-    argv[i] = strtok_r (dir_copy, "/", &save_ptr);
+    printf ("a\n");
+    directory = dir_open_root ();
+    printf ("b\n");
+    return directory;
   }
+  /* This is the case for absolute path */
+  else if (strcmp (file_copy, "/") >= 0)
+  {
+    directory = dir_open_root ();
+  }
+  /* THis is the case for relative path */
+  else 
+  {
+    printf ("b\n");
+    directory = thread_current ()->cur_dir;
+  }
+  while (next_token)
+  {
+    if (dir_lookup (directory, current_token, &inode))
+    {
+      if (inode->type == INODE_DIR)
+      {
+        dir_close (directory);
+        directory = dir_open (inode);
+      }
+      /* The current token should be directory but is file */
+      else if (inode->type == INODE_FILE)
+      {
+        printf ("dir_open_path: %s should be directory not file\n", current_token);
+        return NULL;
+      }
+    }
+    /* Current token is not in directory */
+    else
+    {
+      printf ("dir_open_path: %s is not in directory\n", current_token);
+      return NULL;
+    }
+
+    // Advance
+    current_token = next_token;
+    next_token = strtok_r (NULL, "/", &save_ptr);
+  }
+  printf ("%x\n", *last_token);
+  strlcpy (*last_token, current_token, strlen (current_token) + 1);
+  return directory;
 }
-*/
+
