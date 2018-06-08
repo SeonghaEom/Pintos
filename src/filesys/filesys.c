@@ -69,7 +69,7 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
 {
   //printf ("filesys_create, name: %s, initial_size %d, inode_type: %d\n", name, initial_size, type);
   block_sector_t inode_sector = 0;
-  char *last_name;
+  char *last_name = NULL;
   //printf ("last name address: %x\n", &last_name);
   struct dir *dir = dir_open_path (name, &last_name);
   
@@ -82,10 +82,14 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
   //printf ("last name: %s\n", last_name); 
   struct inode *inode;
   
-  if (last_name != NULL)
-  {  
-    dir_lookup (dir, last_name, &inode);
+  if (last_name == NULL)
+  { 
+    dir_close (dir);
+    return false;
   }
+  /* Last name not null */
+  dir_lookup (dir, last_name, &inode);
+  
   //printf ("dir %x\n", dir);
   //printf ("enum size: %d\n", sizeof (enum inode_type));
   //bool a = (dir != NULL);
@@ -104,15 +108,11 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
   //printf ("success is %s\n", success? "true" : "false");
   if (!success && inode_sector != 0) 
   {  
-    //printf ("bbb\n");
     free_map_release (inode_sector, 1);
   }
   //printf ("dir_close the %x\n", dir);
   dir_close (dir);
-  if (dir != NULL)
-  {
-    free (last_name);
-  }
+  //free (last_name);
   return success;
 }
 
@@ -184,14 +184,22 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name) 
 {
-  char *last_name;
+  char *last_name = NULL;
   struct dir *dir = dir_open_path (name, &last_name);
-  bool success = dir != NULL && dir_remove (dir, last_name);
-  dir_close (dir); 
-  if (last_name != NULL)
-  {
-    free (last_name);
+  bool success = true;
+  if (dir == NULL)
+  { 
+    success = false;
   }
+  if (last_name == NULL)
+  {
+    dir_close (dir);
+    return false;
+  }
+  success = success && dir_remove (dir, last_name);
+  dir_close (dir); 
+
+  free (last_name);
 
   return success;
 }

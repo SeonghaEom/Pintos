@@ -315,7 +315,6 @@ dir_open_path (const char *file, char **last_token)
   {
     //printf ("file copy is null\n");
     /* TODO last_token 지정하는 것은? */
-
     directory = dir_open_root ();
     return directory;
   }
@@ -324,6 +323,7 @@ dir_open_path (const char *file, char **last_token)
   {
     //printf ("file copy is maybe empty\n");
     /* TODO last_token 지정? */
+    free (file_copy);
     directory = dir_open_root ();
     return directory;
   }
@@ -341,6 +341,7 @@ dir_open_path (const char *file, char **last_token)
     if (thread_current ()->dir_removed)
     {
       //printf ("thread current CWD is removed\n");
+      free (file_copy);
       return NULL;
     }
     directory = dir_open (inode_open (thread_current ()->dir_sector)); //thread_current ()->cur_dir;
@@ -362,6 +363,8 @@ dir_open_path (const char *file, char **last_token)
       else if (inode->type == INODE_FILE)
       {
         //printf ("dir_open_path: %s should be directory not file\n", current_token);
+        dir_close (directory);
+        free (file_copy);
         return NULL;
       }
     }
@@ -369,6 +372,8 @@ dir_open_path (const char *file, char **last_token)
     else
     {
       //printf ("dir_open_path: %s is not in directory\n", current_token);
+      dir_close (directory);
+      free (file_copy);
       return NULL;
     }
     //printf ("adfdafdafa\n");
@@ -381,7 +386,7 @@ dir_open_path (const char *file, char **last_token)
   //printf ("current_token: %s\n", current_token);
   *last_token = (char *) malloc (strlen (current_token) + 1);
   strlcpy (*last_token, current_token, strlen (current_token) + 1);
-  //printf ("last token : %s\n", *last_token);
+  free (file_copy);
   return directory;
 }
 

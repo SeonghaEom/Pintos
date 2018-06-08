@@ -938,14 +938,23 @@ static bool chdir (const char *dir)
   struct inode *inode = NULL;
   struct dir *directory = dir_open_path (dir, &last_name);
   //struct dir *new_directory;
-
   if (directory != NULL)
   {
     dir_lookup (directory, last_name, &inode);
+    if (last_name == NULL)
+    {
+      dir_close (directory);
+      return false;
+    }
     free (last_name);
   }
   else 
-  {
+  { 
+    if (last_name == NULL)
+    {
+      return false;
+    }
+    free (last_name);
     return false;
   }
   //printf ("B\n");
@@ -975,7 +984,6 @@ static bool chdir (const char *dir)
 static bool mkdir (const char *dir)
 {
   //printf ("mkdir dir: %s\n", dir);
-  
   if (dir == "")
   {
     //printf ("dir %s\n", dir);
@@ -991,6 +999,7 @@ static bool mkdir (const char *dir)
   
   if (last_name == NULL)
   {
+    dir_close (directory);
     return false;
   }
   
@@ -1007,6 +1016,7 @@ static bool mkdir (const char *dir)
       free_map_release (sector, 1);
       dir_close (directory); 
       dir_close (new_dir);
+      free (last_name);
       return false;
     }
 
@@ -1023,14 +1033,14 @@ static bool mkdir (const char *dir)
   else
   {
     printf ("mkdir failed..\n");
+    dir_close (directory);
+    free (last_name);
     return false;
   }
   //printf ("the directory should be root, %d\n", dir_get_inode (directory)->sector);
   dir_close (directory);
   free (last_name);
   return true;
-
-  
 }
 
 /* Read dir_entry from FD and stores file name in NAME */
