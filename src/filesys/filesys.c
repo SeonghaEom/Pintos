@@ -32,7 +32,7 @@ filesys_init (bool format)
   /* Initialize cache */
   cache_init ();
   /* Creating read ahead and write behind threads */
-  thread_create ("read_aheader", PRI_DEFAULT, read_aheader_func, NULL);
+  //thread_create ("read_aheader", PRI_DEFAULT, read_aheader_func, NULL);
   thread_create ("flusher", PRI_DEFAULT, flusher_func, NULL);
 #endif
 
@@ -55,9 +55,7 @@ filesys_done (void)
 #ifdef FILESYS
   cache_write_behind ();
   
-  lock_acquire (&c_lock);
   cache_destroy ();
-  lock_release (&c_lock);
 
   q_destroy ();
 #endif
@@ -71,7 +69,7 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size, enum inode_type type) 
 {
-  printf ("filesys_create, name: %s, initial_size %d, inode_type: %d\n", name, initial_size, type);
+  //printf ("filesys_create, name: %s, initial_size %d, inode_type: %d\n", name, initial_size, type);
   
   block_sector_t inode_sector = 0;
   char *last_name = NULL;
