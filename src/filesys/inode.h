@@ -31,6 +31,7 @@ struct inode
     int deny_write_cnt;                 /* 0: writes ok, >0: deny writes. */
     struct lock extension_lock;         /* Extension lock */
     enum inode_type type;               /* Inode type (INODE_FILE or INODE_DIR */
+    off_t pos;                          /* If directory, current position */    
     //struct inode *parent_dir;           /* Pointer to parent directory */
     //struct inode_disk data;             /* Inode content. */
   };

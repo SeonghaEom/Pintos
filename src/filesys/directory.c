@@ -43,7 +43,7 @@ dir_open (struct inode *inode)
   if (inode != NULL && dir != NULL)
     {
       dir->inode = inode;
-      dir->pos = 0;
+      dir->pos = inode->pos;
       return dir;
     }
   else
@@ -238,6 +238,7 @@ dir_remove (struct dir *dir, const char *name)
     {
       //printf ("dir is not empty\n");
       inode_close (inode);
+      dir_close (r_dir);
       return false;
     }
     else
@@ -267,11 +268,14 @@ dir_remove (struct dir *dir, const char *name)
 bool
 dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
 {
+  //printf ("dir readdir!\n");
   struct dir_entry e;
 
   while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e) 
     {
+      //printf ("dir->pos : %d\n", dir->pos);
       dir->pos += sizeof e;
+      dir->inode->pos += sizeof e;
       if (strcmp (".", e.name) == 0 || strcmp ("..", e.name) == 0)
       {
         continue;
@@ -280,6 +284,8 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
       if (e.in_use)
         {
           strlcpy (name, e.name, NAME_MAX + 1);
+          //printf ("dir readdir : %s\n", e.name);
+          //printf ("name : %s\n", name);
           return true;
         } 
     }

@@ -204,7 +204,10 @@ inode_open (block_sector_t sector)
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
-  
+  if (inode->type == INODE_DIR)
+  {
+    inode->pos = 0;
+  }
   lock_init (&inode->extension_lock);
 
   

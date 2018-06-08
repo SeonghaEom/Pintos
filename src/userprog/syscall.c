@@ -212,12 +212,13 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_READDIR:
       read_arguments (f->esp, &argv[0], 2, f);
       fd = (int) argv[0];
-      char *name = (char *) malloc (strlen (argv[1]) + 1);
+      //printf ("strlen (name[i]): %d\n", strlen(argv[1]));
+      char *name = argv[1];//(char *) malloc (strlen (argv[1]) + 1);
       //printf ("argv[0] : %s\n", (char *) argv[0]);
-      //printf ("argv[1] : %s\n", (char *) argv[1]);
-      strlcpy (name, argv[1], strlen (argv[1]) + 1);
+      //strlcpy (name, argv[1], strlen (argv[1]) + 1);
+      //printf ("argv[1]: %s\n", (char *) argv[1]);
       f->eax = readdir (fd, name);
-      free (name);
+      //free (name);
       break;
     case SYS_ISDIR:
       read_arguments (f->esp, &argv[0], 1, f);
@@ -399,6 +400,7 @@ write (int fd, const void *buffer, unsigned size)
       thread_yield();
       struct file *f = filedes->file;
       //lock_acquire (&file_lock);
+      /* We can't write on directory */
       if (file_get_inode (f)->type == INODE_DIR)
       {
         return -1;
@@ -515,7 +517,12 @@ read (int fd, void *buffer, unsigned size, struct intr_frame * i_f)
     else 
     {
       struct file *f = find_file (fd)->file;
-
+      //printf ("read\n"); 
+      if (file_get_inode (f)->type == INODE_DIR)
+      {
+        printf ("We are trying to read on directory\n");
+        return -1;
+      }
 #ifdef VM
       int down = (int) buffer / PGSIZE;
       int up = ((int) buffer + (int) size) / PGSIZE;
@@ -1027,13 +1034,17 @@ static bool mkdir (const char *dir)
 /* Read dir_entry from FD and stores file name in NAME */
 static bool readdir (int fd, char *name)
 {
-  //:printf ("readdir\n");
+  //printf ("readdir\n");
   struct filedescriptor *filedes = find_file (fd);
+  //printf ("readdir 하려는 디렉토리 이름: %s\n", filedes->filename);
   // open file , open directory  따로 관리!?!!
   struct dir *dir = dir_open (file_get_inode (filedes->file));
-  char buf[READDIR_MAX_LEN];
-  name = buf;
-  return dir_readdir (dir, name);
+  //char buf[READDIR_MAX_LEN];
+  //name = (char *) malloc (NAME_MAX + 1);
+  //printf ("name1: %s\n", name);
+  bool result = dir_readdir (dir, name);
+  //printf ("name2: %s\n", name);
+  return result;
 }
 
 /* True if FD presents directory, false if ordinary file */
