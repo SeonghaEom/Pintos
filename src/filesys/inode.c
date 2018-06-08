@@ -161,7 +161,7 @@ inode_create (block_sector_t sector, off_t length, enum inode_type type)
       }
       cache_write_at (sector, inode_id, BLOCK_SECTOR_SIZE, 0);
       free (inode_id);
-      printf ("TLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL\n");
+      //printf ("TLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL\n");
       success = true;
     }
   }

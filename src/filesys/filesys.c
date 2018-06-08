@@ -61,17 +61,17 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size, enum inode_type type) 
 {
-  printf ("filesys_create, name: %s, initial_size %d, inode_type: %d\n", name, initial_size, type);
+  //printf ("filesys_create, name: %s, initial_size %d, inode_type: %d\n", name, initial_size, type);
   block_sector_t inode_sector = 0;
   char *last_name;
-  printf ("last name address: %x\n", &last_name);
+  //printf ("last name address: %x\n", &last_name);
   //struct dir *dir = dir_open_path (name, &last_name);
   
   struct dir *dir = dir_open_root ();
 
-  printf ("last name: %s\n", last_name); 
+  //printf ("last name: %s\n", last_name); 
   struct inode *inode;
-  /*
+  
   if (last_name != NULL)
   {  
     dir_lookup (dir, last_name, &inode);
@@ -79,27 +79,27 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
   if (inode == NULL)
   {
     printf("dfad\n");
-  } */
-  printf ("dir %x\n", dir);
-  printf ("enum size: %d\n", sizeof (enum inode_type));
+  } 
+  //printf ("dir %x\n", dir);
+  //printf ("enum size: %d\n", sizeof (enum inode_type));
   //bool a = (dir != NULL);
   //bool b = (free_map_allocate (1, &inode_sector));
   //bool c = inode_create (inode_sector, initial_size, 0);//type);
   //bool d = dir_add (dir, last_name, inode_sector);
   //printf ("which is false?: %s %s %s %s\n", a? "t":"f", b?"t":"f",c?"t":"f",d?"t":"f");
-  printf ("type : %d\n", type);
+  //printf ("type : %d\n", type);
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
                   && inode_create (inode_sector, initial_size, type)//type);
                   && dir_add (dir, last_name, inode_sector));
-  printf ("success is %s\n", success? "true" : "false");
+  //printf ("success is %s\n", success? "true" : "false");
   if (!success && inode_sector != 0) 
   {  
-    printf ("bbb\n");
+    //printf ("bbb\n");
     free_map_release (inode_sector, 1);
   }
   dir_close (dir);
-  printf ("success\n");
+  //:printf ("success\n");
   return success;
 }
 
@@ -118,7 +118,8 @@ filesys_open (const char *name)
   if (dir != NULL)
     dir_lookup (dir, name, &inode);
   dir_close (dir);
-
+  if (inode == NULL)
+      printf ("inode null in filesysopen\n");
   return file_open (inode);
 }
 

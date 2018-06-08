@@ -119,7 +119,7 @@ fsutil_extract (char **argv UNUSED)
           printf ("Putting '%s' into the file system...\n", file_name);
 
           /* Create destination file. */
-          printf ("INNNOODDE_FILE %d\n", INODE_FILE);
+          //printf ("INNNOODDE_FILE %d\n", INODE_FILE);
           if (!filesys_create (file_name, size, INODE_FILE))
             PANIC ("%s: create failed", file_name);
           dst = filesys_open (file_name);
