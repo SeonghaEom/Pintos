@@ -230,17 +230,21 @@ dir_remove (struct dir *dir, const char *name)
   
   if (inode->type == INODE_DIR)
   {
+    //printf ("lets remove directory inode\n");
     struct dir *r_dir = dir_open (inode);
     char buf[14];  
     char *name = buf;
-    if (!dir_readdir (dir, name))
+    if (dir_readdir (r_dir, name))
     {
-      //return false;
+      //printf ("dir is not empty\n");
+      inode_close (inode);
+      return false;
     }
     else
     {
-      inode_close (inode);
-      return false;
+      //printf ("dir is empty, can remove\n");
+      //inode_close (inode);
+      //return false;
     }
   }
   /* Erase directory entry. */
