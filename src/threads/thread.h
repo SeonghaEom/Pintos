@@ -130,7 +130,8 @@ struct thread
 #endif
 
 #ifdef FILESYS
-    struct dir *cur_dir;                /* Current directory that this thread is in */
+    block_sector_t dir_sector;          /* Inode for current dir is saved in here */
+    //struct dir *cur_dir;                /* Current directory that this thread is in */
     struct list open_dirs;
 #endif
 

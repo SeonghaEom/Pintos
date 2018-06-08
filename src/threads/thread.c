@@ -220,7 +220,7 @@ thread_create (const char *name, int priority,
 
 #endif
 #ifdef FILESYS
-  t->cur_dir = thread_current ()->cur_dir;
+  t->dir_sector = thread_current ()->dir_sector;
 #endif
   /* Prepare thread for first run by initializing its stack.
      Do this atomically so intermediate values for the 'stack' 

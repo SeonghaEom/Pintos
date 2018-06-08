@@ -366,6 +366,7 @@ create (const char *file, unsigned initial_size)
 static int
 write (int fd, const void *buffer, unsigned size)
 {
+  //printf ("write, fd: %d, size: %d\n", fd, size);
   /* fd==1 reserved from standard output */
   if (fd == 1) 
   {
@@ -398,6 +399,10 @@ write (int fd, const void *buffer, unsigned size)
       thread_yield();
       struct file *f = filedes->file;
       //lock_acquire (&file_lock);
+      if (file_get_inode (f)->type == INODE_DIR)
+      {
+        return -1;
+      }
       int result = (int) file_write (f, buffer, (off_t) size);
       //lock_release (&file_lock);
       return result;
@@ -424,12 +429,14 @@ static int
 open (const char *file)
 {    
   //lock_acquire (&file_lock);
+  //printf ("open!!!!!!!!!! file is  %s\n", file);
   struct file *open_file = filesys_open (file);
   //lock_release (&file_lock);
  
   /* file open fail */
   if (open_file == NULL)
   {
+    //printf ("open file fail\n");
     return -1;
   }
   /* file open success */
@@ -915,30 +922,34 @@ find_mf_by_mapid (mapid_t mapid)
 /* Change the current directory to DIR */
 static bool chdir (const char *dir)
 {
-  printf ("chdir: %s\n", dir);
+  //printf ("chdir: %s\n", dir);
   char *last_name = NULL;
   struct inode *inode = NULL;
   struct dir *directory = dir_open_path (dir, &last_name);
-  struct dir *new_directory;
+  //struct dir *new_directory;
 
   if (directory != NULL)
   {
-    printf ("A\n");
+    //printf ("A\n");
     dir_lookup (directory, last_name, &inode);
   }
   else 
   {
     return false;
   }
-  dir_close (dir);
-  printf ("inode : %x\n", inode); 
-  new_directory = dir_open (inode);
-  if (dir_get_inode (new_directory)->type == INODE_DIR)
+  //printf ("B\n");
+  dir_close (directory);
+  //printf ("inode : %x\n", inode); 
+  //new_directory = dir_open (inode);
+  //printf ("new directory sector: %d\n", inode->sector);
+  //printf ("new directory type: %d\n", inode->type);
+  if (inode->type == INODE_DIR)
   {  
-    thread_current ()->cur_dir = new_directory;
+    thread_current ()->dir_sector = inode->sector;
   }
   else
   {
+    printf ("C\n");
     return false;
   }
   return true;
@@ -947,11 +958,11 @@ static bool chdir (const char *dir)
 /* Create a new directory DIR */
 static bool mkdir (const char *dir)
 {
-  printf ("mkdir dir: %s\n", dir);
+  //printf ("mkdir dir: %s\n", dir);
   
   if (dir == "")
   {
-    printf ("dir %s\n", dir);
+    //printf ("dir %s\n", dir);
     return false;
   }
   char *last_name = NULL;
@@ -960,15 +971,17 @@ static bool mkdir (const char *dir)
   {
     return false;
   }
-  printf ("lastname %s\n", last_name);
+  //printf ("lastname %s\n", last_name);
+  
   if (last_name == NULL)
   {
     return false;
   }
   block_sector_t sector;
   free_map_allocate (1, &sector);
-  if (dir_create (sector, 0))
+  if (dir_create (sector, 16))
   {
+    /*
     if (!dir_add (directory, ".", sector))
     {
       //printf ("mkdir . failed\n");
@@ -976,7 +989,22 @@ static bool mkdir (const char *dir)
     if (!dir_add (directory, "..", dir_get_inode (directory)->sector))
     {
       //printf ("mkdir .. failed\n");
+    } */
+    if (!dir_add (directory, last_name, sector))
+    {
+       
     }
+    struct inode *inode = inode_open (sector);
+    struct dir *new_dir = dir_open (inode);
+    if (!dir_add (new_dir, ".", sector))
+    {
+    
+    }
+    if (!dir_add (new_dir, "..", dir_get_inode (directory)->sector))
+    {
+    
+    }
+    dir_close (new_dir); 
   }
   else
   {

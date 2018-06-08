@@ -40,7 +40,7 @@ filesys_init (bool format)
   {
     do_format ();
     /* Set main thread's current directory */
-    thread_current ()->cur_dir = dir_open_root ();
+    thread_current ()->dir_sector = ROOT_DIR_SECTOR; //dir_open_root ();
   }
 
   free_map_open ();
@@ -92,16 +92,18 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
   //printf ("last name: %s\n", last_name);
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
-                  && inode_create (inode_sector, initial_size, type)//type);
+                  && inode_create (inode_sector, initial_size, type)
                   && dir_add (dir, last_name, inode_sector));
+  
+  //printf ("inode_sector: %d\n", inode_sector);
   //printf ("success is %s\n", success? "true" : "false");
   if (!success && inode_sector != 0) 
   {  
     //printf ("bbb\n");
     free_map_release (inode_sector, 1);
   }
+  //printf ("dir_close the %x\n", dir);
   dir_close (dir);
-  //:printf ("success\n");
   return success;
 }
 
@@ -113,12 +115,22 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
 struct file *
 filesys_open (const char *name)
 {
-  char *dummy;
-  struct dir *dir = dir_open_path (name, &dummy);
+  //printf ("filesys open, name: %s\n", name);
+  char *last_name;
+  //printf ("1\n");
+  struct dir *dir = dir_open_path (name, &last_name);
+  //printf ("2\n");
   struct inode *inode = NULL; 
-
+  //printf ("filesys open2, name is %s\n", last_name);
+  //printf ("dir->inode->sector: %d\n", dir_get_inode(dir)->sector);
+  
   if (dir != NULL)
-    dir_lookup (dir, name, &inode);
+  {
+    //printf ("dir is not null\n");
+    //printf ("dir : %x\n", dir);
+    //printf ("dir->inode->sector: %d\n", dir_get_inode(dir)->sector);
+    dir_lookup (dir, last_name, &inode);
+  }
   dir_close (dir);
   
   if (inode == NULL)
@@ -134,9 +146,9 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name) 
 {
-  char *dummy;
-  struct dir *dir = dir_open_path (name, &dummy);
-  bool success = dir != NULL && dir_remove (dir, name);
+  char *last_name;
+  struct dir *dir = dir_open_path (name, &last_name);
+  bool success = dir != NULL && dir_remove (dir, last_name);
   dir_close (dir); 
 
   return success;

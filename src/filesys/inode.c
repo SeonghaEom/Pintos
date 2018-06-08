@@ -195,12 +195,16 @@ inode_open (block_sector_t sector)
   if (inode == NULL)
     return NULL;
 
+
   /* Initialize. */
   list_push_front (&open_inodes, &inode->elem);
+  struct inode_disk *inode_id = cache_get_data (sector);
+  inode->type = inode_id->type;
   inode->sector = sector;
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
   inode->removed = false;
+  
   lock_init (&inode->extension_lock);
 
   

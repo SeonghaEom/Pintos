@@ -632,3 +632,9 @@ void cache_inode_extend (block_sector_t sector, off_t new_pos)
   }
 }
 
+struct inode_disk * cache_get_data (block_sector_t sector)
+{
+  struct cache_entry *ce = cache_get_block (sector);
+  struct inode_disk *id = ce->data;
+  return id;
+}

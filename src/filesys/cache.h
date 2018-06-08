@@ -22,4 +22,5 @@ void cache_close_inode (block_sector_t);
 off_t cache_inode_length (block_sector_t);
 block_sector_t cache_byte_to_sector (block_sector_t, off_t);
 void cache_inode_extend (block_sector_t, off_t);
+struct inode_disk * cache_get_data (block_sector_t sector);
 #endif /* filesys/cache.h */
