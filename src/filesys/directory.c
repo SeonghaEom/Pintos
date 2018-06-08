@@ -4,6 +4,7 @@
 #include <list.h>
 #include "filesys/filesys.h"
 #include "filesys/inode.h"
+#include "userprog/syscall.h"
 #include "threads/malloc.h"
 #include "devices/block.h"
 #include "threads/thread.h"
@@ -226,7 +227,22 @@ dir_remove (struct dir *dir, const char *name)
     //printf ("We are trying to remove CWD\n");
     thread_current ()->dir_removed = true;
   }
-
+  
+  if (inode->type == INODE_DIR)
+  {
+    struct dir *r_dir = dir_open (inode);
+    char buf[14];  
+    char *name = buf;
+    if (!dir_readdir (dir, name))
+    {
+      //return false;
+    }
+    else
+    {
+      inode_close (inode);
+      return false;
+    }
+  }
   /* Erase directory entry. */
   e.in_use = false;
   if (inode_write_at (dir->inode, &e, sizeof e, ofs) != sizeof e) 

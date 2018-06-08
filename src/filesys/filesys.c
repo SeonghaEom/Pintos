@@ -134,6 +134,11 @@ filesys_open (const char *name)
   //printf ("last_name : %s\n", last_name);
   if (last_name == NULL)
   { 
+    if (strlen (name) != 1)
+    {
+      return NULL;
+    }
+    //printf ("last name is null\n");
     dir_close (dir);
     return file_open (inode_open (ROOT_DIR_SECTOR));
   }
