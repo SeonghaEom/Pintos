@@ -416,6 +416,8 @@ write (int fd, const void *buffer, unsigned size)
 static bool
 remove (const char *file)
 { 
+  //printf ("remove: %s\n", file);
+  
   //printf ("remove : thread%d a file lock\n", thread_current ()->tid);
   //lock_acquire (&file_lock);
   //printf ("remove : thread%d a file lock\n", thread_current ()->tid);
@@ -430,6 +432,7 @@ remove (const char *file)
 static int
 open (const char *file)
 {    
+  //printf ("open, file: %s\n", file);
   //lock_acquire (&file_lock);
   //printf ("open!!!!!!!!!! file is  %s\n", file);
   struct file *open_file = filesys_open (file);
@@ -934,10 +937,51 @@ find_mf_by_mapid (mapid_t mapid)
 static bool chdir (const char *dir)
 {
   //printf ("chdir: %s\n", dir);
+  
   char *last_name = NULL;
   struct inode *inode = NULL;
   struct dir *directory = dir_open_path (dir, &last_name);
   //struct dir *new_directory;
+  
+  if (directory == NULL)
+  {
+    //printf ("directory is null\n");
+    return false;
+  }
+
+  if (last_name == NULL)
+  {
+    //printf ("last name is null\n");
+    dir_close (directory);
+    return false;
+  }
+
+  dir_lookup (directory, last_name, &inode);
+
+  if (inode == NULL)
+  {
+    dir_close (directory);
+    free (last_name);
+    return false;
+  }
+
+  if (inode->type == INODE_DIR)
+  {
+    thread_current ()->dir_sector = inode->sector;
+  }
+  else 
+  {
+    dir_close (directory);
+    free (last_name);
+    return false;
+  }
+
+  dir_close (directory);
+  free (last_name);
+  return true;
+
+  // 여기서부터 밑에가 원래 코드
+  /*
   if (directory != NULL)
   {
     dir_lookup (directory, last_name, &inode);
@@ -956,15 +1000,16 @@ static bool chdir (const char *dir)
     }
     free (last_name);
     return false;
-  }
+  }*/
   //printf ("B\n");
-  dir_close (directory);
+  //dir_close (directory);
   //printf ("inode : %x\n", inode); 
   //new_directory = dir_open (inode);
   //printf ("new directory sector: %d\n", inode->sector);
   //printf ("new directory type: %d\n", inode->type);
   //
   /* If there is no last name in directory, should return false */
+  /*
   if (inode == NULL)
   {
     return false;
@@ -977,62 +1022,77 @@ static bool chdir (const char *dir)
   {
     return false;
   }
-  return true;
+  return true;*/
 }
 
 /* Create a new directory DIR */
 static bool mkdir (const char *dir)
 {
   //printf ("mkdir dir: %s\n", dir);
+  /* Empty dir rejected */
   if (dir == "")
   {
     //printf ("dir %s\n", dir);
     return false;
   }
+
   char *last_name = NULL;
+  //struct inode *inode = NULL;
   struct dir *directory = dir_open_path (dir, &last_name);
+  //printf ("after open path\n");
+
   if (directory == NULL)
   {
+    //printf ("directory is null\n");
     return false;
   }
-  //printf ("lastname %s\n", last_name);
   
   if (last_name == NULL)
   {
+    //printf ("last name is null\n");
     dir_close (directory);
     return false;
   }
-  
+ 
   block_sector_t sector;
   free_map_allocate (1, &sector);
-  if (dir_create (sector, 16))
+  
+  //printf ("before create dir\n");
+  /* Directory creation succeed */ 
+  if (dir_create (sector, 0))
   {
+    //printf ("mkdir success..\n");
     struct inode *inode = inode_open (sector);
     struct dir *new_dir = dir_open (inode);
     
     /* Add new directory failed to its parent directory */
+    //printf ("before dir add\n");
     if (!dir_add (directory, last_name, sector))
     {
+      //printf ("dir add fail\n");
       free_map_release (sector, 1);
       dir_close (directory); 
       dir_close (new_dir);
       free (last_name);
       return false;
     }
+    //printf ("dir add success\n");
 
     if (!dir_add (new_dir, ".", sector))
     {
-    
+      PANIC ("add \".\" in new dir failed"); 
     }
     if (!dir_add (new_dir, "..", dir_get_inode (directory)->sector))
     {
-    
+      PANIC ("add \"..\" in new dir failed"); 
     }
-    dir_close (new_dir); 
+    dir_close (new_dir);
+    //inode_close (inode);
   }
   else
   {
-    printf ("mkdir failed..\n");
+    //printf ("mkdir failed..\n");
+    free_map_release (sector, 1);
     dir_close (directory);
     free (last_name);
     return false;
@@ -1046,15 +1106,21 @@ static bool mkdir (const char *dir)
 /* Read dir_entry from FD and stores file name in NAME */
 static bool readdir (int fd, char *name)
 {
-  //printf ("readdir\n");
+  //printf ("readdir, fd: %d\n", fd);
+  
   struct filedescriptor *filedes = find_file (fd);
-  //printf ("readdir 하려는 디렉토리 이름: %s\n", filedes->filename);
+  //printf ("readdir fd: %d, name: %s\n", fd, filedes->filename);
   // open file , open directory  따로 관리!?!!
-  struct dir *dir = dir_open (file_get_inode (filedes->file));
+  struct file *f = filedes->file;
+  struct inode *inode = inode_open (file_get_inode (f)->sector);
+  struct dir *dir = dir_open (inode);
   //char buf[READDIR_MAX_LEN];
   //name = (char *) malloc (NAME_MAX + 1);
   //printf ("name1: %s\n", name);
   bool result = dir_readdir (dir, name);
+  
+  //free (dir); 
+  dir_close (dir);
   //printf ("name2: %s\n", name);
   return result;
 }
@@ -1062,9 +1128,15 @@ static bool readdir (int fd, char *name)
 /* True if FD presents directory, false if ordinary file */
 static bool isdir (int fd)
 {
-  //root    에서부터 찾기
   struct filedescriptor *filedes = find_file (fd);
-  if (file_get_inode (filedes->file)->type == INODE_DIR)
+  
+  if (filedes == NULL)
+  {
+    exit (-1);
+  }
+
+  struct file *f = filedes->file;
+  if (file_get_inode (f)->type == INODE_DIR)
   {
     return true;
   }
@@ -1077,17 +1149,15 @@ static bool isdir (int fd)
 /* Returns sector number of inode related with FD */
 static int inumber (int fd)
 {
- struct filedescriptor *filedes = find_file (fd);
+  struct filedescriptor *filedes = find_file (fd);
 
- if (filedes == NULL)
- {
-  exit (-1);
- }
- else
- {
+  if (filedes == NULL)
+  {
+    exit (-1);
+  }
+ 
   struct file *f = filedes->file;
   int inumber = inode_get_inumber (file_get_inode (f));
   return inumber;
- }
 }
 #endif

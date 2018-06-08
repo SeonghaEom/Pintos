@@ -6,12 +6,11 @@
 #include "devices/block.h"
 #include "filesys/off_t.h"
 
+struct lock c_lock;
+
 void cache_init (void);
 void cache_destroy (void);
-struct cache_entry *cache_find (block_sector_t);
-struct cache_entry *cache_get_block (block_sector_t);
 void read_aheader_func (void);
-void cache_read_ahead (block_sector_t);
 void flusher_func (void);
 void cache_write_behind (void);
 void q_destroy (void);

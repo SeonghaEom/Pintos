@@ -159,32 +159,37 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
   
   /* For debug */ 
-  /* 
+  
   printf ("Page fault at %p: %s error %s page in %s context. Thread %d\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel",
           thread_current ()->tid);
-  */
+  
 #ifdef VM
   
   /* Check is fault address is user vaddr */
+  /*
   if (!is_user_vaddr (fault_addr))
   {
+    printf ("A\n");
     exit (-1);
-  }
+  }*/
   /* If present and try to write on read only page */
+  //printf ("A\n");
   if (!not_present && write)
   {
     exit (-1);
   }
-  
+  //printf ("B\n");
   /* First, find spte for fault addr */
   struct spte *spte = spte_lookup (fault_addr);
   /* If spte exists, load it */
+  //printf ("C\n");
   if (spte != NULL)
   {
+    //printf ("D\n");
     /* Load depends on spte's location */
     switch (spte->location) 
     {
@@ -226,9 +231,11 @@ page_fault (struct intr_frame *f)
   /* If spte doesn't exist, check the stack growth */
   else
   { 
+    //printf ("E\n");
     if ((uint32_t)f->esp -32 <= (uint32_t)fault_addr &&
-        fault_addr <= PHYS_BASE)
+        fault_addr < PHYS_BASE)
     {
+      //printf ("F\n");
       /* When stack growth happens, new page address would be this */
       void *next_bound = pg_round_down (fault_addr);
       /* Stack limit */
@@ -280,6 +287,7 @@ page_fault (struct intr_frame *f)
       printf ("a\n");
     }
   }
+  //printf ("F\n");
 #else
   if (!is_user_vaddr (fault_addr))
   {

@@ -19,16 +19,17 @@ test_main (void)
   int i;
 
   msg ("creating many levels of files and directories...");
-  quiet = true;
+  // TODO 나중에 이 quite TRUE로 해주어야함
+  //quiet = true;
   CHECK (mkdir ("start"), "mkdir \"start\"");
   CHECK (chdir ("start"), "chdir \"start\"");
   for (i = 0; ; i++) 
     {
+      msg ("%d번째 for룹 시작", i);
       char name[3][READDIR_MAX_LEN + 1];
       char file_name[16], dir_name[16];
       char contents[128];
       int fd;
-
       /* Create file. */
       snprintf (file_name, sizeof file_name, "file%d", i);
       if (!create (file_name, 0))
@@ -45,12 +46,13 @@ test_main (void)
       
       /* Create directory. */
       snprintf (dir_name, sizeof dir_name, "dir%d", i);
+      msg ("1");
       if (!mkdir (dir_name)) 
         {
           CHECK (remove (file_name), "remove \"%s\"", file_name);
           break; 
         }
-
+      msg ("3");
       /* Check for file and directory. */
       CHECK ((fd = open (".")) > 1, "open \".\"");
       CHECK (readdir (fd, name[0]), "readdir \".\"");
@@ -68,7 +70,6 @@ test_main (void)
     }
   CHECK (i > 200, "created files and directories only to level %d", i);
   quiet = false;
-
   msg ("removing all but top 10 levels of files and directories...");
   quiet = true;
   while (i-- > 10) 

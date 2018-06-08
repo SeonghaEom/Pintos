@@ -18,8 +18,13 @@ static struct list cache;
 static struct list queue;
 static struct lock q_lock;
 static struct condition q_not_empty;
+
 /* List element for saved victim */
 static struct list_elem *saved_victim;
+
+static struct cache_entry *cache_find (block_sector_t);
+static struct cache_entry *cache_get_block (block_sector_t);
+static void cache_read_ahead (block_sector_t sector);
 
 static struct cache_entry *cache_alloc (block_sector_t sector);
 static struct cache_entry *cache_evict (void);
@@ -49,16 +54,16 @@ struct cache_entry
   struct list_elem elem;        /* List elem pushed in cache */
   block_sector_t sector;        /* Sector number of disk location */
   bool dirty;                   /* Dirty bit */
-  bool valid;                   /* Valid bit */
-  int read_cnt;                 /* Reader count */
-  int write_cnt;                /* Writer count */
-  int pending_cnt;              /* Pending count for read/write requests */
-  struct lock lock;             /* Read-write lock */
-  enum lock_state state;        /* State of lock */
-  struct condition r_end;       /* Signaled when read ends */
-  struct condition w_end;       /* Signaled when write ends */
+  //bool valid;                   /* Valid bit */
+  //int read_cnt;                 /* Reader count */
+  //int write_cnt;                /* Writer count */
+  //int pending_cnt;              /* Pending count for read/write requests */
+  //struct lock lock;             /* Read-write lock */
+  //enum lock_state state;        /* State of lock */
+  //struct condition r_end;       /* Signaled when read ends */
+  //struct condition w_end;       /* Signaled when write ends */
   uint8_t *data;               /* Actual data that are cached */
-  bool touchable;               /* Can evict this cache entry */
+  //bool touchable;               /* Can evict this cache entry */
 };
 
 struct q_entry
@@ -73,6 +78,7 @@ void cache_init (void)
   list_init (&cache);
   list_init (&queue);
   lock_init (&q_lock);
+  lock_init (&c_lock);
   cond_init (&q_not_empty);
 }
 
@@ -91,25 +97,26 @@ void cache_destroy (void)
 }
 
 /* Find cache entry pointer with block sector number and return NULL if none*/
-struct cache_entry *
+static struct cache_entry *
 cache_find (block_sector_t sector)
 {
- struct list_elem *e;
+  //printf ("cache find, sector: %d\n", sector);
+  struct list_elem *e;
 
- for (e = list_begin (&cache); e != list_end (&cache); e = list_next (e))
- {
-  struct cache_entry *ce = list_entry (e, struct cache_entry, elem);
-  if (ce->sector == sector)
+  for (e = list_begin (&cache); e != list_end (&cache); e = list_next (e))
   {
-    ce->touchable = false;
-    return ce;
+    struct cache_entry *ce = list_entry (e, struct cache_entry, elem);
+    if (ce->sector == sector)
+    {
+      //ce->touchable = false;
+      return ce;
+    }
   }
- }
  return NULL;
 }
 
 /* Try to get data from SECTOR in  cache or block read if there is none */
-struct cache_entry *cache_get_block (block_sector_t sector)
+static struct cache_entry *cache_get_block (block_sector_t sector)
 {
   //printf ("thread%d, cache_get_block sector : %d\n", thread_current ()->tid, sector);
   struct cache_entry *ce = cache_find (sector);
@@ -136,33 +143,42 @@ struct cache_entry *cache_get_block (block_sector_t sector)
 static struct cache_entry *
 cache_alloc (block_sector_t sector)
 {
+  printf ("cache alloc: %d\n", sector);
   struct cache_entry *ce;
   
   /* If list size is 64 evict */
   if (list_size (&cache) == 64)
   {
+    printf ("caache size = 64, needs evict\n");
     ce = cache_evict ();
+    printf ("evicted cache entry's sector: %d\n", ce->sector);
+    /* 
+    if (ce == NULL)
+    {
+      return NULL;
+    }*/
     memset (ce->data, 0xcc, BLOCK_SECTOR_SIZE);
   }
   /* Allocate new cache entry */
   else
   {
+    printf ("cache size < 64, needs allocation\n");
     ce = (struct cache_entry *) malloc (sizeof (struct cache_entry));
-    ce->touchable = false;
-    lock_init (&ce->lock);
-    cond_init (&ce->w_end);
-    cond_init (&ce->r_end);
+    //ce->touchable = false;
+    //lock_init (&ce->lock);
+    //cond_init (&ce->w_end);
+    //cond_init (&ce->r_end);
     ce->data = (void *) malloc (BLOCK_SECTOR_SIZE);
     list_push_back (&cache, &ce->elem);
   }
   /* Ce initialization */
   ce->sector = sector;
   ce->dirty = false;
-  ce->valid = true;
-  ce->read_cnt = 0;
-  ce->write_cnt = 0;
-  ce->pending_cnt = 0;
-  ce->state = LOCK_FREE;
+  //ce->valid = true;
+  //ce->read_cnt = 0;
+  //ce->write_cnt = 0;
+  //ce->pending_cnt = 0;
+  //ce->state = LOCK_FREE;
 
   /* Block read in cache data */
   block_read (fs_device, ce->sector, ce->data);
@@ -174,7 +190,7 @@ cache_alloc (block_sector_t sector)
 static struct cache_entry *
 cache_evict (void)
 {
-  //printf ("cache evict!\n");
+  printf ("cache evict!\n");
   /* FIFO */
   struct list_elem *e;
   struct cache_entry *victim;
@@ -191,6 +207,7 @@ cache_evict (void)
 
   victim = list_entry (e, struct cache_entry, elem);
   
+  /* 
   while (!victim->touchable)
   {
     e = list_next (e);
@@ -199,8 +216,9 @@ cache_evict (void)
       e = list_begin (&cache);
     }
     victim = list_entry (e, struct cache_entry, elem);
-  }
-  victim->touchable = false;
+  }*/
+  //victim->touchable = false;
+  
   /* Should we wrtie on disk? */
   if (victim->dirty)
   {
@@ -214,7 +232,7 @@ cache_evict (void)
     e = list_begin (&cache);
   }
   saved_victim = e;
-
+  
   return victim;
 }
 
@@ -229,11 +247,13 @@ void read_aheader_func (void)
     { 
       cond_wait (&q_not_empty, &q_lock);
     }
+    printf ("read ahead function !!!!!!!!!!!!!!!!!!\n");
     struct list_elem *e = list_pop_front (&queue);
     struct q_entry *qe = list_entry (e, struct q_entry, elem);
     
+    lock_acquire (&c_lock);
     struct cache_entry *ce = cache_get_block (qe->sector);
-    ce->touchable = true;
+    lock_release (&c_lock);
     
     lock_release (&q_lock);
   }
@@ -241,7 +261,7 @@ void read_aheader_func (void)
 
 /* Cache read ahead 
  * Push read ahead request in queue */
-void cache_read_ahead (block_sector_t sector)
+static void cache_read_ahead (block_sector_t sector)
 {
   lock_acquire (&q_lock);
   struct q_entry *qe = (struct q_entry *) malloc (sizeof (struct q_entry));
@@ -258,7 +278,9 @@ void flusher_func (void)
   while (true)
   {
     timer_sleep (WRITE_BEHIND_PERIOD);
+    lock_acquire (&c_lock);
     cache_write_behind ();
+    lock_release (&c_lock);
   }
 }
 
@@ -309,21 +331,25 @@ cache_read_at (void *dst, block_sector_t sector, off_t size, off_t offset,
     block_sector_t next_sector, bool ahead)
 {
   //printf ("thread%d, cache READ, sector: %d, size: %d, offset: %d\n", thread_current()->tid, sector, size, offset);
-  struct cache_entry *ce = cache_get_block (sector); 
-  
-  lock_acquire (&ce->lock);
+  struct cache_entry *ce = cache_get_block (sector);
+
+  //lock_acquire (&ce->lock);
   /* When cache entry is free, acquire the lock */
+  /* 
   if (ce->state == LOCK_FREE)
   {
     ce->read_cnt = 1;
     ce->state = LOCK_READ;
-  }
+  }*/
+  
+
   /* Wait for signal from condition w_exist 
    * when it is not free */
+  /*
   while (ce->state == LOCK_WRITE)
   {
     cond_wait (&ce->w_end, &ce->lock);
-  }
+  }*/
   /* Start reading */
   /* Accessing cache entry and write to buffer */
   
@@ -334,9 +360,10 @@ cache_read_at (void *dst, block_sector_t sector, off_t size, off_t offset,
   /* End reading 
    * When there are other threads accessing the cache entry,
    * just pass */
+  /*  
   if (--ce->read_cnt == 0)
   {
-    /* If there are no waiters in r_end, free the lock */
+    /* If there are no waiters in r_end, free the lock 
     if (list_empty(&(&ce->r_end)->waiters))
     {
       ce->state = LOCK_FREE;
@@ -345,15 +372,16 @@ cache_read_at (void *dst, block_sector_t sector, off_t size, off_t offset,
       ce->touchable = true;
       return;
     }
-    /* If there are waiters in r_end, change state */
+    /* If there are waiters in r_end, change state 
     else
     {
       ce->state = LOCK_WRITE;
       cond_signal (&ce->r_end, &ce->lock);
     }
-  }
+  }*/
   //printf ("read_cnt %d, sector%d lock release late in cache_READ_at by thread%d\n", ce->read_cnt,  sector, thread_current()->tid);
-  lock_release (&ce->lock);
+  //lock_release (&ce->lock);
+  return size;
 }
 
 /* Cache write from src to sector plus offset by size*/
@@ -363,38 +391,43 @@ cache_write_at (block_sector_t sector, void *src, off_t size, off_t offset)
   //printf ("thread%d, cache WRITE at sector: %d\n", thread_current()->tid, sector);
   struct cache_entry *ce = cache_get_block (sector);
 
-  lock_acquire (&ce->lock);
+  //lock_acquire (&ce->lock);
   //printf ("lock held in cache_WRITE_at , lock state = %d\n", ce->state);
   /* If the lock is free change the state */
+  /*
   if (ce->state == LOCK_FREE)
   {
     ce->state = LOCK_WRITE;
   }
+  */
   /* Wait for signal from condition r_exist 
    * if the lock is not free */
+  /*
   while (ce->state == LOCK_READ)
   {
     //printf ("afadfa\n");
     cond_wait (&ce->r_end, &ce->lock);
   }
+  */
   /* Accessing cache entry and write to it */
   //if (ahead)
   //  cache_read_ahead (sector + 1);
   
   memcpy (ce->data + offset, src, size);
   ce->dirty = true;
-
   /* If there are actually no waiters in w_end
    * free the lock */
+  /*
   if (list_empty (&(&ce->w_end)->waiters))
   {
     ce->state = LOCK_FREE;
     lock_release (&ce->lock);
     ce->touchable = true;
     return;
-  }
+  }*/
   /* If there are waiters in w_end, 
    * change the state to read */
+  /*
   else
   {
     ce->state = LOCK_READ;
@@ -402,7 +435,8 @@ cache_write_at (block_sector_t sector, void *src, off_t size, off_t offset)
     ce->read_cnt = list_size (&(&ce->w_end)->waiters);
     cond_broadcast (&ce->w_end, &ce->lock);
   }
-  lock_release (&ce->lock);
+  lock_release (&ce->lock);*/
+  return size;
 }
 
 /* Close the Inode in given sector,
@@ -487,8 +521,10 @@ void cache_close_inode (block_sector_t sector)
 /* Returns the length, in bytes, of inode's datain given SECTOR */
 off_t cache_inode_length (block_sector_t sector)
 {
+  lock_acquire (&c_lock);
   struct cache_entry *inode_ce = cache_get_block (sector);
   struct inode_disk *inode_id = inode_ce->data;
+  lock_release (&c_lock);
   return inode_id->length;
 }
 
@@ -541,14 +577,16 @@ cache_byte_to_sector (block_sector_t sector, off_t offset)
 /* Extend inode with given sector to length be a new_pos */
 void cache_inode_extend (block_sector_t sector, off_t new_pos)
 {
+  printf ("cache inode extend, sector: %d, new_pos: %d\n", sector, new_pos);
   /* First find inode cache entry and inode inode disk */
   struct cache_entry *inode_ce = cache_find (sector);
   struct inode_disk *inode_id = inode_ce->data;
   /* Current sector length and needed sector length */
   size_t current_length = DIV_ROUND_UP (inode_id->length, BLOCK_SECTOR_SIZE);
   size_t needed_length = DIV_ROUND_UP (new_pos, BLOCK_SECTOR_SIZE);
-  //printf ("inode in sector %d current_length %d, needed_length %d\n", sector, current_length, needed_length);
+  printf ("inode in sector %d current_length %d, needed_length %d\n", sector, current_length, needed_length);
   int ext_cnt = needed_length - current_length;
+  printf ("ext_cnt: %d\n", ext_cnt);
   if (ext_cnt > 0)
   {
     /* Zeros */
@@ -562,7 +600,7 @@ void cache_inode_extend (block_sector_t sector, off_t new_pos)
       {
         free_map_allocate (1, &inode_id->direct[current_length]);
         inode_ce->dirty = true;
-        //printf ("new direct block sector: %d\n", inode_id->direct[current_length]);
+        printf ("new direct block sector: %d\n", inode_id->direct[current_length]);
         cache_write_at (inode_id->direct[current_length], zeros, BLOCK_SECTOR_SIZE, 0);
       }
       /* Next block is indirect block */
