@@ -109,6 +109,10 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
   }
   //printf ("dir_close the %x\n", dir);
   dir_close (dir);
+  if (dir != NULL)
+  {
+    free (last_name);
+  }
   return success;
 }
 
@@ -163,6 +167,7 @@ filesys_open (const char *name)
   {
     return NULL;
   }
+  free (last_name);
   /*
   if (inode->type == INODE_DIR)
   {
@@ -183,6 +188,10 @@ filesys_remove (const char *name)
   struct dir *dir = dir_open_path (name, &last_name);
   bool success = dir != NULL && dir_remove (dir, last_name);
   dir_close (dir); 
+  if (last_name != NULL)
+  {
+    free (last_name);
+  }
 
   return success;
 }

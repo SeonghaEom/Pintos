@@ -942,6 +942,7 @@ static bool chdir (const char *dir)
   if (directory != NULL)
   {
     dir_lookup (directory, last_name, &inode);
+    free (last_name);
   }
   else 
   {
@@ -1026,6 +1027,7 @@ static bool mkdir (const char *dir)
   }
   //printf ("the directory should be root, %d\n", dir_get_inode (directory)->sector);
   dir_close (directory);
+  free (last_name);
   return true;
 
   
