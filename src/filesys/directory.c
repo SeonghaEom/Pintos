@@ -267,9 +267,9 @@ dir_open_path (const char *file, char **last_token)
   struct inode *inode;
   char *current_token = strtok_r (file_copy, DELIM, &save_ptr);;
   //printf ("save ptr: %s\n", *save_ptr);
-  //printf ("current_token: %s\n", current_token);
+  printf ("current_token: %s\n", current_token);
   char *next_token = strtok_r (NULL, DELIM , &save_ptr);
-  //printf ("next_token: %s\n", next_token);
+  printf ("next_token: %s\n", next_token);
   struct dir *directory;
   
   /* File copy is null */
@@ -290,9 +290,9 @@ dir_open_path (const char *file, char **last_token)
     return directory;
   }
   /* This is the case for absolute path */
-  else if ((char) *current_token == '/')
+  else if ((char) *file == '/')
   {
-    //printf ("Absolute path\n");
+    //printf ("thread%d: %d\n", thread_current ()->tid, thread_current ()->dir_sector);
     directory = dir_open_root ();
   }
   /* THis is the case for relative path */
@@ -328,7 +328,7 @@ dir_open_path (const char *file, char **last_token)
       //printf ("dir_open_path: %s is not in directory\n", current_token);
       return NULL;
     }
-
+    //printf ("adfdafdafa\n");
     // Advance
     current_token = next_token;
     next_token = strtok_r (NULL, "/", &save_ptr);

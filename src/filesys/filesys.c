@@ -115,11 +115,18 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
 struct file *
 filesys_open (const char *name)
 {
-  //printf ("filesys open, name: %s\n", name);
-  char *last_name;
+  printf ("filesys open, name: %s\n", name);
+  char *last_name = NULL;
   //printf ("1\n");
   struct dir *dir = dir_open_path (name, &last_name);
+  //printf ("dir sector is %d\n", dir_get_inode (dir)->sector);
   //printf ("2\n");
+  printf ("last_name : %s\n", last_name);
+  if (last_name == NULL)
+  { 
+    dir_close (dir);
+    return file_open (inode_open (ROOT_DIR_SECTOR));
+  }
   struct inode *inode = NULL; 
   //printf ("filesys open2, name is %s\n", last_name);
   //printf ("dir->inode->sector: %d\n", dir_get_inode(dir)->sector);
@@ -134,8 +141,15 @@ filesys_open (const char *name)
   dir_close (dir);
   
   if (inode == NULL)
+  {
     return NULL;
-    //printf ("inode null in filesysopen\n");
+  }
+  /*
+  if (inode->type == INODE_DIR)
+  {
+    printf ("filesys_open: the returned inode is directory \n");
+    return dir_open (inode);
+  } */
   return file_open (inode);
 }
 

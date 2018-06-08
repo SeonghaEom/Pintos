@@ -429,7 +429,7 @@ static int
 open (const char *file)
 {    
   //lock_acquire (&file_lock);
-  printf ("open!!!!!!!!!! file is  %s\n", file);
+  //printf ("open!!!!!!!!!! file is  %s\n", file);
   struct file *open_file = filesys_open (file);
   //lock_release (&file_lock);
  
