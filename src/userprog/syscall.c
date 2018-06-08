@@ -429,7 +429,7 @@ static int
 open (const char *file)
 {    
   //lock_acquire (&file_lock);
-  //printf ("open!!!!!!!!!! file is  %s\n", file);
+  printf ("open!!!!!!!!!! file is  %s\n", file);
   struct file *open_file = filesys_open (file);
   //lock_release (&file_lock);
  
@@ -922,7 +922,7 @@ find_mf_by_mapid (mapid_t mapid)
 /* Change the current directory to DIR */
 static bool chdir (const char *dir)
 {
-  printf ("chdir: %s\n", dir);
+  //printf ("chdir: %s\n", dir);
   char *last_name = NULL;
   struct inode *inode = NULL;
   struct dir *directory = dir_open_path (dir, &last_name);
@@ -981,25 +981,23 @@ static bool mkdir (const char *dir)
   {
     return false;
   }
+  
   block_sector_t sector;
   free_map_allocate (1, &sector);
   if (dir_create (sector, 16))
   {
-    /*
-    if (!dir_add (directory, ".", sector))
-    {
-      //printf ("mkdir . failed\n");
-    }
-    if (!dir_add (directory, "..", dir_get_inode (directory)->sector))
-    {
-      //printf ("mkdir .. failed\n");
-    } */
-    if (!dir_add (directory, last_name, sector))
-    {
-       
-    }
     struct inode *inode = inode_open (sector);
     struct dir *new_dir = dir_open (inode);
+    
+    /* Add new directory failed to its parent directory */
+    if (!dir_add (directory, last_name, sector))
+    {
+      free_map_release (sector, 1);
+      dir_close (directory); 
+      dir_close (new_dir);
+      return false;
+    }
+
     if (!dir_add (new_dir, ".", sector))
     {
     
@@ -1015,6 +1013,7 @@ static bool mkdir (const char *dir)
     printf ("mkdir failed..\n");
     return false;
   }
+  dir_close (directory);
   return true;
 
   
