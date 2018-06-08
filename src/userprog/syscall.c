@@ -212,12 +212,12 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_READDIR:
       read_arguments (f->esp, &argv[0], 2, f);
       fd = (int) argv[0];
-      char name[READDIR_MAX_LEN + 1];
-      printf ("argv[0] : %s\n", (char *) argv[0]);
-      printf ("argv[1] : %s\n", (char *) argv[1]);
+      char *name = (char *) malloc (strlen (argv[1]) + 1);
+      //printf ("argv[0] : %s\n", (char *) argv[0]);
+      //printf ("argv[1] : %s\n", (char *) argv[1]);
       strlcpy (name, argv[1], strlen (argv[1]) + 1);
-      printf ("name : %s\n", name);
       f->eax = readdir (fd, name);
+      free (name);
       break;
     case SYS_ISDIR:
       read_arguments (f->esp, &argv[0], 1, f);
@@ -442,16 +442,20 @@ open (const char *file)
   /* file open success */
   else 
   {
+    //printf ("file open success?\n");
     int new_fd = thread_current ()->next_fd;
     thread_current ()->next_fd++;
     /* create new filedescriptor */
     struct filedescriptor *filedes =
       (struct filedescriptor*) malloc (sizeof (struct filedescriptor));
+    //printf ("success?\n");
     filedes->file = open_file;
     filedes->fd = new_fd;
     filedes->filename = file;
+    //printf ("filename is : %s\n", file);
     /* push it open_files or open_dirs */
     list_push_back (&thread_current ()->open_files, &filedes->elem);
+    //printf ("thread_current argvname : %s\n", thread_current ()->argv_name);
     if (!strcmp ( file, thread_current()->argv_name))
     {
       file_deny_write(open_file); 
@@ -1013,6 +1017,7 @@ static bool mkdir (const char *dir)
     printf ("mkdir failed..\n");
     return false;
   }
+  //printf ("the directory should be root, %d\n", dir_get_inode (directory)->sector);
   dir_close (directory);
   return true;
 
@@ -1022,10 +1027,11 @@ static bool mkdir (const char *dir)
 /* Read dir_entry from FD and stores file name in NAME */
 static bool readdir (int fd, char *name)
 {
+  //:printf ("readdir\n");
   struct filedescriptor *filedes = find_file (fd);
   // open file , open directory  따로 관리!?!!
   struct dir *dir = dir_open (file_get_inode (filedes->file));
-  char buf[NAME_MAX + 1];
+  char buf[READDIR_MAX_LEN];
   name = buf;
   return dir_readdir (dir, name);
 }

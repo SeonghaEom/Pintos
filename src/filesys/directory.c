@@ -203,6 +203,7 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 bool
 dir_remove (struct dir *dir, const char *name) 
 {
+  //printf ("dir_removed, %s\n", name);
   struct dir_entry e;
   struct inode *inode = NULL;
   bool success = false;
@@ -219,6 +220,12 @@ dir_remove (struct dir *dir, const char *name)
   inode = inode_open (e.inode_sector);
   if (inode == NULL)
     goto done;
+
+  if (inode->sector == thread_current ()->dir_sector)
+  {
+    //printf ("We are trying to remove CWD\n");
+    thread_current ()->dir_removed = true;
+  }
 
   /* Erase directory entry. */
   e.in_use = false;
@@ -245,6 +252,11 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
   while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e) 
     {
       dir->pos += sizeof e;
+      if (strcmp (".", e.name) == 0 || strcmp ("..", e.name) == 0)
+      {
+        continue;
+      }
+      
       if (e.in_use)
         {
           strlcpy (name, e.name, NAME_MAX + 1);
@@ -267,9 +279,9 @@ dir_open_path (const char *file, char **last_token)
   struct inode *inode;
   char *current_token = strtok_r (file_copy, DELIM, &save_ptr);;
   //printf ("save ptr: %s\n", *save_ptr);
-  printf ("current_token: %s\n", current_token);
+  //printf ("current_token: %s\n", current_token);
   char *next_token = strtok_r (NULL, DELIM , &save_ptr);
-  printf ("next_token: %s\n", next_token);
+  //printf ("next_token: %s\n", next_token);
   struct dir *directory;
   
   /* File copy is null */
@@ -300,6 +312,11 @@ dir_open_path (const char *file, char **last_token)
   {
     //printf ("Relative path\n");
     //printf ("thread_current cur dir %x\n", thread_current ()->cur_dir);
+    if (thread_current ()->dir_removed)
+    {
+      //printf ("thread current CWD is removed\n");
+      return NULL;
+    }
     directory = dir_open (inode_open (thread_current ()->dir_sector)); //thread_current ()->cur_dir;
     //printf ("current_token: %s\n", current_token);
     //printf ("next_token: %s\n", next_token);

@@ -41,6 +41,7 @@ filesys_init (bool format)
     do_format ();
     /* Set main thread's current directory */
     thread_current ()->dir_sector = ROOT_DIR_SECTOR; //dir_open_root ();
+    thread_current ()->dir_removed = false;
   }
 
   free_map_open ();
@@ -72,6 +73,10 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
   //printf ("last name address: %x\n", &last_name);
   struct dir *dir = dir_open_path (name, &last_name);
   
+  if (dir == NULL) 
+  {
+    return false;
+  }
   //struct dir *dir = dir_open_root ();
 
   //printf ("last name: %s\n", last_name); 
@@ -115,13 +120,18 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
 struct file *
 filesys_open (const char *name)
 {
-  printf ("filesys open, name: %s\n", name);
+  //printf ("filesys open, name: %s\n", name);
   char *last_name = NULL;
   //printf ("1\n");
   struct dir *dir = dir_open_path (name, &last_name);
   //printf ("dir sector is %d\n", dir_get_inode (dir)->sector);
   //printf ("2\n");
-  printf ("last_name : %s\n", last_name);
+  if (dir == NULL)
+  {
+    return NULL;
+  }
+
+  //printf ("last_name : %s\n", last_name);
   if (last_name == NULL)
   { 
     dir_close (dir);
@@ -137,6 +147,10 @@ filesys_open (const char *name)
     //printf ("dir : %x\n", dir);
     //printf ("dir->inode->sector: %d\n", dir_get_inode(dir)->sector);
     dir_lookup (dir, last_name, &inode);
+  }
+  else 
+  {
+    //printf ("dir is NULL\n");
   }
   dir_close (dir);
   

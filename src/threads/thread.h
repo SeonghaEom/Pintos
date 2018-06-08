@@ -131,8 +131,7 @@ struct thread
 
 #ifdef FILESYS
     block_sector_t dir_sector;          /* Inode for current dir is saved in here */
-    //struct dir *cur_dir;                /* Current directory that this thread is in */
-    struct list open_dirs;
+    bool dir_removed;                   /* Dir removed */
 #endif
 
     /* Owned by thread.c. */
