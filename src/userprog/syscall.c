@@ -922,7 +922,7 @@ find_mf_by_mapid (mapid_t mapid)
 /* Change the current directory to DIR */
 static bool chdir (const char *dir)
 {
-  //printf ("chdir: %s\n", dir);
+  printf ("chdir: %s\n", dir);
   char *last_name = NULL;
   struct inode *inode = NULL;
   struct dir *directory = dir_open_path (dir, &last_name);
@@ -930,7 +930,6 @@ static bool chdir (const char *dir)
 
   if (directory != NULL)
   {
-    //printf ("A\n");
     dir_lookup (directory, last_name, &inode);
   }
   else 
@@ -943,13 +942,18 @@ static bool chdir (const char *dir)
   //new_directory = dir_open (inode);
   //printf ("new directory sector: %d\n", inode->sector);
   //printf ("new directory type: %d\n", inode->type);
+  //
+  /* If there is no last name in directory, should return false */
+  if (inode == NULL)
+  {
+    return false;
+  }
   if (inode->type == INODE_DIR)
   {  
     thread_current ()->dir_sector = inode->sector;
   }
   else
   {
-    printf ("C\n");
     return false;
   }
   return true;
