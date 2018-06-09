@@ -33,7 +33,7 @@ filesys_init (bool format)
   cache_init ();
   /* Creating read ahead and write behind threads */
   //thread_create ("read_aheader", PRI_DEFAULT, read_aheader_func, NULL);
-  thread_create ("flusher", PRI_DEFAULT, flusher_func, NULL);
+  //thread_create ("flusher", PRI_DEFAULT, flusher_func, NULL);
 #endif
 
   if (format) 
@@ -53,11 +53,12 @@ void
 filesys_done (void) 
 {
 #ifdef FILESYS
+  lock_acquire (&c_lock);
   cache_write_behind ();
-  
+  lock_release (&c_lock);
   cache_destroy ();
 
-  q_destroy ();
+  //q_destroy ();
 #endif
   free_map_close ();
 }
@@ -155,6 +156,7 @@ filesys_open (const char *name)
   /* Dir is null */ 
   if (dir == NULL)
   {
+    //printf ("dir is null\n");
     return NULL;
   }
 
@@ -166,17 +168,21 @@ filesys_open (const char *name)
     /* 전체 name이 "/"인지 아닌지 구분하기 위해 */
     if (strlen (name) != 1)
     {
+      //printf ("last name is null and name is not \"/\"\n");
       return NULL;
     }
     //printf ("last name is null\n");
+    printf ("open root\n");
     return file_open (inode_open (ROOT_DIR_SECTOR));
   }
   
   //printf ("filesys open2, name is %s\n", last_name);
   //printf ("dir->inode->sector: %d\n", dir_get_inode(dir)->sector);
-  
+  //printf ("A\n"); 
   dir_lookup (dir, last_name, &inode);
+  //printf ("B\n");
   dir_close (dir);
+  //printf ("C\n");
   //printf ("last_name2: %s\n", last_name);
   free (last_name); 
   /* If inode is null, there is no file with last_name */ 

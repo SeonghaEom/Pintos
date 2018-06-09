@@ -78,10 +78,10 @@ struct q_entry
 void cache_init (void)
 {
   list_init (&cache);
-  list_init (&queue);
-  lock_init (&q_lock);
+  //list_init (&queue);
+  //lock_init (&q_lock);
   lock_init (&c_lock);
-  cond_init (&q_not_empty);
+  //cond_init (&q_not_empty);
 }
 
 /* Cache destruction */
@@ -93,6 +93,11 @@ void cache_destroy (void)
   {
     e = list_pop_front (&cache);
     ce = list_entry (e, struct cache_entry, elem);
+    if (ce->dirty)
+    {
+      block_write (fs_device, ce->sector, ce->data);
+      ce->dirty = false;
+    }
     free (ce->data);
     free (ce);
   }
@@ -261,6 +266,7 @@ cache_evict (void)
 
 /* Read aheader function
  * This function will used in kernel thread read_aheader */
+/*
 void read_aheader_func (void)
 {
   while (true)
@@ -278,10 +284,11 @@ void read_aheader_func (void)
     ce->use_cnt--; 
     lock_release (&q_lock);
   }
-}
+}*/
 
 /* Cache read ahead 
  * Push read ahead request in queue */
+/*
 static void cache_read_ahead (block_sector_t sector)
 {
   lock_acquire (&q_lock);
@@ -290,7 +297,7 @@ static void cache_read_ahead (block_sector_t sector)
   list_push_back (&queue, &qe->elem);
   cond_signal (&q_not_empty, &q_lock);
   lock_release (&q_lock);
-}
+}*/
 
 /* Flusher function 
  * This function will used in kernel thread flusher */
@@ -332,6 +339,7 @@ void cache_write_behind (void)
 }
 
 /* Queue destruction */
+/*
 void q_destroy (void)
 {
   struct list_elem *e;
@@ -342,7 +350,7 @@ void q_destroy (void)
     qe = list_entry (e, struct q_entry, elem);
     free (qe);
   }
-}
+}*/
 
 /* Cache read at from sector plus offset to dst by size */
 off_t
@@ -540,7 +548,7 @@ void cache_close_inode (block_sector_t sector)
       k++;
       list_remove (&dii_ce->elem);
       free (dii_ce->data);
-      free (di_ce);
+      free (dii_ce);
     }
     free_map_release (inode_id->doubly_indirect[0], 1);
     list_remove (&di_ce->elem);
