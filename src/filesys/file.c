@@ -70,6 +70,7 @@ file_get_inode (struct file *file)
 off_t
 file_read (struct file *file, void *buffer, off_t size) 
 {
+  //printf ("[file_read] file inode sector : %d, size: %d\n", file->inode->sector, size);
   //printf ("file_read : thread%d before file_read\n", thread_current ()->tid);
   off_t bytes_read = inode_read_at (file->inode, buffer, size, file->pos);
   //printf ("file_read : thread%d after file_read\n", thread_current ()->tid);

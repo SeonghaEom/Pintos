@@ -1059,7 +1059,7 @@ static bool mkdir (const char *dir)
   
   //printf ("before create dir\n");
   /* Directory creation succeed */ 
-  if (dir_create (sector, 16))
+  if (dir_create (sector, 7))
   {
     //printf ("mkdir success..\n");
     struct inode *inode = inode_open (sector);

@@ -40,8 +40,9 @@ filesys_init (bool format)
   {
     do_format ();
     /* Set main thread's current directory */
-    thread_current ()->dir_sector = ROOT_DIR_SECTOR; //dir_open_root ();
-    thread_current ()->dir_removed = false;
+    
+    //thread_current ()->dir_sector = ROOT_DIR_SECTOR; //dir_open_root ();
+    //thread_current ()->dir_removed = false;
   }
 
   free_map_open ();
@@ -52,15 +53,15 @@ filesys_init (bool format)
 void
 filesys_done (void) 
 {
-#ifdef FILESYS
-  lock_acquire (&c_lock);
-  cache_write_behind ();
-  lock_release (&c_lock);
-  cache_destroy ();
+  free_map_close ();
 
+
+#ifdef FILESYS
+  //cache_write_behind ();
+  cache_destroy ();
   //q_destroy ();
 #endif
-  free_map_close ();
+  //free_map_close ();
 }
 
 /* Creates a file named NAME with the given INITIAL_SIZE.
@@ -70,7 +71,7 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size, enum inode_type type) 
 {
-  //printf ("filesys_create, name: %s, initial_size %d, inode_type: %d\n", name, initial_size, type);
+  //printf ("[filesys_create], name: %s, initial_size %d, inode_type: %d\n", name, initial_size, type);
   
   block_sector_t inode_sector = 0;
   char *last_name = NULL;
@@ -91,17 +92,22 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
     dir_close (dir);
     return false;
   }
+  
   /* Last name not null 
    * So check dir has last_name already */
-  dir_lookup (dir, last_name, &inode);
-  
+  //printf ("C\n");
+  dir_lookup (dir, last_name, &inode); 
+  //printf ("A\n");
+
   /* Found the inode with last name, thus create failed */
   if (inode != NULL)
   {
+    //printf ("found the inode with %s, thus create failed\n", last_name);
     dir_close (dir);
     free (last_name);
     return false;
   }
+  //printf ("B\n");
 
   //printf ("dir %x\n", dir);
   //printf ("enum size: %d\n", sizeof (enum inode_type));
@@ -112,7 +118,9 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
   //printf ("which is false?: %s %s %s %s\n", a? "t":"f", b?"t":"f",c?"t":"f",d?"t":"f");
   //printf ("type : %d\n", type);
   //printf ("last name: %s\n", last_name);
-
+  //
+  //printf ("Allocate one sector for inode and create inode\n");
+  
   /* Allocate one sector for inode and create inode */
   bool success = (dir != NULL
                   && free_map_allocate (1, &inode_sector)
@@ -126,11 +134,6 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
     free_map_release (inode_sector, 1);
   }
   
-  // TODO free what and when?
- 
-  //printf ("dir_close the %x\n", dir);
-  
-  //free (dir);
   dir_close (dir);
   free (last_name);
   
@@ -145,11 +148,12 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
 struct file *
 filesys_open (const char *name)
 {
-  //printf ("filesys open, name: %s\n", name);
+  //printf ("[filesys open], name: %s\n", name);
   
   char *last_name = NULL;
   struct inode *inode = NULL;
   struct dir *dir = dir_open_path (name, &last_name);
+  
   //printf ("last_name1: %s\n", last_name);
   //printf ("dir sector is %d\n", dir_get_inode (dir)->sector);
   //printf ("2\n");
@@ -161,6 +165,7 @@ filesys_open (const char *name)
   }
 
   //printf ("last_name : %s\n", last_name);
+  
   /* Last name is null */
   if (last_name == NULL)
   { 
@@ -172,24 +177,34 @@ filesys_open (const char *name)
       return NULL;
     }
     //printf ("last name is null\n");
-    printf ("open root\n");
+    //printf ("open root\n");
     return file_open (inode_open (ROOT_DIR_SECTOR));
   }
   
   //printf ("filesys open2, name is %s\n", last_name);
   //printf ("dir->inode->sector: %d\n", dir_get_inode(dir)->sector);
-  //printf ("A\n"); 
   dir_lookup (dir, last_name, &inode);
-  //printf ("B\n");
   dir_close (dir);
+
+  if (inode == NULL)
+  {
+    //printf ("inode is null\n");
+    free (last_name);
+    return NULL;
+  }
+  //printf ("inode sector: %d\n", inode->sector);
+  //printf ("open inode\n");
+  
   //printf ("C\n");
   //printf ("last_name2: %s\n", last_name);
   free (last_name); 
   /* If inode is null, there is no file with last_name */ 
+  /*
   if (inode == NULL)
   {
     return NULL;
-  }
+  }*/
+
   return file_open (inode);
 }
 
@@ -200,7 +215,7 @@ filesys_open (const char *name)
 bool
 filesys_remove (const char *name) 
 {
-  //printf ("filesys remove, name: %s\n", name);
+  //printf ("[filesys remove], name: %s\n", name);
   char *last_name = NULL;
   struct dir *dir = dir_open_path (name, &last_name);
   bool success = true;
@@ -233,12 +248,16 @@ do_format (void)
 {
   printf ("Formatting file system...");
   free_map_create ();
-  if (!dir_create (ROOT_DIR_SECTOR, 16))
+  if (!dir_create (ROOT_DIR_SECTOR, 7))
     PANIC ("root directory creation failed");
+  
   struct dir *root = dir_open_root ();
   /* '.' and '..' for root directory */
   dir_add (root, ".", ROOT_DIR_SECTOR); 
   dir_add (root, "..", ROOT_DIR_SECTOR);
+  
+  dir_close (root);
+  
   free_map_close ();
   printf ("done.\n");
 }

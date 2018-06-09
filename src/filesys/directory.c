@@ -76,11 +76,16 @@ dir_reopen (struct dir *dir)
 void
 dir_close (struct dir *dir) 
 {
+  //printf ("[dir_close]\n");
   if (dir != NULL)
     {
+      //printf ("dir is not null\n");
       inode_close (dir->inode);
+      //printf ("after inode closese\n");
       free (dir);
+      //printf ("after free dir\n");
     }
+  //printf ("dir close done\n");
 }
 
 /* Returns the inode encapsulated by DIR. */
@@ -145,9 +150,11 @@ dir_lookup (const struct dir *dir, const char *name,
   {
     //printf ("lookup failed\n");
     *inode = NULL;
+    //printf ("nnnn\n");
   }
-
-  return *inode != NULL;
+  //printf ("dir lookup almost ends\n");
+  bool result = (*inode != NULL);
+  return result;
 }
 
 /* Adds a file named NAME to DIR, which must not already contain a
@@ -159,14 +166,15 @@ dir_lookup (const struct dir *dir, const char *name,
 bool
 dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 {
-  //printf ("dir add\n");
+  //printf ("[dir_add] name: %s, inode sector: %d\n", name, inode_sector);
+  
   struct dir_entry e;
   off_t ofs;
   bool success = false;
-
+  
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
-
+  
   /* Check NAME for validity. */
   if (*name == '\0' || strlen (name) > NAME_MAX)
   {  
@@ -314,7 +322,7 @@ struct dir *
 dir_open_path (const char *file, char **last_token)
 {
   //printf ("dir open path, file: %s\n", file);
- 
+  
   char *file_copy = (char *) malloc (strlen (file) + 1);
   char *save_ptr;
   //printf ("file: %s\n", file);
@@ -373,6 +381,7 @@ dir_open_path (const char *file, char **last_token)
       return NULL;
     }
     /* Open CWD */
+    //printf ("thread_current ()->dir sector is: %d\n", thread_current ()->dir_sector); 
     directory = dir_open (inode_open (thread_current ()->dir_sector)); //thread_current ()->cur_dir;
     //printf ("current_token: %s\n", current_token);
     //printf ("next_token: %s\n", next_token);

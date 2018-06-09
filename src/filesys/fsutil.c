@@ -188,6 +188,7 @@ fsutil_append (char **argv)
   if (src == NULL)
     PANIC ("%s: open failed", file_name);
   size = file_length (src);
+  //printf ("size: %d\n", size);
 
   /* Open target block device. */
   dst = block_get_role (BLOCK_SCRATCH);
@@ -203,10 +204,19 @@ fsutil_append (char **argv)
   while (size > 0) 
     {
       int chunk_size = size > BLOCK_SECTOR_SIZE ? BLOCK_SECTOR_SIZE : size;
+      
       if (sector >= block_size (dst))
         PANIC ("%s: out of space on scratch device", file_name);
-      if (file_read (src, buffer, chunk_size) != chunk_size)
+      off_t file_read_size = file_read (src, buffer, chunk_size);
+      
+      //printf ("size: %d, chunk_size: %d, file_read_size: %d\n", size, chunk_size, file_read_size);
+
+      //if (file_read (src, buffer, chunk_size) != chunk_size)
+      if (file_read_size != chunk_size)
+      {
+        printf ("file_read_size: %d, chunk_size: %d\n");
         PANIC ("%s: read failed with %"PROTd" bytes unread", file_name, size);
+      }
       memset (buffer + chunk_size, 0, BLOCK_SECTOR_SIZE - chunk_size);
       block_write (dst, sector++, buffer);
       size -= chunk_size;
