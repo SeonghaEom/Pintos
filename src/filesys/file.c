@@ -18,6 +18,7 @@ struct file
 struct file *
 file_open (struct inode *inode) 
 {
+  //printf ("file open, inode sector: %d\n", inode->sector);
   struct file *file = calloc (1, sizeof *file);
   if (inode != NULL && file != NULL)
     {

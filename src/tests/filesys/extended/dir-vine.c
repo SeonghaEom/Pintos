@@ -20,7 +20,7 @@ test_main (void)
 
   msg ("creating many levels of files and directories...");
   // TODO 나중에 이 quite TRUE로 해주어야함
-  //quiet = true;
+  quiet = true;
   CHECK (mkdir ("start"), "mkdir \"start\"");
   CHECK (chdir ("start"), "chdir \"start\"");
   for (i = 0; ; i++) 
@@ -46,13 +46,13 @@ test_main (void)
       
       /* Create directory. */
       snprintf (dir_name, sizeof dir_name, "dir%d", i);
-      msg ("1");
+      //msg ("1");
       if (!mkdir (dir_name)) 
         {
           CHECK (remove (file_name), "remove \"%s\"", file_name);
           break; 
         }
-      msg ("3");
+      //msg ("3");
       /* Check for file and directory. */
       CHECK ((fd = open (".")) > 1, "open \".\"");
       CHECK (readdir (fd, name[0]), "readdir \".\"");

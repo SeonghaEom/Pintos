@@ -377,6 +377,7 @@ dir_open_path (const char *file, char **last_token)
     //printf ("current_token: %s\n", current_token);
     //printf ("next_token: %s\n", next_token);
   } 
+  //printf ("Start parsing...\n");
   /* While next token is not null, should explore directory deeply */
   while (next_token)
   {

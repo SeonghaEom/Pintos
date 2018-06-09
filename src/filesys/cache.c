@@ -151,7 +151,7 @@ cache_alloc (block_sector_t sector)
   struct cache_entry *ce;
   
   /* If list size is 64 evict */
-  if (list_size (&cache) == 1000)
+  if (list_size (&cache) == 65)
   {
     //printf ("caache size = 64, needs evict\n");
     ce = cache_evict ();
@@ -174,13 +174,13 @@ cache_alloc (block_sector_t sector)
     //cond_init (&ce->r_end);
     ce->data = (void *) malloc (BLOCK_SECTOR_SIZE);
     ce->index = list_size (&cache);
-    ce->use_cnt = 0;
     //printf ("ce index: %d\n", list_size (&cache));
     list_push_back (&cache, &ce->elem);
     
   }
   /* Ce initialization */
   ce->sector = sector;
+  ce->use_cnt = 0;
   ce->dirty = false;
   //ce->valid = true;
   //ce->read_cnt = 0;
@@ -224,6 +224,9 @@ cache_evict (void)
       e = list_begin (&cache);
     }
     victim = list_entry (e, struct cache_entry, elem);
+    //printf ("victim, sector: %d, use cnt: %d, index: %d\n",
+    //    victim->sector, victim->use_cnt, victim->index);
+    //thread_yield ();
   }
   /* 
   while (!victim->touchable)
@@ -347,6 +350,7 @@ cache_read_at (void *dst, block_sector_t sector, off_t size, off_t offset,
     block_sector_t next_sector, bool ahead)
 {
   //printf ("thread%d, cache READ, sector: %d, size: %d, offset: %d\n", thread_current()->tid, sector, size, offset);
+  
   struct cache_entry *ce = cache_get_block (sector);
 
   //lock_acquire (&ce->lock);
@@ -369,11 +373,14 @@ cache_read_at (void *dst, block_sector_t sector, off_t size, off_t offset,
   /* Start reading */
   /* Accessing cache entry and write to buffer */
   
+  
+  /* 
   if (ahead)
     cache_read_ahead (next_sector);
-  memcpy (dst, ce->data + offset, size);
-  
-  ce->use_cnt--; 
+  */
+  memcpy (dst, ce->data + offset, size); 
+  ce->use_cnt--;
+
   /* End reading 
    * When there are other threads accessing the cache entry,
    * just pass */
@@ -406,6 +413,7 @@ off_t
 cache_write_at (block_sector_t sector, void *src, off_t size, off_t offset)
 {
   //printf ("thread%d, cache WRITE at sector: %d, size: %d, offset: %d\n", thread_current()->tid, sector, size, offset);
+  
   struct cache_entry *ce = cache_get_block (sector);
 
   //lock_acquire (&ce->lock);
@@ -461,6 +469,7 @@ cache_write_at (block_sector_t sector, void *src, off_t size, off_t offset)
  * so need to release corresponding sectors in free map */
 void cache_close_inode (block_sector_t sector)
 {
+  //printf ("cache close inode\n");
   struct cache_entry *inode_ce = cache_get_block (sector);
   struct inode_disk *inode_id = inode_ce->data;
   off_t sector_remained = DIV_ROUND_UP (inode_id->length, BLOCK_SECTOR_SIZE);
@@ -547,21 +556,28 @@ void cache_close_inode (block_sector_t sector)
 /* Returns the length, in bytes, of inode's datain given SECTOR */
 off_t cache_inode_length (block_sector_t sector)
 {
+  //printf ("cache inode length\n");
   struct cache_entry *inode_ce = cache_get_block (sector);
-  struct inode_disk *inode_id = inode_ce->data;
+  off_t len  = ((struct inode_disk *) inode_ce->data)->length;
+  //struct inode_disk *inode_id = inode_ce->data;
+  
   inode_ce->use_cnt--;
-  return inode_id->length;
+  return len;
 }
 
 /* Translate byte(offset) to sector with given inode in SECTOR */
 block_sector_t
 cache_byte_to_sector (block_sector_t sector, off_t offset)
 {
+  //printf ("cache byte to sector, sector: %d\n", sector);
   /* Accesing inode disk */
   struct cache_entry *inode_ce = cache_get_block (sector);
   struct inode_disk *inode_id = inode_ce->data;
-  
-  if (offset < inode_id->length)
+  //struct inode_disk new_inode_id;// = (struct inode_disk) malloc (sizeof (struct inode_disk));
+  struct inode_disk n_inode_id = *inode_id;
+  inode_ce->use_cnt--; 
+
+  if (offset < n_inode_id.length)
   {
     /* Block index in data part of inode,
      * function should return sector which has this indexed data */
@@ -569,36 +585,47 @@ cache_byte_to_sector (block_sector_t sector, off_t offset)
     /* Direct block */ 
     if (sector_index < DIRECT_BLOCK)
     {
-      block_sector_t result = inode_id->direct[sector_index];
-      inode_ce->use_cnt--;
+      block_sector_t result = n_inode_id.direct[sector_index];
+      //inode_ce->use_cnt--;
       return result;
     } 
     /* Indirect block */
-    else if  (sector_index < DIRECT_BLOCK + INDEX_BLOCK)
+    else if (sector_index < DIRECT_BLOCK + INDEX_BLOCK)
     {
       struct cache_entry *si_ce = cache_get_block (inode_id->indirect[0]);
+      //inode_ce->use_cnt--;
       struct index_disk *si_id = si_ce->data;
-      block_sector_t result = si_id->index[sector_index - DIRECT_BLOCK];
-      inode_ce->use_cnt--;
+      struct index_disk n_si_id = *si_id;
       si_ce->use_cnt--;
+      
+      block_sector_t result = n_si_id.index[sector_index - DIRECT_BLOCK];
+      ////inode_ce->use_cnt--;
+      //si_ce->use_cnt--;
       return result;
     }
     /* Dbouly indiriect block */
     else 
     {
       struct cache_entry *di_ce = cache_get_block (inode_id->doubly_indirect[0]);
+      //inode_ce->use_cnt--;
       struct index_disk *di_id = di_ce->data;
-      size_t di_index = (sector_index - DIRECT_BLOCK - INDEX_BLOCK) / INDEX_BLOCK;
-      
-      /* Acessing doubly indirect indirect block */
-      struct cache_entry *dii_ce = cache_get_block (di_id->index[di_index]);
-      struct index_disk *dii_id = dii_ce->data;
-      
-      block_sector_t result = dii_id->index[sector_index -DIRECT_BLOCK - INDEX_BLOCK -
-        INDEX_BLOCK * (di_index)];
-      inode_ce->use_cnt--;
+      struct index_disk n_di_id = *di_id; 
       di_ce->use_cnt--;
+
+      size_t di_index = (sector_index - DIRECT_BLOCK - INDEX_BLOCK) / INDEX_BLOCK;
+       
+      /* Acessing doubly indirect indirect block */
+      struct cache_entry *dii_ce = cache_get_block (n_di_id.index[di_index]);
+      //di_ce->use_cnt--;
+      struct index_disk *dii_id = dii_ce->data;
+      struct index_disk n_dii_id = *dii_id;
       dii_ce->use_cnt--;
+
+      block_sector_t result = n_dii_id.index[sector_index -DIRECT_BLOCK - INDEX_BLOCK -
+        INDEX_BLOCK * (di_index)];
+      //inode_ce->use_cnt--;
+      //di_ce->use_cnt--;
+      //dii_ce->use_cnt--;
       return result;
     }
   }
@@ -611,16 +638,21 @@ cache_byte_to_sector (block_sector_t sector, off_t offset)
 /* Extend inode with given sector to length be a new_pos */
 void cache_inode_extend (block_sector_t sector, off_t new_pos)
 {
-  //printf ("cache inode extend, sector: %d, new_pos: %d\n", sector, new_pos);
   
   /* First find inode cache entry and inode inode disk */
   struct cache_entry *inode_ce = cache_get_block (sector);
   struct inode_disk *inode_id = inode_ce->data;
+  
   /* Current sector length and needed sector length */
   size_t current_length = DIV_ROUND_UP (inode_id->length, BLOCK_SECTOR_SIZE);
   size_t needed_length = DIV_ROUND_UP (new_pos, BLOCK_SECTOR_SIZE);
-  //printf ("inode in sector %d current_length %d, needed_length %d\n", sector, current_length, needed_length);
+  /*
+  if (sector == 247)
+    printf ("inode in sector %d current_length %d, needed_length %d\n", sector, current_length, needed_length);
+  */
   int ext_cnt = needed_length - current_length;
+  
+  //printf ("cache inode extend, sector: %d, new_pos: %d, 필요한 새 섹터: %d\n", sector, new_pos, ext_cnt);
   //printf ("ext_cnt: %d\n", ext_cnt);
   if (ext_cnt > 0)
   {
@@ -654,6 +686,7 @@ void cache_inode_extend (block_sector_t sector, off_t new_pos)
           }
         }
         struct cache_entry *si_ce = cache_get_block (inode_id->indirect[0]);
+        
         struct index_disk *si_id = si_ce->data;
         free_map_allocate (1, &si_id->index[current_length - DIRECT_BLOCK]);
         cache_write_at (si_id->index[current_length - DIRECT_BLOCK], zeros, BLOCK_SECTOR_SIZE, 0);
@@ -690,11 +723,12 @@ void cache_inode_extend (block_sector_t sector, off_t new_pos)
         }
         
         struct cache_entry *dii_ce = cache_get_block (di_id->index[index]);
+        di_ce->use_cnt--;
         struct index_disk *dii_id = dii_ce->data;
         free_map_allocate (1, &dii_id->index[current_length - DIRECT_BLOCK - INDEX_BLOCK * index]);
         cache_write_at (dii_id->index[current_length - DIRECT_BLOCK - INDEX_BLOCK *index],
             zeros, BLOCK_SECTOR_SIZE, 0);
-        di_ce->use_cnt--;
+        //di_ce->use_cnt--;
         dii_ce->use_cnt--;
       }   
       current_length++; 
@@ -706,12 +740,18 @@ void cache_inode_extend (block_sector_t sector, off_t new_pos)
     //printf ("new position: %d\n", new_pos);
     inode_id->length = new_pos;
   }
+  //printf ("end of cache inode extend\n");
+  inode_ce->use_cnt--;
 }
 
-struct inode_disk * cache_get_data (block_sector_t sector)
+enum inode_type cache_get_type (block_sector_t sector)
 {
+  // 여기 위험한듯? 이 data를 쓰는 애 입장에서 이 섹터가 evict당하면 못참음? 
+  //- 이거  data가 아니라 type으로 바꿔서 해결?
+  //printf ("cache get data, %d\n", sector);
   struct cache_entry *ce = cache_get_block (sector);
   struct inode_disk *id = ce->data;
+  enum inode_type t = id->type;
   ce->use_cnt--;
-  return id;
+  return t;
 }

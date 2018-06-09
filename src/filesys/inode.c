@@ -203,9 +203,8 @@ inode_open (block_sector_t sector)
 
   /* Initialize. */
   list_push_front (&open_inodes, &inode->elem);
-  struct inode_disk *inode_id = cache_get_data (sector);
   
-  inode->type = inode_id->type;
+  inode->type = cache_get_type (sector);;
   inode->sector = sector;
   inode->open_cnt = 1;
   inode->deny_write_cnt = 0;
@@ -311,11 +310,12 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
         break;
       
       /* Next sector should be read ahead asynchronously? */
+      /*
       if (size - chunk_size > 0 && inode_left - chunk_size > 0)
       {
         next_sector_idx = cache_byte_to_sector (inode->sector, offset + chunk_size);
         //read_ahead_needed = true;
-      }
+      }*/
       
       cache_read_at (buffer + bytes_read, sector_idx, chunk_size, sector_ofs,
             next_sector_idx, read_ahead_needed);
@@ -404,6 +404,7 @@ inode_length (const struct inode *inode)
 void
 inode_extend (struct inode *inode, size_t new_pos)
 {
+  //printf ("inode_extend, inode sector: %d, new post: %d\n", inode->sector, new_pos);
   lock_acquire (&inode->extension_lock);
   //printf ("thread%d a c_lock\n", thread_current ()->tid);
   cache_inode_extend (inode->sector, new_pos);
