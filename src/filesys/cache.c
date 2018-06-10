@@ -758,9 +758,9 @@ void cache_inode_extend (block_sector_t sector, off_t new_pos)
         struct cache_entry *dii_ce = cache_get_block (di_id->index[index]);
         di_ce->use_cnt--;
         struct index_disk *dii_id = (struct index_disk *) dii_ce->data;
-        free_map_allocate (1, &dii_id->index[current_length - DIRECT_BLOCK - INDEX_BLOCK * index]);
+        free_map_allocate (1, &dii_id->index[current_length - DIRECT_BLOCK - INDEX_BLOCK * index - INDEX_BLOCK]);
         dii_ce->dirty = true;
-        cache_write_at (dii_id->index[current_length - DIRECT_BLOCK - INDEX_BLOCK *index],
+        cache_write_at (dii_id->index[current_length - DIRECT_BLOCK - INDEX_BLOCK *index - INDEX_BLOCK],
             zeros, BLOCK_SECTOR_SIZE, 0);
         //di_ce->use_cnt--;
         dii_ce->use_cnt--;
