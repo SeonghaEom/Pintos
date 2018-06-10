@@ -71,6 +71,7 @@ off_t
 file_read (struct file *file, void *buffer, off_t size) 
 {
   //printf ("file_read : thread%d before file_read\n", thread_current ()->tid);
+  //printf ("file->pos: %d\n", file->pos);
   off_t bytes_read = inode_read_at (file->inode, buffer, size, file->pos);
   //printf ("file_read : thread%d after file_read\n", thread_current ()->tid);
   file->pos += bytes_read;

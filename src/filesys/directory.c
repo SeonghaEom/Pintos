@@ -193,6 +193,8 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
       break;
     }
   }
+  //printf ("dir_add add new dir entry: %s\n", name);
+  //printf ("dir_Add add new dir entry inode sector: %d\n", inode_sector);
   /* Write slot. */
   e.in_use = true;
   strlcpy (e.name, name, sizeof e.name);
@@ -314,17 +316,16 @@ struct dir *
 dir_open_path (const char *file, char **last_token)
 {
   //printf ("dir open path, file: %s\n", file);
- 
   char *file_copy = (char *) malloc (strlen (file) + 1);
   char *save_ptr;
   //printf ("file: %s\n", file);
   strlcpy (file_copy, file, strlen (file) + 1);
   //printf ("file_copy: %s\n", file_copy);
   struct inode *inode;
-  char *current_token = strtok_r (file_copy, DELIM, &save_ptr);
+  char *current_token = strtok_r (file_copy, "/", &save_ptr);
   //printf ("save ptr: %s\n", *save_ptr);
-  //printf ("current_token: %s\n", current_token);
-  char *next_token = strtok_r (NULL, DELIM , &save_ptr);
+  //printf ("current_token: '%s'\n", current_token);
+  char *next_token = strtok_r (NULL, "/" , &save_ptr);
   //printf ("next_token: %s\n", next_token);
   /*
   printf ("address of file copy: %x\n", file_copy);
@@ -344,6 +345,14 @@ dir_open_path (const char *file, char **last_token)
     directory = dir_open_root ();
     return directory;
   }
+  /*
+  else if (strcmp (current_token, "tar") == 0 )
+  {
+    //printf ("tartartar\n");
+    free (file_copy);
+    return dir_open_root ();
+  } 
+  */
   /* File copy is empty maybe. */
   else if (current_token == NULL)
   {
@@ -363,7 +372,8 @@ dir_open_path (const char *file, char **last_token)
   else 
   {
     //printf ("Relative path\n");
-    //printf ("thread_current cur dir %x\n", thread_current ()->cur_dir);
+    //printf ("thread_current cur dir sector %d\n", thread_current ()->dir_sector);
+    //printf ("thread current cur dir type %d\n", inode_open (thread_current ()->dir_sector)->type);
     /* Can we start with relative path?
      * We need to check that cwd is removed or not */
     if (thread_current ()->dir_removed)

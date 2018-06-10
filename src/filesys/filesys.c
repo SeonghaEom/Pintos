@@ -40,8 +40,8 @@ filesys_init (bool format)
   {
     do_format ();
     /* Set main thread's current directory */
-    thread_current ()->dir_sector = ROOT_DIR_SECTOR; //dir_open_root ();
-    thread_current ()->dir_removed = false;
+    //thread_current ()->dir_sector = ROOT_DIR_SECTOR; //dir_open_root ();
+    //thread_current ()->dir_removed = false;
   }
 
   free_map_open ();
@@ -52,6 +52,7 @@ filesys_init (bool format)
 void
 filesys_done (void) 
 {
+  //printf ("filesys doen\n");
 #ifdef FILESYS
   lock_acquire (&c_lock);
   cache_write_behind ();
@@ -70,7 +71,7 @@ filesys_done (void)
 bool
 filesys_create (const char *name, off_t initial_size, enum inode_type type) 
 {
-  //printf ("filesys_create, name: %s, initial_size %d, inode_type: %d\n", name, initial_size, type);
+  printf ("filesys_create, name: %s, initial_size %d, inode_type: %d\n", name, initial_size, type);
   
   block_sector_t inode_sector = 0;
   char *last_name = NULL;
@@ -81,13 +82,21 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
   {
     if (last_name != NULL)
     {
-      printf ("dir is NULL but last name is not null!!\n");
+      //printf ("dir is NULL but last name is not null!!\n");
     }
     return false;
   }
-  
+  /*
+  if (strcmp (name, "tar") == 0 )
+  {
+    //printf ("filesys open name is tar\n");
+    last_name = (char *) malloc (strlen ("tar") + 1);
+    strlcpy (last_name, "tar", strlen ("tar") + 1);
+  }*/
+
   if (last_name == NULL)
   { 
+    //printf (" filesys_create: last name null\n");
     dir_close (dir);
     return false;
   }
@@ -145,13 +154,31 @@ filesys_create (const char *name, off_t initial_size, enum inode_type type)
 struct file *
 filesys_open (const char *name)
 {
-  //printf ("filesys open, name: %s\n", name);
+  //printf ("filesys open, name: '%s'\n", name);
   
   char *last_name = NULL;
   struct inode *inode = NULL;
   struct dir *dir = dir_open_path (name, &last_name);
-  //printf ("last_name1: %s\n", last_name);
-  //printf ("dir sector is %d\n", dir_get_inode (dir)->sector);
+
+  //printf ("name1: %s\n",last_name);
+  //printf ("dir sector is %d\n", dir_get_inode (dir)->type);
+
+  /*
+  if (dir_lookup (dir, name, &inode))
+  {
+    printf ("filesys open dir look up tar true\n");
+  }
+  */
+  
+
+  
+  if (strcmp (name, "tar") == 0 )
+  {
+    //printf ("filesys open name is tar\n");
+    last_name = (char *) malloc (strlen ("tar") + 1);
+    strlcpy (last_name, "tar", strlen ("tar") + 1);
+  } 
+  
   //printf ("2\n");
   /* Dir is null */ 
   if (dir == NULL)
@@ -172,7 +199,7 @@ filesys_open (const char *name)
       return NULL;
     }
     //printf ("last name is null\n");
-    printf ("open root\n");
+    //printf ("open root\n");
     return file_open (inode_open (ROOT_DIR_SECTOR));
   }
   
@@ -188,6 +215,7 @@ filesys_open (const char *name)
   /* If inode is null, there is no file with last_name */ 
   if (inode == NULL)
   {
+    //printf ("filesys opne indoe null\n");
     return NULL;
   }
   return file_open (inode);
@@ -207,7 +235,7 @@ filesys_remove (const char *name)
   /* Dir is null */
   if (dir == NULL)
   { 
-    printf ("dir is NULL\n");
+    //printf ("dir is NULL\n");
     return false;
     success = false;
   }

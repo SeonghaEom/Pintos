@@ -301,13 +301,17 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       
       /* Bytes left in inode, bytes left in sector, lesser of the two. */
       off_t inode_left = inode_length (inode) - offset;
+      //printf ("inode_left: %d\n", inode_left);
       int sector_left = BLOCK_SECTOR_SIZE - sector_ofs;
       int min_left = inode_left < sector_left ? inode_left : sector_left;
       
       /* Number of bytes to actually copy out of this sector. */
       int chunk_size = size < min_left ? size : min_left;
       if (chunk_size <= 0)
+      { 
+        //printf ("?????\n");
         break;
+      }
       
       /* Next sector should be read ahead asynchronously? */
       /*
@@ -316,7 +320,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
         next_sector_idx = cache_byte_to_sector (inode->sector, offset + chunk_size);
         //read_ahead_needed = true;
       }*/
-      
+      //printf ("size: %d, chunksize : %d\n", size, chunk_size);
       cache_read_at (buffer + bytes_read, sector_idx, chunk_size, sector_ofs,
             next_sector_idx, read_ahead_needed);
       /* Advance. */
