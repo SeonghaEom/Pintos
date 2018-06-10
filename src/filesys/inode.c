@@ -283,7 +283,7 @@ inode_remove (struct inode *inode)
 off_t
 inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset) 
 {
-  //printf ("[inode_read_at] sector: %d, size: %d, offset: %d\n", inode->sector, size, offset);
+  //printf ("THREAD%d, [inode_read_at] sector: %d, size: %d, offset: %d\n", thread_current ()->tid,  inode->sector, size, offset);
   
   uint8_t *buffer = buffer_;
   off_t bytes_read = 0;
@@ -343,7 +343,7 @@ off_t
 inode_write_at (struct inode *inode, const void *buffer_, off_t size,
                 off_t offset) 
 {
-  //printf ("[inode_write_at] sector: %d, size: %d, offset: %d\n", inode->sector, size, offset);
+  //printf ("Thread%d, [inode_write_at] sector: %d, size: %d, offset: %d\n", thread_current ()->tid,  inode->sector, size, offset);
   
   //printf ("inode write at, sector: %d, size: %d, offset: %d\n", inode->sector, size, offset);
   const uint8_t *buffer = buffer_;

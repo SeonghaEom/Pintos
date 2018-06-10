@@ -397,7 +397,7 @@ write (int fd, const void *buffer, unsigned size)
     }
     else
     {
-      thread_yield();
+      //thread_yield();
       struct file *f = filedes->file;
       //lock_acquire (&file_lock);
       /* We can't write on directory */
