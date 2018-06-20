@@ -96,11 +96,13 @@ timer_sleep (int64_t ticks)
     enum intr_level old_level;
 
     ASSERT (intr_get_level () == INTR_ON);
-
+    
+    /* Set wake me time, is alarm clock on and
+       put current thread sleep on */
     current->wake_me_time = start + ticks;
     current->is_alarm_clock_on = true;
     thread_sleep (current);
-
+    
     old_level = intr_disable ();
     thread_block ();
     intr_set_level (old_level);
