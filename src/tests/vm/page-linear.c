@@ -6,7 +6,7 @@
 #include "tests/lib.h"
 #include "tests/main.h"
 
-#define SIZE (2 *1024 * 1024)
+#define SIZE (2 * 1024 * 1024)
 
 static char buf[SIZE];
 
@@ -19,7 +19,7 @@ test_main (void)
   /* Initialize to 0x5a. */
   msg ("initialize");
   memset (buf, 0x5a, sizeof buf);
-  //return;
+  
   /* Check that it's all 0x5a. */
   msg ("read pass");
   for (i = 0; i < SIZE; i++)
@@ -30,6 +30,7 @@ test_main (void)
   msg ("read/modify/write pass one");
   arc4_init (&arc4, "foobar", 6);
   arc4_crypt (&arc4, buf, SIZE);
+  
   /* Decrypt back to zeros. */
   msg ("read/modify/write pass two");
   arc4_init (&arc4, "foobar", 6);
