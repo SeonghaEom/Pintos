@@ -188,7 +188,6 @@ fsutil_append (char **argv)
   if (src == NULL)
     PANIC ("%s: open failed", file_name);
   size = file_length (src);
-  //printf ("size: %d\n", size);
 
   /* Open target block device. */
   dst = block_get_role (BLOCK_SCRATCH);
@@ -209,9 +208,6 @@ fsutil_append (char **argv)
         PANIC ("%s: out of space on scratch device", file_name);
       off_t file_read_size = file_read (src, buffer, chunk_size);
       
-      //printf ("size: %d, chunk_size: %d, file_read_size: %d\n", size, chunk_size, file_read_size);
-
-      //if (file_read (src, buffer, chunk_size) != chunk_size)
       if (file_read_size != chunk_size)
       {
         printf ("file_read_size: %d, chunk_size: %d\n");

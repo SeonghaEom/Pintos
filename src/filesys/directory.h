@@ -9,6 +9,8 @@
    This is the traditional UNIX maximum length.
    After directories are implemented, this maximum length may be
    retained, but much longer full path names must be allowed. */
+/* I don't know changing this value is correct or not */
+//#define NAME_MAX 14
 #define NAME_MAX 35
 
 struct inode;

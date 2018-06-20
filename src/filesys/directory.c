@@ -31,7 +31,6 @@ struct dir_entry
 bool
 dir_create (block_sector_t sector, size_t entry_cnt)
 {
-  //printf ("dir create sector: %d, entry cnt: %d\n", sector, entry_cnt);
   return inode_create (sector, entry_cnt * sizeof (struct dir_entry), INODE_DIR);
 }
 
@@ -41,7 +40,6 @@ struct dir *
 dir_open (struct inode *inode) 
 {
   struct dir *dir = calloc (1, sizeof *dir);
-  // TODO inode가 디렉토리를 나타내는지 확인은 안해줘도 되는가? 
   if (inode != NULL && dir != NULL)
     {
       dir->inode = inode;
@@ -76,16 +74,11 @@ dir_reopen (struct dir *dir)
 void
 dir_close (struct dir *dir) 
 {
-  //printf ("[dir_close]\n");
   if (dir != NULL)
     {
-      //printf ("dir is not null\n");
       inode_close (dir->inode);
-      //printf ("after inode closese\n");
       free (dir);
-      //printf ("after free dir\n");
     }
-  //printf ("dir close done\n");
 }
 
 /* Returns the inode encapsulated by DIR. */
@@ -136,8 +129,6 @@ dir_lookup (const struct dir *dir, const char *name,
 {
   struct dir_entry e;
 
-
-
   ASSERT (dir != NULL);
   ASSERT (name != NULL);
 
@@ -150,9 +141,7 @@ dir_lookup (const struct dir *dir, const char *name,
   {
     //printf ("lookup failed\n");
     *inode = NULL;
-    //printf ("nnnn\n");
   }
-  //printf ("dir lookup almost ends\n");
   bool result = (*inode != NULL);
   return result;
 }
@@ -167,7 +156,6 @@ bool
 dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 {
   //printf ("[dir_add] name: %s, inode sector: %d\n", name, inode_sector);
-  
   struct dir_entry e;
   off_t ofs;
   bool success = false;
@@ -178,14 +166,13 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   /* Check NAME for validity. */
   if (*name == '\0' || strlen (name) > NAME_MAX)
   {  
-    //printf ("dir_add success : %s\n", success? "true" : "false");
     return false;
   }
   
   /* Check that NAME is not in use. */
   if (lookup (dir, name, NULL, NULL))
     goto done;
-  //printf ("name is not used\n");
+  
   /* Set OFS to offset of free slot.
      If there are no free slots, then it will be set to the
      current end-of-file.
@@ -208,7 +195,6 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
   success = (inode_write_at (dir->inode, &e, sizeof e, ofs) == sizeof e);
 
  done:
-  //printf ("dir_add success : %s\n", success? "true" : "false");
   return success;
 }
 
@@ -218,7 +204,7 @@ dir_add (struct dir *dir, const char *name, block_sector_t inode_sector)
 bool
 dir_remove (struct dir *dir, const char *name) 
 {
-  //printf ("dir_removed, %s\n", name);
+  //printf ("[dir_removed] %s\n", name);
   struct dir_entry e;
   struct inode *inode = NULL;
   bool success = false;
@@ -238,7 +224,6 @@ dir_remove (struct dir *dir, const char *name)
 
   if (inode->sector == thread_current ()->dir_sector)
   {
-    //printf ("We are trying to remove CWD\n");
     thread_current ()->dir_removed = true;
   }
   
@@ -246,7 +231,6 @@ dir_remove (struct dir *dir, const char *name)
    * We can only remove empty directory */
   if (inode->type == INODE_DIR)
   {
-    //printf ("lets remove directory inode\n");
     /* Open new inode and use it to open directory */
     struct dir *r_dir = dir_open (inode_open (inode->sector));
     char buf[NAME_MAX + 1];  
@@ -254,8 +238,6 @@ dir_remove (struct dir *dir, const char *name)
     /* Directory has file other than '.', '..' */
     if (dir_readdir (r_dir, name))
     {
-      //printf ("dir is not empty\n");
-      //inode_close (inode);
       dir_close (r_dir);
       return false;
     }
@@ -263,9 +245,6 @@ dir_remove (struct dir *dir, const char *name)
     else
     {
       dir_close (r_dir);
-      //printf ("dir is empty, can remove\n");
-      //inode_close (inode);
-      //return false;
     }
   }
 
@@ -291,12 +270,10 @@ dir_remove (struct dir *dir, const char *name)
 bool
 dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
 {
-  //printf ("dir readdir!\n");
   struct dir_entry e;
 
   while (inode_read_at (dir->inode, &e, sizeof e, dir->pos) == sizeof e) 
     {
-      //printf ("dir->pos : %d\n", dir->pos);
       dir->pos += sizeof e;
       dir->inode->pos += sizeof e;
       /* We don't read ".", ".." on readdir */
@@ -309,8 +286,6 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
         {
           /* Copy it to given NAME and return true */
           strlcpy (name, e.name, NAME_MAX + 1);
-          //printf ("dir readdir : %s\n", e.name);
-          //printf ("name : %s\n", name);
           return true;
         } 
     }
@@ -321,42 +296,24 @@ dir_readdir (struct dir *dir, char name[NAME_MAX + 1])
 struct dir *
 dir_open_path (const char *file, char **last_token)
 {
-  //printf ("dir open path, file: %s\n", file);
-  
+  //printf ("[dir open path], file: %s\n", file);
   char *file_copy = (char *) malloc (strlen (file) + 1);
   char *save_ptr;
-  //printf ("file: %s\n", file);
   strlcpy (file_copy, file, strlen (file) + 1);
-  //printf ("file_copy: %s\n", file_copy);
   struct inode *inode;
   char *current_token = strtok_r (file_copy, DELIM, &save_ptr);
-  //printf ("save ptr: %s\n", *save_ptr);
-  //printf ("current_token: %s\n", current_token);
   char *next_token = strtok_r (NULL, DELIM , &save_ptr);
-  //printf ("next_token: %s\n", next_token);
-  /*
-  printf ("address of file copy: %x\n", file_copy);
-  printf ("address of current token: %x\n", current_token);
-  printf ("address of next token: %x\n", next_token);
-  printf ("file copy: %s\n", file_copy);
-  printf ("current token: %s\n", current_token);
-  printf ("next token: %s\n", next_token);
-  */
   struct dir *directory;
   
   /* File copy is null */
   if (file_copy == NULL)
   {
-    //printf ("file copy is null\n");
-    /* TODO last_token 지정하는 것은? */
     directory = dir_open_root ();
     return directory;
   }
   /* File copy is empty maybe. */
   else if (current_token == NULL)
   {
-    //printf ("file copy is maybe empty\n");
-    /* TODO last_token 지정? */
     free (file_copy);
     directory = dir_open_root ();
     return directory;
@@ -364,33 +321,24 @@ dir_open_path (const char *file, char **last_token)
   /* This is the case for absolute path */
   else if ((char) *file == '/')
   {
-    //printf ("thread%d: %d\n", thread_current ()->tid, thread_current ()->dir_sector);
     directory = dir_open_root ();
   }
-  /* THis is the case for relative path */
+  /* This is the case for relative path */
   else 
   {
-    //printf ("Relative path\n");
-    //printf ("thread_current cur dir %x\n", thread_current ()->cur_dir);
     /* Can we start with relative path?
      * We need to check that cwd is removed or not */
     if (thread_current ()->dir_removed)
     {
-      //printf ("thread current CWD is removed\n");
       free (file_copy);
       return NULL;
     }
     /* Open CWD */
-    //printf ("thread_current ()->dir sector is: %d\n", thread_current ()->dir_sector); 
     directory = dir_open (inode_open (thread_current ()->dir_sector)); //thread_current ()->cur_dir;
-    //printf ("current_token: %s\n", current_token);
-    //printf ("next_token: %s\n", next_token);
   } 
-  //printf ("Start parsing...\n");
   /* While next token is not null, should explore directory deeply */
   while (next_token)
   {
-    //printf ("dir_lookup, current_token %s\n", current_token);
     if (dir_lookup (directory, current_token, &inode))
     {
       /* Directory, let's move into */
@@ -402,7 +350,6 @@ dir_open_path (const char *file, char **last_token)
       /* The current token should be directory but is file */
       else if (inode->type == INODE_FILE)
       {
-        //printf ("dir_open_path: %s should be directory not file\n", current_token);
         dir_close (directory);
         free (file_copy);
         return NULL;
@@ -415,22 +362,19 @@ dir_open_path (const char *file, char **last_token)
     /* Current token is not in directory */
     else
     {
-      //printf ("dir_open_path: %s is not in directory\n", current_token);
       dir_close (directory);
       free (file_copy);
       return NULL;
     }
-    //printf ("adfdafdafa\n");
-    // Advance
+    
+    /* Advance */
     current_token = next_token;
     next_token = strtok_r (NULL, "/", &save_ptr);
   }
-  //printf ("almost ends in dir open path\n");
-  //printf ("current_token: %s\n", current_token);
+  
   /* Finally get here, need to store last token */
   *last_token = (char *) malloc (strlen (current_token) + 1);
   strlcpy (*last_token, current_token, strlen (current_token) + 1);
   free (file_copy);
   return directory;
 }
-

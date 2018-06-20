@@ -32,8 +32,6 @@ struct inode
     struct lock extension_lock;         /* Extension lock */
     enum inode_type type;               /* Inode type (INODE_FILE or INODE_DIR */
     off_t pos;                          /* If directory, current position */    
-    //struct inode *parent_dir;           /* Pointer to parent directory */
-    //struct inode_disk data;             /* Inode content. */
   };
 
 /* On-disk inode.
@@ -46,7 +44,6 @@ struct inode_disk
     block_sector_t indirect[INDIRECT_BLOCK];          
     block_sector_t doubly_indirect[DOUBLY_INDIRECT_BLOCK];    
     unsigned magic;                     /* Magic number. */
-    //uint32_t unused[125];               /* Not used. */
   };
 
 struct index_disk

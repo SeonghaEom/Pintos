@@ -40,7 +40,6 @@ bool
 inode_create (block_sector_t sector, off_t length, enum inode_type type)
 {
   //printf ("[inode_create] sector %d, length %d, type %d\n", sector, length, type);
-
   struct inode_disk *inode_id = NULL;
   struct index_disk *index_id = NULL;
   bool success = false;
@@ -56,7 +55,6 @@ inode_create (block_sector_t sector, off_t length, enum inode_type type)
   if (inode_id != NULL)
   {
     size_t sectors = bytes_to_sectors (length);
-    //printf ("how much sectors of data: %d\n", sectors);
     inode_id->length = length;
     inode_id->magic = INODE_MAGIC;
     inode_id->type = type;
@@ -74,7 +72,6 @@ inode_create (block_sector_t sector, off_t length, enum inode_type type)
     /* Available space in file disk or not */
     if (free_map_left () >= sector_needed)
     {
-      //printf ("available space in disk\n");
       /* zeros */
       static char zeros[BLOCK_SECTOR_SIZE];
       /* sector remained for data part of this inode */
@@ -86,14 +83,11 @@ inode_create (block_sector_t sector, off_t length, enum inode_type type)
       size_t i;
       for (i = 0; i < direct_cnt; i++)
       {
-        //printf ("Direct block %d\n", i);
         free_map_allocate (1, &inode_id->direct[i]);
-        //printf ("inode sector:%d  id->direct[%d] : %d\n", sector, i, inode_id->direct[i]);
         
         cache_write_at (inode_id->direct[i], zeros, BLOCK_SECTOR_SIZE, 0);
         sector_remained--;
       }
-      //printf ("sector_remained: %d\n", sector_remained);
       /* Indirect block needed? */
       if (sector_remained > 0)
       {
@@ -105,13 +99,11 @@ inode_create (block_sector_t sector, off_t length, enum inode_type type)
           free_map_allocate (1, &inode_id->indirect[0]);
           /* Number of block in indirect indexing */
           size_t indirect_cnt = INDEX_BLOCK > sector_remained? sector_remained : INDEX_BLOCK;
-          //printf ("inode sector: %d, single indirect sector: %d\n", sector, inode_id->indirect[0]);
           /* Allocate for indirect block */
           size_t i;
           for (i = 0; i < indirect_cnt; i++)
           {
             free_map_allocate (1, &si_id->index[i]);
-            //printf ("inode sector: %d, single indirect sector: %d, si_id->index[%d]: %d\n", sector, inode_id->indirect[0], i, si_id->index[i]);
             cache_write_at (si_id->index[i], zeros, BLOCK_SECTOR_SIZE, 0);
             sector_remained--;
           }
@@ -165,7 +157,6 @@ inode_create (block_sector_t sector, off_t length, enum inode_type type)
       }
       cache_write_at (sector, inode_id, BLOCK_SECTOR_SIZE, 0);
       free (inode_id);
-      //printf ("TLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLL\n");
       success = true;
     }
   }
@@ -199,7 +190,6 @@ inode_open (block_sector_t sector)
   inode = malloc (sizeof *inode);
   if (inode == NULL)
     return NULL;
-
 
   /* Initialize. */
   list_push_front (&open_inodes, &inode->elem);
@@ -241,7 +231,6 @@ void
 inode_close (struct inode *inode) 
 {
   //printf ("[inode_close] sector: %d\n", inode->sector);
-  
   /* Ignore null pointer. */
   if (inode == NULL)
     return;
@@ -258,7 +247,6 @@ inode_close (struct inode *inode)
       /* Deallocate blocks if removed. */
       if (inode->removed) 
         {
-          //printf ("removed inode... %d\n", inode->sector);
           /* Deallocate blocks in inode here */
           cache_close_inode (inode->sector);
         }
@@ -272,7 +260,6 @@ void
 inode_remove (struct inode *inode) 
 {
   //printf ("[inode_remove] sector: %d\n", inode->sector);
-  
   ASSERT (inode != NULL);
   inode->removed = true;
 }
@@ -284,7 +271,6 @@ off_t
 inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset) 
 {
   //printf ("THREAD%d, [inode_read_at] sector: %d, size: %d, offset: %d\n", thread_current ()->tid,  inode->sector, size, offset);
-  
   uint8_t *buffer = buffer_;
   off_t bytes_read = 0;
 
@@ -295,11 +281,10 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       /* Abnormal offset */
       if (sector_idx == -1)
       {
-        //printf ("Strange offset in inode_read_at\n");
-        //printf ("Inode length: %d, offset: %d, size: %d\n", inode_length (inode), offset, size);
         break;
       }
       int sector_ofs = offset % BLOCK_SECTOR_SIZE;
+      
       /* Used for read ahead */
       bool read_ahead_needed = false;
       block_sector_t next_sector_idx;
@@ -314,23 +299,14 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       if (chunk_size <= 0)
         break;
       
-      /* Next sector should be read ahead asynchronously? */
-      /*
-      if (size - chunk_size > 0 && inode_left - chunk_size > 0)
-      {
-        next_sector_idx = cache_byte_to_sector (inode->sector, offset + chunk_size);
-        //read_ahead_needed = true;
-      }*/
-      
       cache_read_at (buffer + bytes_read, sector_idx, chunk_size, sector_ofs,
             next_sector_idx, read_ahead_needed);
-      //printf ("size: %d, bytes_read: %d, chunk_size: %d\n", size, bytes_read, chunk_size);
+      
       /* Advance. */
       size -= chunk_size;
       offset += chunk_size;
       bytes_read += chunk_size;
     }
-  //printf ("return bytes_read: %d\n", bytes_read);
   return bytes_read;
 }
 
@@ -344,15 +320,11 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
                 off_t offset) 
 {
   //printf ("Thread%d, [inode_write_at] sector: %d, size: %d, offset: %d\n", thread_current ()->tid,  inode->sector, size, offset);
-  
-  //printf ("inode write at, sector: %d, size: %d, offset: %d\n", inode->sector, size, offset);
   const uint8_t *buffer = buffer_;
   off_t bytes_written = 0;
 
-  //printf ("inode in sector %d, length %d, size %d, offset %d\n", inode->sector, inode_length(inode),  size, offset);
   if (inode->deny_write_cnt)
   {
-    //printf ("inode_write_at sector%d inode deny write cnt is %d\n", inode->sector, inode->deny_write_cnt);
     return 0;
   }
 
@@ -375,6 +347,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       if (chunk_size <= 0)
         break;
       cache_write_at (sector_idx, buffer + bytes_written , chunk_size, sector_ofs);
+      
       /* Advance. */
       size -= chunk_size;
       offset += chunk_size;
@@ -417,11 +390,7 @@ void
 inode_extend (struct inode *inode, size_t new_pos)
 {
   //printf ("[inode_extend] sector: %d, new_pos: %d\n", inode->sector, new_pos);
-  //printf ("inode_extend, inode sector: %d, new post: %d\n", inode->sector, new_pos);
   lock_acquire (&inode->extension_lock);
-  //printf ("thread%d a c_lock\n", thread_current ()->tid);
   cache_inode_extend (inode->sector, new_pos);
-  //printf ("thread%d r c_lock\n", thread_current ()->tid);
   lock_release (&inode->extension_lock);
 }
-

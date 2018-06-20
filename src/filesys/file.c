@@ -18,7 +18,7 @@ struct file
 struct file *
 file_open (struct inode *inode) 
 {
-  //printf ("file open, inode sector: %d\n", inode->sector);
+  //printf ("[file open], inode sector: %d\n", inode->sector);
   struct file *file = calloc (1, sizeof *file);
   if (inode != NULL && file != NULL)
     {
@@ -71,9 +71,7 @@ off_t
 file_read (struct file *file, void *buffer, off_t size) 
 {
   //printf ("[file_read] file inode sector : %d, size: %d\n", file->inode->sector, size);
-  //printf ("file_read : thread%d before file_read\n", thread_current ()->tid);
   off_t bytes_read = inode_read_at (file->inode, buffer, size, file->pos);
-  //printf ("file_read : thread%d after file_read\n", thread_current ()->tid);
   file->pos += bytes_read;
   return bytes_read;
 }
