@@ -25,7 +25,7 @@ static struct list_elem *saved_victim;
 
 static struct cache_entry *cache_find (block_sector_t);
 static struct cache_entry *cache_get_block (block_sector_t);
-static void cache_read_ahead (block_sector_t sector);
+//static void cache_read_ahead (block_sector_t sector);
 static struct cache_entry *cache_alloc (block_sector_t sector);
 static struct cache_entry *cache_evict (void);
 
