@@ -334,7 +334,7 @@ void q_destroy (void)
 /* Cache read at from sector plus offset to dst by size */
 off_t
 cache_read_at (void *dst, block_sector_t sector, off_t size, off_t offset,
-    block_sector_t next_sector, bool ahead)
+    block_sector_t next_sector UNUSED, bool ahead UNUSED)
 {
   struct cache_entry *ce = cache_get_block (sector);
 

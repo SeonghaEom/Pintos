@@ -19,7 +19,7 @@ test_main (void)
   int i;
 
   msg ("creating many levels of files and directories...");
-  // TODO 나중에 이 quite TRUE로 해주어야함
+  /* When quiet is true, msg doesn't work before quiet is set false */
   quiet = true;
   CHECK (mkdir ("start"), "mkdir \"start\"");
   CHECK (chdir ("start"), "chdir \"start\"");

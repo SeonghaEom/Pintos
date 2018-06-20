@@ -277,7 +277,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
   while (size > 0) 
     {
       /* Disk sector to read, starting byte offset within sector. */
-      block_sector_t sector_idx = cache_byte_to_sector (inode->sector, offset);
+      off_t sector_idx = cache_byte_to_sector (inode->sector, offset);
       /* Abnormal offset */
       if (sector_idx == -1)
       {
@@ -287,7 +287,7 @@ inode_read_at (struct inode *inode, void *buffer_, off_t size, off_t offset)
       
       /* Used for read ahead */
       bool read_ahead_needed = false;
-      block_sector_t next_sector_idx;
+      block_sector_t next_sector_idx = 0;
       
       /* Bytes left in inode, bytes left in sector, lesser of the two. */
       off_t inode_left = inode_length (inode) - offset;
@@ -346,7 +346,7 @@ inode_write_at (struct inode *inode, const void *buffer_, off_t size,
       int chunk_size = size < min_left ? size : min_left;
       if (chunk_size <= 0)
         break;
-      cache_write_at (sector_idx, buffer + bytes_written , chunk_size, sector_ofs);
+      cache_write_at (sector_idx, (void *) buffer + bytes_written , chunk_size, sector_ofs);
       
       /* Advance. */
       size -= chunk_size;

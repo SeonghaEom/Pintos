@@ -9,6 +9,7 @@
 #ifdef FILESYS
 #include "threads/thread.h"
 #include "filesys/cache.h"
+#include "threads/malloc.h"
 #endif
 
 /* Partition that contains the file system. */

@@ -210,7 +210,6 @@ fsutil_append (char **argv)
       
       if (file_read_size != chunk_size)
       {
-        printf ("file_read_size: %d, chunk_size: %d\n");
         PANIC ("%s: read failed with %"PROTd" bytes unread", file_name, size);
       }
       memset (buffer + chunk_size, 0, BLOCK_SECTOR_SIZE - chunk_size);

@@ -12,7 +12,7 @@ void cache_init (void);
 void cache_destroy (void);
 //void read_aheader_func (void);
 //void flusher_func (void);
-//void cache_write_behind (void);
+void cache_write_behind (void);
 //void q_destroy (void);
 off_t cache_read_at (void*, block_sector_t sector, off_t size,
     off_t offset, block_sector_t next_sector, bool ahead);
