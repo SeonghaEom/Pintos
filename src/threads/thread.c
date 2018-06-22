@@ -216,12 +216,13 @@ thread_create (const char *name, int priority,
   struct semaphore *exit_status_sema = (struct semaphore *) malloc (sizeof (struct semaphore));
   sema_init (exit_status_sema, 0);
   t->exit_status_sema = exit_status_sema;
+
 #ifdef VM
   struct hash *spt = (struct hash *) malloc (sizeof (struct hash));
   t->spt = spt;
   spt_init (spt);
-
 #endif
+
 #ifdef FILESYS
   t->dir_sector = thread_current ()->dir_sector;
   t->dir_removed = thread_current ()->dir_removed;
@@ -312,6 +313,7 @@ thread_sleep (struct thread *t)
     }
   }
 }
+
 /* Returns the name of the running thread. */
 const char *
 thread_name (void) 
@@ -370,6 +372,7 @@ thread_exit (void)
   hash_destroy (thread_current ()->spt, NULL);
   free (thread_current ()->spt);
 #endif
+  
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
@@ -555,12 +558,6 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init (&t->child);
   list_init (&t->open_files);
   t->next_fd = 2;
-
-  //sema_init (&t->exit_sema, 0);
-  //sema_init (&t->exit_status_sema, 0);
-  //sema_init (&t->load_sema, 0);
-  //sema_init (&t->error_sema, 0);
-  
 #endif
 
 #ifdef VM
@@ -656,6 +653,7 @@ wake_less (const struct list_elem *a_, const struct list_elem *b_, void *aux UNU
     }
   }
 }
+
 /* Completes a thread switch by activating the new thread's page
    tables, and, if the previous thread is dying, destroying it.
 
@@ -738,7 +736,7 @@ allocate_tid (void)
 
   return tid;
 }
-
+
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);

@@ -115,7 +115,7 @@ struct thread
     struct semaphore *load_sema;        /* semaphore for child loading */
     struct semaphore *error_sema;       /* semaphore for child load error */
     struct semaphore *exit_status_sema; /* semaphore for safely saving child exit status */
-    char *argv_name;                   /* file name omitting arguments */
+    char *argv_name;                    /* file name omitting arguments */
     char *arr;
     struct file *my_file;
 
@@ -133,7 +133,7 @@ struct thread
     block_sector_t dir_sector;          /* Inode for current dir is saved in here */
     bool dir_removed;                   /* Dir removed */
 #endif
-
+    
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
@@ -146,8 +146,6 @@ struct filedescriptor
     struct list_elem elem;
     struct file *file;
   };
-
-
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
